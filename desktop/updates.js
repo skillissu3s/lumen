@@ -1,5 +1,5 @@
 // Keeping the desktop app up to date. New versions are published to the public
-// skillissu3s/lumen-releases repository (see package.json → build.publish).
+// skillissu3s/lumen repository (see package.json → build.publish).
 //
 // Windows and the Linux AppImage update themselves: the new version downloads
 // in the background and installs when Lumen restarts (or quits). macOS can't
@@ -9,7 +9,7 @@ import { app } from 'electron'
 import pkg from 'electron-updater'
 
 const { autoUpdater } = pkg
-export const DOWNLOAD_PAGE = 'https://github.com/skillissu3s/lumen-releases/releases/latest'
+export const DOWNLOAD_PAGE = 'https://github.com/skillissu3s/lumen/releases/latest'
 const EVERY = 4 * 3600000
 
 export function isNewer(a, b) {

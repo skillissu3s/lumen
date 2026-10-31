@@ -185,3 +185,22 @@ professional". From here on OpenCode only gets non-UI work.
   private repo's Release workflow builds into a draft with its built-in token;
   `scripts/publish-release.mjs vX.Y.Z` copies the files to lumen-releases with
   the changelog section as notes (run with the GitHub CLI already signed in).
+
+### The repository goes public; releases like obi
+- Uploading the release through the owner's PC ran at ~90 KB/s (an hour per
+  release), so the owner made `skillissu3s/lumen` public. The history was
+  scanned first: no tokens, passwords, keys or data files were ever committed
+  (commit emails were already public via obi).
+- Releases now live in `lumen` itself, published by the built-in token — no
+  secrets: a tag creates a draft with the changelog section as notes, the three
+  platform builds upload into it, then it is published as latest. About 5 minutes.
+- `scripts/publish-release.mjs` removed; links and the update feed point at
+  `skillissu3s/lumen/releases`. `lumen-releases` is no longer used.
+- GitHub Pages stays off for now (turning it on publishes a public website; the
+  owner can enable it under Settings → Pages → Source: GitHub Actions).
+
+### Email codes (0.1.3)
+- Server (OpenCode, DeepSeek): `server/mail.js`, `server/codes.js`, routes for
+  admin two-step, passwordless member sign-in, forgot/reset password, invite
+  emails; 8 tests. Screens by hand. Verified the admin two-step in the browser
+  with `MAIL_LOG_CODES` capturing the email.

@@ -1,13 +1,18 @@
 # Changelog
 
-## 0.1.2 — downloads and automatic updates
+## 0.1.3 — downloads, automatic updates and email codes
+
+- **Sign in with an email code** on a self-hosted server — no password needed —
+  and **forgot password** by email. Admins confirm every sign-in with a code.
+  Invites are emailed when you invite someone by email. Set `SMTP_HOST`,
+  `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` and `MAIL_FROM` to turn email on.
 
 - **Lumen updates itself.** On Windows and the Linux AppImage, new versions
   download in the background; a note in the sidebar says when one is ready and
   *Restart* installs it (or it installs the next time you quit). On macOS and
   with the .deb, Lumen tells you a new version is out and links straight to it.
 - **Direct downloads** from the website and from
-  [lumen-releases](https://github.com/skillissu3s/lumen-releases), with file
+  [Releases](https://github.com/skillissu3s/lumen/releases/latest), with file
   names that always point at the newest version (`Lumen-Setup.exe`, `Lumen.dmg`,
   `Lumen.AppImage`, `lumen.deb`).
 - Settings → About shows the update status and has *Check now*.

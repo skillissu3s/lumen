@@ -563,7 +563,7 @@ function Shortcuts() {
   )
 }
 
-const DOWNLOADS = 'https://github.com/skillissu3s/lumen-releases/releases/latest'
+const DOWNLOADS = 'https://github.com/skillissu3s/lumen/releases/latest'
 
 function updateText(u) {
   if (!u || u.status === 'off') return 'Updates are checked in the installed app'

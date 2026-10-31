@@ -1,10 +1,7 @@
-# Builds the installers when a tag vX.Y.Z (matching package.json) is pushed, and
-# keeps them in a DRAFT release of this private repository — using only the
-# built-in token, no secrets.
-#
-# `node scripts/publish-release.mjs vX.Y.Z` then copies them to the public
-# skillissu3s/lumen-releases repository, where people download them and where
-# installed apps look for updates (see package.json → build.publish).
+# Push a tag vX.Y.Z (matching package.json) and this builds the Windows, macOS
+# and Linux installers and publishes them as the latest release — with the
+# version's section of CHANGELOG.md as the notes. Installed apps update from it.
+# Uses only the built-in token.
 name: Release
 
 on:
@@ -19,11 +16,17 @@ jobs:
   draft:
     runs-on: ubuntu-latest
     steps:
-      - name: Make sure the draft release exists
+      - uses: actions/checkout@v4
+      - name: Create the draft release with the changelog notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
-        run: gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create "$TAG" -R "$GITHUB_REPOSITORY" --draft --title "Lumen ${TAG#v}" --notes "Build of $TAG"
+        run: |
+          version="${TAG#v}"
+          awk -v v="$version" '$0 ~ "^## "v" " {f=1; sub(/^## /, ""); title=$0; next} /^## / {f=0} f' CHANGELOG.md > notes.md
+          title=$(grep -m1 "^## $version " CHANGELOG.md | sed 's/^## /Lumen /')
+          [ -s notes.md ] || echo "Lumen $version" > notes.md
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --draft --title "${title:-Lumen $version}" --notes-file notes.md
 
   build:
     needs: draft
@@ -40,14 +43,17 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx vite build
-      # --publish never: build only (latest*.yml for the update feed is still written)
-      - run: npx electron-builder --publish never
-      - name: Attach the installers to the draft
-        shell: bash
+      # uploads into the draft made above (electron-builder finds it by tag)
+      - run: npx electron-builder --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
-        run: |
-          shopt -s nullglob
-          files=(release/*.exe release/*.dmg release/*.AppImage release/*.deb release/*.blockmap release/latest*.yml)
-          gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber "${files[@]}"
+        run: gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --draft=false --latest

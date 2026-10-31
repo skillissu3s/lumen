@@ -55,7 +55,7 @@ Everything lives in the `lumen-data` volume (`/data`).
 
 ### Desktop app
 
-Download the installer from [lumen-releases](https://github.com/skillissu3s/lumen-releases/releases/latest) (it updates itself),
+Download the installer from [Releases](https://github.com/skillissu3s/lumen/releases/latest) — it updates itself —
 or build it yourself:
 
 ```bash
@@ -99,11 +99,12 @@ why, step by step, is in [docs/DEVLOG.md](docs/DEVLOG.md).
 
 ## Releases
 
-1. Bump `version` in `package.json` and add a section to `CHANGELOG.md`.
-2. Commit, then push a tag: `git tag vX.Y.Z && git push origin vX.Y.Z`. The
-   Release workflow builds Windows, macOS and Linux installers into a draft
-   release of this repository (no secrets needed).
-3. `node scripts/publish-release.mjs vX.Y.Z` copies them, with the changelog
-   section as notes, to the public
-   [lumen-releases](https://github.com/skillissu3s/lumen-releases) repository.
-   Download links and the apps' automatic updates read from there.
+1. Bump `version` in `package.json` and add a `## X.Y.Z — …` section to `CHANGELOG.md`.
+2. Commit, then push a tag: `git tag vX.Y.Z && git push origin vX.Y.Z`.
+
+The Release workflow builds Windows, macOS and Linux installers (about 5
+minutes), uses the changelog section as the notes and publishes the release.
+Installed apps pick it up on their next check (at start and every 4 hours).
+Direct links always point at the newest version:
+`https://github.com/skillissu3s/lumen/releases/latest/download/Lumen-Setup.exe`
+(also `Lumen.dmg`, `Lumen.AppImage`, `lumen.deb`).
