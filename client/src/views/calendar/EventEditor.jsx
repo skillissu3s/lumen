@@ -2,7 +2,7 @@
 // ones), event or task, when, repeat, colour, place and notes.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarDays, Clock, MapPin, Repeat, Trash2 } from 'lucide-react'
-import { Button, ColorPicker, DateField, DurationField, Popover, Segmented, Select, Switch, Textarea, TimeField } from '../../components/ui/index.js'
+import { Button, ColorPicker, DateField, Popover, Segmented, Select, Switch, Textarea, TimeField } from '../../components/ui/index.js'
 import { parseQuickAdd } from '../../../../shared/quickadd.js'
 import { joinIcon, splitIcon } from '../../../../shared/items.js'
 import { fromMinutes, formatTime, humanDuration, relativeDay, todayIso, toMinutes } from '../../../../shared/dates.js'
@@ -117,8 +117,8 @@ export function EventEditor({ open, onClose, anchor, value, isNew, calendars, li
         )}
 
         <div className="editor-grid">
-          <span className="editor-label">{f.kind === 'event' ? 'Calendar' : 'List'}</span>
-          <Select value={f.path} onChange={(e) => set({ path: e.target.value })} options={targets.map((t) => ({ value: t.path, label: t.name }))} aria-label={f.kind === 'event' ? 'Calendar' : 'List'} disabled={!isNew && f.series} />
+          <span className="editor-label">{f.kind === 'event' ? 'Calendar' : 'Board'}</span>
+          <Select value={f.path} onChange={(e) => set({ path: e.target.value })} options={targets.map((t) => ({ value: t.path, label: t.name }))} aria-label={f.kind === 'event' ? 'Calendar' : 'Board'} disabled={!isNew && f.series} />
 
           <span className="editor-label">Date</span>
           <div className="editor-inline">
@@ -141,7 +141,7 @@ export function EventEditor({ open, onClose, anchor, value, isNew, calendars, li
                     set({ duration: d > 0 ? d : d + 1440 })
                   }}
                 />
-                <DurationField value={v.duration || defaultDuration} onChange={(d) => d && set({ duration: d })} />
+                <span className="faint tabular editor-duration">{humanDuration(v.duration || defaultDuration)}</span>
               </div>
             </>
           )}

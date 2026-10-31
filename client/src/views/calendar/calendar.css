@@ -349,7 +349,7 @@
   border-radius: 6px;
   background: var(--c-bg);
   color: var(--c-fg);
-  box-shadow: inset 3px 0 0 var(--c), 0 0 0 1px var(--bg);
+  box-shadow: inset 3px 0 0 var(--c), 0 0 0 1px var(--surface);
   cursor: pointer;
   user-select: none;
   transition: box-shadow var(--dur) var(--ease), opacity var(--dur) var(--ease);
@@ -389,8 +389,10 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.block-icon {
-  flex: none;
+.block-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .block-time {
   display: flex;
@@ -403,9 +405,7 @@
   overflow: hidden;
 }
 .block-check {
-  position: absolute;
-  top: 5px;
-  right: 5px;
+  flex: none;
   display: grid;
   place-items: center;
   width: 13px;
@@ -413,10 +413,7 @@
   border-radius: 50%;
   box-shadow: inset 0 0 0 1.5px var(--c);
   color: var(--c-bg);
-}
-.block.is-compact .block-check {
-  top: 50%;
-  transform: translateY(-50%);
+  cursor: pointer;
 }
 .block-check:hover {
   background: color-mix(in srgb, var(--c) 25%, transparent);
@@ -719,6 +716,7 @@
   color: var(--text-faint);
 }
 .month-cell {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -791,6 +789,15 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* in a narrow day the title matters more than the time */
+@container (max-width: 120px) {
+  .mchip-time {
+    display: none;
+  }
+  .mchip {
+    padding: 0 4px;
+  }
 }
 .mchip.is-done {
   opacity: 0.5;

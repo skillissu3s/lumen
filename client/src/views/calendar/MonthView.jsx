@@ -1,10 +1,10 @@
 // Month and agenda views.
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { Popover } from '../../components/ui/index.js'
 import { dayName, dayOfMonth, formatTime, isoWeek, monthName, relativeDay, todayIso } from '../../../../shared/dates.js'
 import { onDay } from '../../../../shared/calendar.js'
 import { isOpen } from '../../../../shared/items.js'
-import { colorOf } from './calendarMath.js'
+import { colorOf, titleOf } from './calendarMath.js'
 import { blockLabel } from './TimeGrid.jsx'
 
 function Chip({ o, colorBy, h12, onOpen, draggable }) {
@@ -28,7 +28,7 @@ function Chip({ o, colorBy, h12, onOpen, draggable }) {
     >
       {!o.allDay && <span className="mchip-dot" />}
       {!o.allDay && <span className="mchip-time tabular">{formatTime(o.time, h12)}</span>}
-      <span className="mchip-title">{o.item.label || o.item.title}</span>
+      <span className="mchip-title">{titleOf(o.item)}</span>
     </button>
   )
 }
@@ -40,7 +40,19 @@ export function MonthView({ days, focus, occs, settings, h12, onCreate, onOpen, 
   const [over, setOver] = useState(null)
   const weeks = []
   for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7))
-  const max = 4
+  // as many chips as fit in a row's height, keeping a line for "n more"
+  const bodyRef = useRef(null)
+  const [rowHeight, setRowHeight] = useState(120)
+  useLayoutEffect(() => {
+    const el = bodyRef.current
+    if (!el) return
+    const measure = () => setRowHeight(el.firstElementChild?.clientHeight || 120)
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [weeks.length])
+  const fit = Math.max(1, Math.floor((rowHeight - 34) / 24))
   return (
     <div className="month" style={{ '--weeks': weeks.length }}>
       <div className="month-head">
@@ -51,12 +63,13 @@ export function MonthView({ days, focus, occs, settings, h12, onCreate, onOpen, 
           </span>
         ))}
       </div>
-      <div className="month-body" role="grid" aria-label={`${monthName(focus)} ${focus.slice(0, 4)}`}>
+      <div ref={bodyRef} className="month-body" role="grid" aria-label={`${monthName(focus)} ${focus.slice(0, 4)}`}>
         {weeks.map((week) => (
           <div key={week[0]} className="month-week" role="row">
             {settings.showWeekNumbers && <span className="month-wk">{isoWeek(week[0])}</span>}
             {week.map((d) => {
               const list = onDay(occs, d)
+              const max = list.length <= fit ? fit : fit - 1
               return (
                 <div
                   key={d}
@@ -132,7 +145,7 @@ export function AgendaView({ days, occs, settings, h12, onOpen, onToggle }) {
                     <button type="button" className={`tl-mini-check${done ? ' is-on' : ''}`} aria-label={done ? 'Mark as open' : 'Complete'} onClick={() => onToggle(o)} />
                   ) : null}
                   <button type="button" className="agenda-title" onClick={(e) => onOpen(o, e.currentTarget)} aria-label={blockLabel(o, h12)}>
-                                  {o.item.label || o.item.title}
+                                  {titleOf(o.item)}
                     {o.item.source?.name && <span className="faint"> · {o.item.source.name}</span>}
                   </button>
                 </li>

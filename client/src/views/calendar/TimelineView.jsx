@@ -5,7 +5,7 @@ import { iconByName } from '../../shell/icons.js'
 import { formatTime, fromMinutes, humanDuration, nowMinutes, todayIso, toMinutes, dayName, dayOfMonth, monthName } from '../../../../shared/dates.js'
 import { freeGaps, layoutDay } from '../../../../shared/calendar.js'
 import { isOpen } from '../../../../shared/items.js'
-import { colorOf } from './calendarMath.js'
+import { colorOf, titleOf } from './calendarMath.js'
 import { blockLabel } from './TimeGrid.jsx'
 
 function Pill({ o, color, onToggle, height }) {
@@ -72,7 +72,7 @@ export function TimelineView({ date, occs, settings, h12, onCreate, onOpen, onTo
                     <span className="tl-mini-dot" />
                   )}
                   <button type="button" className="tl-untimed-title" onClick={(e) => onOpen(o, e.currentTarget)} aria-label={blockLabel(o, h12)}>
-                    {o.item.label || o.item.title}
+                    {titleOf(o.item)}
                   </button>
                 </div>
               )
@@ -115,7 +115,7 @@ export function TimelineView({ date, occs, settings, h12, onCreate, onOpen, onTo
                   <Pill o={o} color={color} onToggle={onToggle} height={pillHeight(o.duration)} />
                 </span>
                 <button type="button" className="tl-body" aria-label={blockLabel(o, h12)} onClick={(e) => onOpen(o, e.currentTarget)}>
-                  <span className={`tl-title${o.item.kind === 'task' && !isOpen(o.item.status) ? ' is-done' : ''}`}>{o.item.label || o.item.title}</span>
+                  <span className={`tl-title${o.item.kind === 'task' && !isOpen(o.item.status) ? ' is-done' : ''}`}>{titleOf(o.item)}</span>
                   <span className="tl-meta">
                     {humanDuration(o.duration)}
                     {o.item.source?.name ? ` · ${o.item.source.name}` : ''}

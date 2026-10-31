@@ -13,7 +13,7 @@ import { expand } from '../../../../shared/calendar.js'
 import { isOpen, itemDay, undoPatch } from '../../../../shared/items.js'
 import { useShortcut } from '../../shell/shortcuts.js'
 import { ListEditor } from '../../shell/ListEditor.jsx'
-import { VIEWS, dateKeyOf, movePatch, periodTitle, stepDate, viewDays } from './calendarMath.js'
+import { VIEWS, dateKeyOf, movePatch, periodTitle, stepDate, titleOf, viewDays } from './calendarMath.js'
 import { TimeGrid } from './TimeGrid.jsx'
 import { TimelineView } from './TimelineView.jsx'
 import { AgendaView, MonthView } from './MonthView.jsx'
@@ -60,7 +60,7 @@ export function Customize({ c, prefs, calendars, title = true }) {
         <span>New items last</span>
         <Select value={String(c.defaultDuration)} onChange={(e) => set({ defaultDuration: +e.target.value })} options={[15, 30, 45, 60, 90, 120].map((m) => ({ value: String(m), label: m < 60 ? `${m} min` : `${m / 60} h` }))} />
         <span>Colour by</span>
-        <Select value={c.colorBy} onChange={(e) => set({ colorBy: e.target.value })} options={[{ value: 'calendar', label: 'Calendar or list' }, { value: 'item', label: 'Item colour first' }, { value: 'priority', label: 'Priority' }]} />
+        <Select value={c.colorBy} onChange={(e) => set({ colorBy: e.target.value })} options={[{ value: 'calendar', label: 'Calendar or board' }, { value: 'item', label: 'Item colour first' }, { value: 'priority', label: 'Priority' }]} />
         <span>New events go to</span>
         <Select value={c.defaultCalendar || ''} onChange={(e) => set({ defaultCalendar: e.target.value || null })} options={[{ value: '', label: 'Default calendar' }, ...calendars.map((x) => ({ value: x.path, label: x.name }))]} />
       </div>
@@ -87,7 +87,15 @@ export default function CalendarView({ route }) {
   const date = /^\d{4}-\d{2}-\d{2}$/.test(route.query.date || '') ? route.query.date : today
   const [q, setQ] = useState('')
   const [searching, setSearching] = useState(false)
-  const [side, setSide] = useState(() => localStorage.getItem('lumen.cal.side') !== '0')
+  // the side panel starts closed on narrow screens unless it was opened before
+  const [side, setSide] = useState(() => {
+    try {
+      const saved = localStorage.getItem('lumen.cal.side')
+      return saved ? saved === '1' : window.innerWidth >= 1200
+    } catch {
+      return window.innerWidth >= 1200
+    }
+  })
   const [editor, setEditor] = useState(null) // { anchor, value, isNew, occ }
   const [scope, setScope] = useState(null) // { title, actions: { this, following, all } }
   const [calEdit, setCalEdit] = useState(null) // { anchor, cal? }
@@ -101,13 +109,14 @@ export default function CalendarView({ route }) {
   const toast = useUI((s) => s.toast)
 
   const go = useCallback((patch) => navigate(`/calendar?view=${patch.view || view}&date=${patch.date || date}`, { replace: true }), [view, date])
-  useEffect(() => {
+  const toggleSide = () => {
+    setSide(!side)
     try {
-      localStorage.setItem('lumen.cal.side', side ? '1' : '0')
+      localStorage.setItem('lumen.cal.side', side ? '0' : '1')
     } catch {
       /* fine */
     }
-  }, [side])
+  }
 
   const days = useMemo(() => viewDays(view, date, { weekStart: prefs.weekStart, showWeekends: c.showWeekends }), [view, date, prefs.weekStart, c.showWeekends])
   const hidden = useMemo(() => new Set(c.hidden || []), [c.hidden])
@@ -311,7 +320,7 @@ export default function CalendarView({ route }) {
   return (
     <div className={`view cal${side ? ' has-side' : ''}`}>
       <header className="view-header has-border cal-header">
-        <IconButton icon={PanelLeft} label={side ? 'Hide side panel' : 'Show side panel'} active={side} onClick={() => setSide(!side)} />
+        <IconButton icon={PanelLeft} label={side ? 'Hide side panel' : 'Show side panel'} active={side} onClick={toggleSide} />
         <h1 className="view-title cal-title">{periodTitle(view, view === 'timeline' ? [date] : days)}</h1>
         <div className="cal-nav">
           <IconButton icon={ChevronLeft} label="Previous" onClick={() => go({ date: stepDate(view, date, -1) })} />
@@ -363,7 +372,7 @@ export default function CalendarView({ route }) {
             {c.showTasks && (
               <section className="cal-side-section">
                 <div className="cal-side-head">
-                  <span>Task lists</span>
+                  <span>Boards</span>
                 </div>
                 {lists.map((l) => (
                   <div key={l.path} className="cal-src">
@@ -390,7 +399,7 @@ export default function CalendarView({ route }) {
                 >
                   <ColorDot color={i.source.color || 'gray'} size={6} />
                   <span className="cal-inbox-title">
-                    {i.label || i.title}
+                    {titleOf(i)}
                   </span>
                   {itemDay(i) && <span className="cal-inbox-late">{relativeDay(itemDay(i))}</span>}
                 </div>

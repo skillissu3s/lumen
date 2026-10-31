@@ -6,13 +6,22 @@ import { Check, Repeat } from 'lucide-react'
 import { addDays, dayName, dayOfMonth, formatTime, fromMinutes, isoWeek, nowMinutes, todayIso, toMinutes, humanDuration } from '../../../../shared/dates.js'
 import { layoutDay } from '../../../../shared/calendar.js'
 import { isOpen } from '../../../../shared/items.js'
-import { colorOf, dragRange, minutesToY, xToColumn, yToMinutes } from './calendarMath.js'
+import { colorOf, dragRange, minutesToY, xToColumn, titleOf, yToMinutes } from './calendarMath.js'
 
 const HOURS = (from, to) => Array.from({ length: to - from }, (_, i) => from + i)
 
+// side by side while each block still has room for a few words; in a narrow
+// column, overlapping blocks stack like cards instead, each a little to the right
+function placeBlock(o, colWidth) {
+  if (o.cols === 1) return { left: 2, right: 2 }
+  if (colWidth / o.cols >= 72) return { left: `calc(${(o.col / o.cols) * 100}% + 2px)`, width: `calc(${100 / o.cols}% - 4px)` }
+  const step = Math.min(14, (colWidth - 48) / (o.cols - 1))
+  return { left: 2 + o.col * step, right: 2, zIndex: 2 + o.col }
+}
+
 export function blockLabel(o, h12) {
   const t = o.allDay ? 'all day' : `${formatTime(o.time, h12)} to ${formatTime(fromMinutes(toMinutes(o.time) + (o.duration || 0)), h12)}`
-  return `${o.item.label || o.item.title}, ${t}, ${dayName(o.date)} ${dayOfMonth(o.date)}${o.item.recurrence ? ', repeats' : ''}${o.item.kind === 'task' ? (isOpen(o.item.status) ? ', task' : ', done') : ''}`
+  return `${titleOf(o.item)}, ${t}, ${dayName(o.date)} ${dayOfMonth(o.date)}${o.item.recurrence ? ', repeats' : ''}${o.item.kind === 'task' ? (isOpen(o.item.status) ? ', task' : ', done') : ''}`
 }
 
 function Block({ o, style, color, h12, compact, onPointerDown, onOpen, onKey, onToggle, dragging }) {
@@ -30,22 +39,22 @@ function Block({ o, style, color, h12, compact, onPointerDown, onOpen, onKey, on
       onClick={(e) => e.detail === 0 && onOpen(o, e.currentTarget)}
     >
       <div className="block-inner">
-        {o.item.kind === 'task' && !o.ghost && (
-          <button
-            type="button"
-            className="block-check"
-            aria-label={done ? 'Mark as open' : 'Complete'}
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation()
-              onToggle(o)
-            }}
-          >
-            {done && <Check size={9} strokeWidth={3} />}
-          </button>
-        )}
         <span className="block-title">
-          {o.item.label || o.item.title}
+          {o.item.kind === 'task' && !o.ghost && (
+            <button
+              type="button"
+              className="block-check"
+              aria-label={done ? 'Mark as open' : 'Complete'}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation()
+                onToggle(o)
+              }}
+            >
+              {done && <Check size={9} strokeWidth={3} />}
+            </button>
+          )}
+          <span className="block-label">{titleOf(o.item)}</span>
         </span>
         {!compact && (
           <span className="block-time">
@@ -65,9 +74,21 @@ function Block({ o, style, color, h12, compact, onPointerDown, onOpen, onKey, on
  * onCreate({ date, time, duration, allDay }, anchor) · onOpen(occ, anchor) · onMove(occ, { date, time, duration }) · onToggle(occ) · onDropItem({path,id}, date, time)
  */
 export function TimeGrid({ days, occs, settings, h12, onCreate, onOpen, onMove, onToggle, onDropItem, announce }) {
-  const { dayStart, dayEnd, hourHeight, snap, colorBy, workStart, workEnd, highlightWork, showWeekNumbers } = settings
+  const { dayStart, dayEnd, snap, colorBy, workStart, workEnd, highlightWork, showWeekNumbers } = settings
   const scrollRef = useRef(null)
   const colsRef = useRef(null)
+  // the hours stretch to fill the window when the chosen height would leave space below
+  const [box, setBox] = useState({ height: 0, colWidth: 200 })
+  useLayoutEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const measure = () => setBox({ height: el.clientHeight - 24, colWidth: (colsRef.current?.clientWidth || el.clientWidth) / days.length })
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [days.length])
+  const hourHeight = Math.max(settings.hourHeight, Math.floor(box.height / (dayEnd - dayStart)) || 0)
   const [drag, setDrag] = useState(null) // { type, occ?, day, start, end, startY, moved }
   const [now, setNow] = useState(nowMinutes())
   const [cursor, setCursor] = useState(null) // keyboard slot { day, min }
@@ -255,7 +276,7 @@ export function TimeGrid({ days, occs, settings, h12, onCreate, onOpen, onMove, 
                     aria-label={blockLabel(o, h12)}
                     onClick={(e) => onOpen(o, e.currentTarget)}
                   >
-                    <span className="allday-title">{o.item.label || o.item.title}</span>
+                    <span className="allday-title">{titleOf(o.item)}</span>
                   </button>
                 )
               }),
@@ -303,7 +324,7 @@ export function TimeGrid({ days, occs, settings, h12, onCreate, onOpen, onMove, 
                       color={colorOf(o.item, colorBy)}
                       compact={h < 38}
                       dragging={hidden}
-                      style={{ top, height: Math.max(h - 2, 16), left: `calc(${(o.col / o.cols) * 100}% + 2px)`, width: `calc(${100 / o.cols}% - 4px)` }}
+                      style={{ top, height: Math.max(h - 2, 16), ...placeBlock(o, box.colWidth) }}
                       onPointerDown={onBlockPointerDown(o)}
                       onOpen={onOpen}
                       onKey={onBlockKey(o)}
@@ -315,7 +336,7 @@ export function TimeGrid({ days, occs, settings, h12, onCreate, onOpen, onMove, 
                 {preview && preview.day === d && (
                   <div className="block is-preview" style={{ top: minutesToY(preview.start, geo), height: ((preview.end - preview.start) / 60) * hourHeight - 2, left: 2, right: 2, '--c': `var(--c-${preview.occ ? colorOf(preview.occ.item, colorBy) : 'gray'})`, '--c-bg': `var(--c-${preview.occ ? colorOf(preview.occ.item, colorBy) : 'gray'}-bg)`, '--c-fg': `var(--c-${preview.occ ? colorOf(preview.occ.item, colorBy) : 'gray'}-fg)` }} aria-hidden="true">
                     <div className="block-inner">
-                      <span className="block-title">{preview.occ ? preview.occ.item.label || preview.occ.item.title : 'New'}</span>
+                      <span className="block-title">{preview.occ ? titleOf(preview.occ.item) : 'New'}</span>
                       <span className="block-time">
                         {formatTime(fromMinutes(preview.start), h12)} – {formatTime(fromMinutes(preview.end), h12)}
                       </span>

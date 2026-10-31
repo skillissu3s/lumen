@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { viewDays, stepDate, periodTitle, yToMinutes, minutesToY, xToColumn, dragRange, colorOf, movePatch } from './calendarMath.js'
+import { viewDays, stepDate, periodTitle, yToMinutes, minutesToY, xToColumn, dragRange, colorOf, movePatch, titleOf } from './calendarMath.js'
 
 test('view ranges', () => {
   assert.deepEqual(viewDays('week', '2026-11-04', { weekStart: 1 }), ['2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-07', '2026-11-08'])
@@ -38,4 +38,10 @@ test('colours and moves', () => {
   assert.deepEqual(movePatch({ kind: 'event', date: '2026-11-02', endDate: '2026-11-03' }, '2026-11-02', '2026-11-05'), { date: '2026-11-05', endDate: '2026-11-06' })
   // a repeating series moved from one of its later occurrences shifts its start by the same amount
   assert.deepEqual(movePatch({ kind: 'event', date: '2026-11-02' }, '2026-11-09', '2026-11-10', '08:00'), { date: '2026-11-03', time: '08:00' })
+})
+
+test('titleOf drops tags but never leaves a title empty', () => {
+  assert.equal(titleOf({ title: 'Write the report #work today' }), 'Write the report today')
+  assert.equal(titleOf({ title: '#idea' }), '#idea')
+  assert.equal(titleOf({ label: 'Run', title: '🏃 Run' }), 'Run')
 })

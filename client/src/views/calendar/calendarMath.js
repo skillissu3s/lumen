@@ -99,3 +99,9 @@ export function movePatch(item, fromDay, toDay, time) {
   if (time !== undefined) patch.time = time
   return patch
 }
+
+/** An item's title for a calendar block: its words, without #tags */
+export function titleOf(item) {
+  const full = item.label || item.title || ''
+  return full.replace(/(^|\s)#[\p{L}\p{N}_\-/]+/gu, '$1').replace(/\s+/g, ' ').trim() || full
+}
