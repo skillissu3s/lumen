@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.5 — a forest worth growing
 
 - **Focus Forest 1.1**, redrawn: your tree grows on a hill in a small landscape
   whose sky follows the time of day (dawn, day, dusk, a starry night), with
