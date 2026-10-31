@@ -28,12 +28,12 @@ function download(name, text, type = 'text/calendar') {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000)
 }
 
-function Customize({ c, prefs, calendars }) {
+export function Customize({ c, prefs, calendars, title = true }) {
   const set = (patch) => setPrefs({ calendar: patch })
   const hours = Array.from({ length: 25 }, (_, h) => ({ value: String(h), label: formatTime(`${String(h % 24).padStart(2, '0')}:00`, prefs.timeFormat === '12h').replace(/^12 AM$/, h === 24 ? 'Midnight' : '12 AM') }))
   return (
     <div className="customize">
-      <h3>Customize</h3>
+      {title && <h3>Customize</h3>}
       <div className="cz-grid">
         <span>Default view</span>
         <Select value={c.view} onChange={(e) => set({ view: e.target.value })} options={VIEWS.map((v) => ({ value: v.id, label: v.label }))} />

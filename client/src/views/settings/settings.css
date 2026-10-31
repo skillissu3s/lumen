@@ -1,0 +1,227 @@
+/* Settings: a vertical tab list and a readable column. */
+
+.settings {
+  flex-direction: row;
+}
+.set-nav {
+  flex: none;
+  width: 220px;
+  padding: 0 10px;
+  border-right: 1px solid var(--border);
+}
+.set-nav-head {
+  height: 52px;
+  padding-left: 8px;
+}
+.set-nav [role='tablist'] {
+  display: grid;
+  gap: 1px;
+}
+.set-nav .nav-item {
+  width: 100%;
+  text-align: left;
+}
+.set-nav-select {
+  display: none;
+}
+.set-main {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+}
+.set-column {
+  max-width: 720px;
+  padding: 24px 32px 96px;
+}
+.set-section + .set-section {
+  margin-top: 36px;
+}
+.set-section-head {
+  margin-bottom: 14px;
+}
+.set-section-head h2 {
+  font-size: var(--fs-md);
+}
+.set-section-head p {
+  margin-top: 4px;
+  max-width: 560px;
+}
+.set-section-body {
+  border-top: 1px solid var(--border);
+}
+.set-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 220px) minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  min-height: 52px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.set-row-label {
+  display: grid;
+  gap: 2px;
+}
+.set-hint {
+  font-size: var(--fs-sm);
+  color: var(--text-faint);
+}
+.set-row-control {
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
+}
+.set-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+}
+.set-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.set-path {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.set-form {
+  display: grid;
+  gap: 14px;
+  max-width: 460px;
+  padding-top: 16px;
+}
+.set-grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.set-section-body > .customize {
+  padding-top: 14px;
+}
+.set-section-body .cz-grid {
+  grid-template-columns: 200px minmax(0, 280px);
+}
+.accents {
+  display: flex;
+  gap: 8px;
+}
+.accent-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--sw);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+.accent-swatch[aria-checked='true'] {
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--sw);
+}
+.invite-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px auto;
+  gap: 8px;
+  padding-top: 16px;
+}
+.invite-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 8px 8px 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.invite-link code {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: none;
+  font-size: var(--fs-sm);
+}
+.set-table {
+  display: grid;
+  margin-top: 12px;
+}
+.set-section-body > .set-table:first-child {
+  margin-top: 0;
+}
+.set-table-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  border-bottom: 1px solid var(--border);
+}
+.set-table-row > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+.member-who {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.member-who > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.member-name {
+  font-weight: 500;
+}
+.member.is-disabled {
+  opacity: 0.55;
+}
+.sync-line {
+  margin-top: 12px;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+.sync-line.is-error {
+  color: var(--danger);
+}
+
+@media (max-width: 860px) {
+  .set-nav [role='tablist'] {
+    display: none;
+  }
+  .set-nav-select {
+    display: block;
+    width: 100%;
+    height: 32px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: var(--radius);
+    background: var(--bg-muted);
+  }
+  .settings {
+    flex-direction: column;
+  }
+  .set-nav {
+    width: auto;
+    padding: 0 12px 8px 52px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .set-column {
+    padding: 16px 16px 96px;
+  }
+  .set-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .set-row-control {
+    justify-content: flex-start;
+  }
+  .invite-form {
+    grid-template-columns: 1fr;
+  }
+}
