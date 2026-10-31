@@ -94,7 +94,7 @@ export default function PluginSettings() {
       <section className="set-section">
         <div className="set-section-head">
           <h2>Installed</h2>
-          <p className="muted">Plugins run in a sandbox and can only do what you allowed when installing them. Switching one off affects only you.</p>
+          <p className="muted">Switching one off affects only you.</p>
         </div>
         <div className="set-section-body">
           {!installed.length && <p className="set-empty muted">No plugins yet — add one from the catalog below.</p>}

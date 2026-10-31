@@ -1,12 +1,18 @@
 # Lumen
 
-A calm, personal productivity app — **tasks, a time-blocking calendar, docs and
-chat** — whose data is plain text in your own GitHub repository. Extend it with
-plugins (a Forest-style focus timer and a computer-usage monitor ship with it).
+A calm, personal productivity app — **Kanban boards, a calendar, idea boards,
+docs and chat** — whose data is plain text in your own GitHub repository. Extend
+it with plugins (a Forest-style focus timer and a computer-usage monitor ship
+with it).
 
-- **Tasks** — Today, Inbox, Upcoming and your lists. Type in plain words:
-  `Call Sam tomorrow 3pm for 30m !high every mon`. Sections, subtasks, notes,
-  repeats, a board view, drag and drop, full keyboard control.
+- **Boards** — columns of cards you move along as work progresses, in the
+  Obsidian Kanban format. Cards have labels, checklists, covers, due dates,
+  repeats and priorities, and open in a card view. *All tasks* gathers every
+  card into one board grouped by status, date, priority or board, with a
+  schedule rail to drop cards on a day. Type in plain words:
+  `Call Sam tomorrow 3pm for 30m !high every mon`.
+- **Idea boards** — an open canvas of notes, groups and arrows (JSON Canvas);
+  turn any idea into a card when it is ready.
 - **Calendar** — a Structured-style **timeline** of your day plus day, 3-day,
   week, month and agenda views. Drag to create, move and resize; drag tasks from
   "To schedule" onto the day; repeating events ask *this / following / all*.
@@ -17,8 +23,8 @@ plugins (a Forest-style focus timer and a computer-usage monitor ship with it).
 - **Chat** — channels and direct messages with the people you invite (server mode).
 - **Plugins** — sandboxed, permissioned, installed from inside the app and
   stored as files in your workspace. See [docs/PLUGINS.md](docs/PLUGINS.md).
-- **Your data is text** — `lists/*.md`, `calendars/*.md`, `docs/**/*.md`, JSON
-  lines for chat. Obsidian-Tasks compatible. See [docs/STORAGE.md](docs/STORAGE.md).
+- **Your data is text** — `lists/*.md`, `calendars/*.md`, `ideas/*.canvas`,
+  `docs/**/*.md`, JSON lines for chat. Obsidian-Tasks compatible. See [docs/STORAGE.md](docs/STORAGE.md).
 
 ## Three ways to run it
 

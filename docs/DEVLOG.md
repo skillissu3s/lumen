@@ -204,3 +204,36 @@ professional". From here on OpenCode only gets non-UI work.
   admin two-step, passwordless member sign-in, forgot/reset password, invite
   emails; 8 tests. Screens by hand. Verified the admin two-step in the browser
   with `MAIL_LOG_CODES` capturing the email.
+
+### 0.2.0 — boards, idea boards, colour and icons (all by Claude, no OpenCode)
+The owner's feedback: the UX had problems (settings, calendar), there was no
+colour, everything felt like a to-do list, and Lumen should handle work the way
+obi does, as Kanban boards; also an idea board page, and no emoji anywhere.
+- `shared/board.js` (+ tests): boards over list files in the Obsidian Kanban
+  format: columns from `##` headings, Lumen's look in the plugin's settings
+  block under `lumen` (column colours, label colours, covers, done column).
+  `columnize` turns a plain list into To do / Doing / Done; new columns go in
+  before the settings block.
+- `shared/canvas.js` (+ tests): JSON Canvas read/write, one node per line,
+  geometry helpers (anchors, facing sides, bezier edges, bounds).
+- Client: `views/boards/` (BoardPage, Card, CardDialog), `views/tasks/AllTasks`,
+  `views/ideas/` (gallery and canvas editor: pan, zoom, groups, arrows, colours,
+  keyboard), `lib/boardActions.js`, `IconPicker`/`IconBadge`, an icon registry
+  (`shell/icons.js`). `/list/<id>` routes redirect to `/board/<id>`.
+- Storage: `.canvas` is a text type on the server and in GitHub mode; idea
+  boards are shared kinds with `lumen.owner`/`lumen.share` for access control.
+- Emoji removed from the UI: the emoji picker, calendar item icons, the command
+  palette, the seed, the Focus plugin's status and the landing page. Emoji typed
+  into titles are still the user's content; leading ones are not shown on the
+  calendar.
+- Calendar fixes found by testing at ~1060px: dark mode squashed the
+  working-hours band to 30px (a stray `!important`); the grid left empty space
+  below 23:00; overlapping events became 10px slivers (now stacked with an
+  offset when columns are narrow); task checkboxes covered titles; month cells
+  capped at 4 items regardless of height.
+- Settings: icon nav, page header with a tinted icon, cards of rows, profile
+  header; texts updated for boards.
+- Landing page rewritten around boards with a board mock instead of the emoji
+  timeline.
+- Dev note: editing a file the workspace store imports (e.g. `shared/seed.js`)
+  hot-reloads the store and leaves the app on its boot screen; reload the page.

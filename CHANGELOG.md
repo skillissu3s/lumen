@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.2.0 — boards, idea boards and a calmer look
+
+- **Boards at the centre.** Every list is now a Kanban board: columns of cards
+  you drag along, in the Obsidian Kanban format. Columns can be renamed,
+  coloured, reordered and marked as the *done* column (moving a card in
+  completes it). Old plain lists offer *Set up columns* (To do, Doing, Done).
+- **Card view.** Open a card for its description, checklist, labels with
+  colours, cover, due date and time, repeat, priority, and to move it to
+  another board or column.
+- **All tasks** — every card in one board, grouped by status, date, priority or
+  board, with filters and a schedule rail to drop cards on a day.
+- **Idea boards** — a canvas for notes, groups and arrows, saved as JSON Canvas
+  (`ideas/*.canvas`). Colour cards, connect them, and make any idea a task.
+- **Icons instead of emoji** — boards, calendars and idea boards pick an icon
+  and colour; emoji are gone from the interface.
+- **Calendar** — the grid fills the window; overlapping events stay readable;
+  task checkboxes no longer cover titles; month days show as much as fits; tags
+  are left out of event titles; the side panel starts closed on small screens.
+- **Settings** redesigned: icons, a heading per page, and settings grouped in cards.
+- A new workspace starts with a real board instead of a single task.
+
 ## 0.1.3 — downloads, automatic updates and email codes
 
 - **Sign in with an email code** on a self-hosted server — no password needed —

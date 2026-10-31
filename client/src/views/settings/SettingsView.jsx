@@ -1,6 +1,6 @@
 // Settings: one page per topic, saved as you change them.
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { Copy, ExternalLink, FolderOpen, RefreshCw, Trash2 } from 'lucide-react'
+import { CalendarDays, Copy, Database, ExternalLink, FolderOpen, GitBranch, Info, Kanban, Keyboard, Palette, Puzzle, RefreshCw, Trash2, UserRound, Users } from 'lucide-react'
 import { Avatar, Button, Dialog, Field, Input, Kbd, Segmented, Select, Spinner, Switch } from '../../components/ui/index.js'
 import { useSession } from '../../store/session.js'
 import { useWorkspace } from '../../store/workspace.js'
@@ -23,10 +23,12 @@ const ACCENT_HEX = { indigo: '#5b5bd6', blue: '#0b6bcb', teal: '#0d7f72', green:
 function Section({ title, description, children }) {
   return (
     <section className="set-section">
-      <div className="set-section-head">
-        <h2>{title}</h2>
-        {description && <p className="muted">{description}</p>}
-      </div>
+      {(title || description) && (
+        <div className="set-section-head">
+          {title && <h2>{title}</h2>}
+          {description && <p className="muted">{description}</p>}
+        </div>
+      )}
       <div className="set-section-body">{children}</div>
     </section>
   )
@@ -105,6 +107,15 @@ function Account() {
   return (
     <>
       <Section title="Profile">
+        <div className="set-profile">
+          <Avatar name={user?.name} size={40} />
+          <div>
+            <div className="set-profile-name">{user?.name}</div>
+            <div className="faint">
+              {user?.email} · {user?.role === 'admin' ? 'Admin' : 'Member'}
+            </div>
+          </div>
+        </div>
         <Row label="Name">
           <div className="set-inline">
             <Input value={name} onChange={(e) => setName(e.target.value)} aria-label="Name" />
@@ -166,7 +177,7 @@ function Account() {
 function Appearance() {
   const prefs = usePrefs()
   return (
-    <Section title="Appearance" description="How Lumen looks on this account, on every device.">
+    <Section>
       <Row label="Theme">
         <Segmented label="Theme" value={prefs.theme} onChange={(v) => setPrefs({ theme: v })} options={[{ value: 'system', label: 'System' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]} />
       </Row>
@@ -194,7 +205,7 @@ function CalendarTab() {
   const prefs = usePrefs()
   const calendars = useCalendars()
   return (
-    <Section title="Calendar" description="The same options as the calendar’s Customize panel.">
+    <Section>
       <Customize c={prefs.calendar} prefs={prefs} calendars={calendars} title={false} />
     </Section>
   )
@@ -204,15 +215,15 @@ function TasksTab() {
   const prefs = usePrefs()
   const lists = useLists()
   return (
-    <Section title="Tasks">
-      <Row label="New tasks go to" hint="From Today, Upcoming and the Q shortcut.">
+    <Section>
+      <Row label="New tasks go to" hint="From Today, All tasks and the Q shortcut.">
         <Select value={prefs.tasks.defaultList || ''} onChange={(e) => setPrefs({ tasks: { defaultList: e.target.value || null } })} options={[{ value: '', label: 'Inbox' }, ...lists.map((l) => ({ value: l.path, label: l.name }))]} />
       </Row>
-      <Row label="Show completed tasks">
+      <Row label="Show finished tasks" hint="In Today and in list layouts.">
         <Switch checked={prefs.tasks.showCompleted} onChange={(v) => setPrefs({ tasks: { showCompleted: v } })} label="" />
       </Row>
-      <Row label="New lists open as">
-        <Segmented label="Default view" value={prefs.tasks.view} onChange={(v) => setPrefs({ tasks: { view: v } })} options={[{ value: 'list', label: 'List' }, { value: 'board', label: 'Board' }]} />
+      <Row label="Boards open as" hint="Each board can still switch on its own.">
+        <Segmented label="Default layout" value={prefs.tasks.view} onChange={(v) => setPrefs({ tasks: { view: v } })} options={[{ value: 'board', label: 'Board' }, { value: 'list', label: 'List' }]} />
       </Row>
     </Section>
   )
@@ -245,7 +256,7 @@ function Members() {
   }
   return (
     <>
-      <Section title="Invite someone" description="Only admins can add people. The link works once and expires in 7 days.">
+      <Section title="Invite someone" description="The link works once and expires in 7 days. Add an email to send it for you.">
         <form
           className="invite-form"
           onSubmit={async (e) => {
@@ -519,7 +530,7 @@ function Workspace() {
     }
   }
   return (
-    <Section title="Workspace">
+    <Section>
       <Row label="Name">
         <div className="set-inline">
           <Input value={name} onChange={(e) => setName(e.target.value)} disabled={!canEdit} aria-label="Workspace name" />
@@ -545,7 +556,7 @@ function Workspace() {
 function Shortcuts() {
   const groups = shortcutList()
   return (
-    <Section title="Keyboard shortcuts" description="Press ? anywhere to see these.">
+    <Section>
       <div className="shortcuts">
         {groups.map((g) => (
           <section key={g.group} className="shortcuts-group">
@@ -582,7 +593,7 @@ function About() {
   const mode = useSession((s) => s.mode)
   const [update, updates] = useUpdateState()
   return (
-    <Section title="About Lumen">
+    <Section>
       <Row label="Version">
         <span className="set-value">{info?.version || '0.1.0'}</span>
       </Row>
@@ -624,16 +635,16 @@ export default function SettingsView({ route }) {
   const mode = useSession((s) => s.mode)
   const role = useSession((s) => s.user?.role)
   const tabs = [
-    { id: 'account', label: 'Account', el: Account },
-    { id: 'appearance', label: 'Appearance', el: Appearance },
-    { id: 'calendar', label: 'Calendar', el: CalendarTab },
-    { id: 'tasks', label: 'Tasks', el: TasksTab },
-    { id: 'plugins', label: 'Plugins', el: () => <Suspense fallback={<Spinner size={16} />}><PluginSettings /></Suspense> },
-    ...(mode === 'server' && role === 'admin' ? [{ id: 'members', label: 'Members', el: Members }] : []),
-    ...(mode !== 'server' || role === 'admin' ? [{ id: 'sync', label: 'Sync', el: Sync }] : []),
-    { id: 'workspace', label: 'Workspace', el: Workspace },
-    { id: 'shortcuts', label: 'Shortcuts', el: Shortcuts },
-    { id: 'about', label: 'About', el: About },
+    { id: 'account', label: 'Account', icon: UserRound, tint: 'indigo', about: 'Your profile and how you sign in.', el: Account },
+    { id: 'appearance', label: 'Appearance', icon: Palette, tint: 'violet', about: 'How Lumen looks on this account, on every device.', el: Appearance },
+    { id: 'calendar', label: 'Calendar', icon: CalendarDays, tint: 'blue', about: 'Hours, colours and what the calendar shows. The same options as its Customize panel.', el: CalendarTab },
+    { id: 'tasks', label: 'Boards and tasks', icon: Kanban, tint: 'amber', about: 'Where new tasks land and how boards open.', el: TasksTab },
+    { id: 'plugins', label: 'Plugins', icon: Puzzle, tint: 'pink', about: 'Add features to Lumen. Plugins run sandboxed with only the access you grant.', el: () => <Suspense fallback={<Spinner size={16} />}><PluginSettings /></Suspense> },
+    ...(mode === 'server' && role === 'admin' ? [{ id: 'members', label: 'Members', icon: Users, tint: 'green', about: 'Only admins can invite people or change who has access.', el: Members }] : []),
+    ...(mode !== 'server' || role === 'admin' ? [{ id: 'sync', label: 'Sync', icon: GitBranch, tint: 'teal', about: 'Keep the workspace in a GitHub repository, as plain text.', el: Sync }] : []),
+    { id: 'workspace', label: 'Workspace', icon: Database, tint: 'gray', about: 'Its name, where the files live, and a full export.', el: Workspace },
+    { id: 'shortcuts', label: 'Shortcuts', icon: Keyboard, tint: 'gray', about: 'Press ? anywhere to see these.', el: Shortcuts },
+    { id: 'about', label: 'About', icon: Info, tint: 'gray', about: 'Version, updates and source.', el: About },
   ]
   const current = tabs.find((t) => t.id === route.parts[1]) || tabs[0]
   const Panel = current.el
@@ -661,6 +672,7 @@ export default function SettingsView({ route }) {
                 setTimeout(() => e.currentTarget.parentElement?.querySelector('[aria-selected="true"]')?.focus(), 0)
               }}
             >
+              <t.icon size={16} strokeWidth={1.75} className="nav-icon" aria-hidden="true" />
               <span className="nav-label">{t.label}</span>
             </button>
           ))}
@@ -675,6 +687,15 @@ export default function SettingsView({ route }) {
       </nav>
       <div className="set-main" role="tabpanel" aria-label={current.label}>
         <div className="set-column">
+          <header className="set-page-head">
+            <span className="set-page-icon" style={{ '--tint': `var(--c-${current.tint})`, '--tint-bg': `var(--c-${current.tint}-bg)` }}>
+              <current.icon size={18} strokeWidth={1.75} />
+            </span>
+            <div>
+              <h1>{current.label}</h1>
+              <p className="muted">{current.about}</p>
+            </div>
+          </header>
           <Panel />
         </div>
       </div>

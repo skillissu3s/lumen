@@ -6,8 +6,9 @@ changes up.
 
 ```
 lumen.json                       workspace name and settings
-lists/<id>.md                    a todo list
+lists/<id>.md                    a board (columns of cards; Obsidian Kanban format)
 calendars/<id>.md                a calendar (events)
+ideas/<id>.canvas                an idea board (JSON Canvas, as Obsidian uses)
 docs/<path>.md                   documents (folders allowed)
 chat/channels.json               chat channels           (server mode)
 chat/<channel>/<yyyy-mm>.jsonl   chat messages, one JSON object per line
@@ -40,7 +41,7 @@ List, calendar and doc files start with a small front matter block. Only simple
 ---
 name: Groceries
 color: green
-icon: 🛒
+icon: shopping-cart
 owner: nikhil
 share: [ana, sam]
 ---
@@ -50,10 +51,76 @@ share: [ana, sam]
 |---|---|
 | `name` | display name (docs use `title`) |
 | `color` | one of `gray red orange amber green teal blue indigo violet pink`, or `#rrggbb` |
-| `icon` | an emoji (optional) |
+| `icon` | an icon name such as `kanban`, `rocket`, `inbox` (optional; Lumen shows icons, never emoji) |
 | `owner` | handle of the person who made it |
 | `share` | missing = private to the owner · `everyone` · `[handle, handle]` |
 | `default` | (calendars) `true` on the calendar new events go to |
+
+## Boards
+
+A list file is a **board**. Each `## heading` is a column and each task line
+under it is a card, the format of the
+[Obsidian Kanban](https://github.com/mgmeyers/obsidian-kanban) plugin, so the
+same file opens there too. Cards above the first heading sit in an unnamed
+column; *Set up columns* on such a board adds To do, Doing and Done.
+
+Lumen keeps the board's look in the plugin's settings block at the end of the
+file, under its own `lumen` key, which the plugin ignores:
+
+~~~~markdown
+---
+name: Product launch
+color: pink
+icon: rocket
+kanban-plugin: board
+---
+
+## To do
+
+- [ ] Pricing page layout #design 🆔 a1b2c3
+
+## Doing
+
+## Done
+
+%% kanban:settings
+```
+{"kanban-plugin":"board","lumen":{"done":"Done","columns":{"Doing":"blue","Done":"green"},"labels":{"design":"violet"},"covers":{"a1b2c3":"orange"}}}
+```
+%%
+~~~~
+
+| `lumen` key | meaning |
+|---|---|
+| `done` | the column that means finished: moving a card in completes it, moving it out reopens it |
+| `columns` | column name → colour (the line along its top) |
+| `labels` | tag → colour for the labels on cards |
+| `covers` | card id → colour of the band across its top |
+
+A board's `view: list` front matter key opens it as a list instead.
+
+## Idea boards
+
+`ideas/<id>.canvas` is a [JSON Canvas](https://jsoncanvas.org) file: text
+cards, groups that frame them, and arrows between them. Lumen writes one node or
+edge per line so git merges two people's changes card by card, and keeps the
+board's own details under `lumen`:
+
+```json
+{
+	"nodes":[
+		{"id":"k2","type":"text","text":"Launch email","x":0,"y":0,"width":240,"height":120,"color":"5"},
+		{"id":"g7","type":"group","label":"Marketing","x":-40,"y":-60,"width":600,"height":360}
+	],
+	"edges":[
+		{"id":"e1","fromNode":"k2","fromSide":"right","toNode":"m4","toSide":"left","toEnd":"arrow"}
+	],
+	"lumen":{"name":"Product launch","owner":"nikhil","share":null,"color":"violet","icon":"lightbulb"}
+}
+```
+
+Card colours are the canvas codes `1`–`6` (red, orange, amber, green, teal,
+violet). `owner` and `share` work as in front matter.
 
 ## Items: tasks and events
 
