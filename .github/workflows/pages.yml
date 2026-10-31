@@ -4,9 +4,8 @@
 # GitHub plan; on a public one it is free.)
 name: Pages
 
+# Manual for now: run it from the Actions tab once Pages is enabled.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
