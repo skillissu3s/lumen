@@ -1,13 +1,16 @@
 // The HTTP API (docs/API.md). Desktop-only routes live in desktop.js.
+import crypto from 'node:crypto'
 import express from 'express'
 import { APP_NAME, VERSION, DESKTOP, PUBLIC_URL, INVITE_DAYS } from './config.js'
 import { db } from './db.js'
-import { HttpError, userFromRequest, countUsers, createUser, login, getUser, allUsers, changePassword, createInvite, listInvites, revokeInvite, findInvite, acceptInvite, createSession, setSessionCookie, endSession, endUserSessions, cleanEmail } from './auth.js'
+import { HttpError, userFromRequest, countUsers, createUser, login, getUser, allUsers, changePassword, createInvite, listInvites, revokeInvite, findInvite, acceptInvite, createSession, setSessionCookie, endSession, endUserSessions, cleanEmail, hashPassword, validPassword, userByEmail } from './auth.js'
 import * as files from './files.js'
 import { canRead, writeProblem, metaOf } from './access.js'
 import * as chat from './chat.js'
 import * as git from './git.js'
 import { seedWorkspace } from './seed.js'
+import { mailEnabled, sendMail, codeMail, inviteMail } from './mail.js'
+import { issueCode, checkCode } from './codes.js'
 
 const DAY = 86400000
 const router = express.Router()
@@ -40,6 +43,10 @@ export function requireAdmin(req, res, next) {
 
 const toUser = (u) => u && { id: u.id, email: u.email, handle: u.handle, name: u.name, role: u.role }
 const adminUser = (u) => ({ ...toUser(u), disabled: !!u.disabled, createdAt: u.created_at })
+const maskEmail = (email) => {
+  const [user, domain] = String(email).split('@')
+  return `${user.slice(0, 2)}…@${domain}`
+}
 
 const signIn = (req, res, user) => {
   const token = createSession(user.id, req.get('user-agent'))
@@ -59,6 +66,7 @@ router.get('/info', (req, res) => {
     mode: DESKTOP ? 'desktop' : 'server',
     needsSetup: countUsers() === 0,
     user: req.user ? toUser(req.user) : null,
+    mail: mailEnabled(),
   })
 })
 
@@ -76,6 +84,82 @@ router.post('/setup', async (req, res, next) => {
 router.post('/login', async (req, res, next) => {
   try {
     const user = await login(req.body?.email, req.body?.password, req.ip)
+    if (user.role === 'admin' && mailEnabled()) {
+      const challenge = crypto.randomUUID()
+      const code = issueCode({ email: user.email, purpose: 'admin', userId: user.id, challenge, ip: req.ip })
+      await sendMail({ to: user.email, ...codeMail(code, 'admin') })
+      res.json({ needsCode: true, challenge, email: maskEmail(user.email) })
+      return
+    }
+    res.json({ user: signIn(req, res, user) })
+  } catch (e) {
+    next(e)
+  }
+})
+
+router.post('/login/verify', async (req, res, next) => {
+  try {
+    const row = checkCode({ challenge: req.body?.challenge, purpose: 'admin', code: req.body?.code })
+    const user = row.user_id ? getUser(row.user_id) : null
+    if (!user || user.disabled || user.role !== 'admin') throw new HttpError(400, 'That code is wrong or has expired.')
+    res.json({ user: signIn(req, res, user) })
+  } catch (e) {
+    next(e)
+  }
+})
+
+router.post('/login/code', async (req, res, next) => {
+  try {
+    if (!mailEnabled()) throw new HttpError(404, 'Not here.')
+    const email = String(req.body?.email || '').trim().toLowerCase()
+    const user = email ? userByEmail(email) : null
+    if (user && !user.disabled && user.role === 'member') {
+      const code = issueCode({ email: user.email, purpose: 'login', ip: req.ip })
+      await sendMail({ to: user.email, ...codeMail(code, 'login') }).catch(() => {})
+    }
+    res.json({ sent: true })
+  } catch (e) {
+    next(e)
+  }
+})
+
+router.post('/login/code/verify', async (req, res, next) => {
+  try {
+    const email = cleanEmail(req.body?.email)
+    checkCode({ email, purpose: 'login', code: req.body?.code })
+    const user = userByEmail(email)
+    if (!user || user.disabled || user.role !== 'member') throw new HttpError(400, 'That code is wrong or has expired.')
+    res.json({ user: signIn(req, res, user) })
+  } catch (e) {
+    next(e)
+  }
+})
+
+router.post('/password/forgot', async (req, res, next) => {
+  try {
+    if (!mailEnabled()) throw new HttpError(404, 'Not here.')
+    const email = String(req.body?.email || '').trim().toLowerCase()
+    const user = email ? userByEmail(email) : null
+    if (user && !user.disabled) {
+      const code = issueCode({ email: user.email, purpose: 'reset', ip: req.ip })
+      await sendMail({ to: user.email, ...codeMail(code, 'reset') }).catch(() => {})
+    }
+    res.json({ sent: true })
+  } catch (e) {
+    next(e)
+  }
+})
+
+router.post('/password/reset', async (req, res, next) => {
+  try {
+    const email = cleanEmail(req.body?.email)
+    checkCode({ email, purpose: 'reset', code: req.body?.code })
+    validPassword(req.body?.password)
+    const user = userByEmail(email)
+    if (!user || user.disabled) throw new HttpError(400, 'That code is wrong or has expired.')
+    db.prepare('UPDATE users SET pass_hash = ? WHERE id = ?').run(await hashPassword(req.body?.password), user.id)
+    endUserSessions(user.id)
+    if (user.role === 'admin') return res.json({ ok: true })
     res.json({ user: signIn(req, res, user) })
   } catch (e) {
     next(e)
@@ -187,7 +271,7 @@ router.delete('/admin/users/:id', requireAdmin, (req, res, next) => {
 
 router.get('/admin/invites', requireAdmin, (req, res) => res.json({ invites: listInvites() }))
 
-router.post('/admin/invites', requireAdmin, (req, res, next) => {
+router.post('/admin/invites', requireAdmin, async (req, res, next) => {
   try {
     const email = req.body?.email ? cleanEmail(req.body.email) : null
     const role = ['admin', 'member'].includes(req.body?.role) ? req.body.role : 'member'
@@ -196,7 +280,18 @@ router.post('/admin/invites', requireAdmin, (req, res, next) => {
     const now = Date.now()
     const invite = { id: hash.slice(0, 16), email, role, note, createdAt: now, expiresAt: now + INVITE_DAYS * DAY, usedAt: null, expired: false }
     const origin = PUBLIC_URL || `${req.protocol}://${req.get('host')}`
-    res.json({ invite, url: `${origin}/app.html#/invite/${token}` })
+    const url = `${origin}/app.html#/invite/${token}`
+    let emailed = false
+    let emailError
+    if (email && mailEnabled()) {
+      try {
+        await sendMail({ to: email, ...inviteMail(url, req.user.name) })
+        emailed = true
+      } catch (e) {
+        emailError = e.message
+      }
+    }
+    res.json({ invite, url, emailed, ...(emailError ? { emailError } : {}) })
   } catch (e) {
     next(e)
   }

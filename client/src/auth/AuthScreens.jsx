@@ -1,7 +1,7 @@
 // Signing in: server accounts (sign in, first-run setup, invites) and GitHub mode.
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowRight, Check, ExternalLink, Lock, Search } from 'lucide-react'
-import { Button, Field, Input, Spinner } from '../components/ui/index.js'
+import { Button, Field, Input, Segmented, Spinner } from '../components/ui/index.js'
 import { useSession } from '../store/session.js'
 import { api } from '../lib/api.js'
 import { navigate } from '../lib/router.js'
@@ -35,12 +35,12 @@ function Card({ title, subtitle, children, footer }) {
 function useSubmit(fn) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const submit = async (e) => {
-    e?.preventDefault()
+  const submit = async (e, ...args) => {
+    e?.preventDefault?.()
     setBusy(true)
     setError('')
     try {
-      await fn()
+      await fn(...args)
     } catch (err) {
       setError(err.message || 'Something went wrong')
     } finally {
@@ -57,14 +57,107 @@ const ErrorLine = ({ error }) =>
     </p>
   ) : null
 
+// signed in by the server: the app takes it from here
+function signedIn(user) {
+  useSession.setState({ status: 'ready', mode: 'server', user })
+  navigate('/today', { replace: true })
+}
+
+/** Six-digit code entry: one-time-code autofill, submits itself once complete */
+function CodeStep({ to, onVerify, onResend, onBack, extra, busy, error }) {
+  const [code, setCode] = useState('')
+  const [wait, setWait] = useState(30)
+  useEffect(() => {
+    if (wait <= 0) return
+    const t = setTimeout(() => setWait(wait - 1), 1000)
+    return () => clearTimeout(t)
+  }, [wait])
+  return (
+    <form
+      className="auth-form"
+      onSubmit={(e) => {
+        e.preventDefault()
+        if (code.length === 6) onVerify(code)
+      }}
+    >
+      <p className="auth-sent">
+        We sent a 6-digit code to <b>{to}</b>. It works for 10 minutes.
+      </p>
+      <Field label="Code">
+        <Input
+          className="code-input"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          maxLength={6}
+          value={code}
+          autoFocus
+          placeholder="000000"
+          onChange={(e) => {
+            const v = e.target.value.replace(/\D/g, '').slice(0, 6)
+            setCode(v)
+            // with nothing else to fill in, a complete code goes straight away
+            if (v.length === 6 && !extra) onVerify(v)
+          }}
+        />
+      </Field>
+      {extra}
+      <ErrorLine error={error} />
+      <Button variant="primary" type="submit" loading={busy} disabled={code.length !== 6} full>
+        Continue
+      </Button>
+      <div className="auth-row">
+        <button type="button" className="auth-link" onClick={onBack}>
+          Back
+        </button>
+        <button
+          type="button"
+          className="auth-link"
+          disabled={wait > 0}
+          onClick={async () => {
+            await onResend()
+            setWait(30)
+          }}
+        >
+          {wait > 0 ? `New code in ${wait}s` : 'Send a new code'}
+        </button>
+      </div>
+    </form>
+  )
+}
+
 export function SignIn() {
-  const login = useSession((s) => s.login)
+  const mail = useSession((s) => !!s.info?.mail)
+  const [how, setHow] = useState('password')
+  const [step, setStep] = useState(null) // { kind: 'admin', challenge, to } | { kind: 'login', to }
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const { busy, error, submit } = useSubmit(async () => {
-    await login(email, password)
-    navigate('/today', { replace: true })
+
+  const withPassword = useSubmit(async () => {
+    const r = await api('POST', '/login', { email, password })
+    if (r.needsCode) return setStep({ kind: 'admin', challenge: r.challenge, to: r.email || email })
+    signedIn(r.user)
   })
+  const withCode = useSubmit(async () => {
+    await api('POST', '/login/code', { email })
+    setStep({ kind: 'login', to: email })
+  })
+  const verify = useSubmit(async (code) => {
+    const r = step.kind === 'admin' ? await api('POST', '/login/verify', { challenge: step.challenge, code }) : await api('POST', '/login/code/verify', { email, code })
+    signedIn(r.user)
+  })
+  const resend = async () => {
+    if (step.kind === 'login') return api('POST', '/login/code', { email })
+    const r = await api('POST', '/login', { email, password })
+    if (r.challenge) setStep({ ...step, challenge: r.challenge })
+  }
+
+  if (step)
+    return (
+      <Card title="Check your email" subtitle={step.kind === 'admin' ? 'Admins confirm every sign-in with a code.' : null}>
+        <CodeStep to={step.to} busy={verify.busy} error={verify.error} onVerify={(code) => verify.submit(null, code)} onResend={resend} onBack={() => setStep(null)} />
+      </Card>
+    )
+
   return (
     <Card
       title="Sign in to Lumen"
@@ -75,18 +168,104 @@ export function SignIn() {
         </>
       }
     >
-      <form className="auth-form" onSubmit={submit}>
-        <Field label="Email">
-          <Input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
-        </Field>
-        <Field label="Password">
-          <Input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        </Field>
-        <ErrorLine error={error} />
-        <Button variant="primary" type="submit" loading={busy} full>
-          Sign in
-        </Button>
-      </form>
+      {mail && (
+        <div className="auth-switch">
+          <Segmented
+            label="Sign in with"
+            value={how}
+            onChange={setHow}
+            options={[
+              { value: 'password', label: 'Password' },
+              { value: 'code', label: 'Email code' },
+            ]}
+          />
+        </div>
+      )}
+      {how === 'password' || !mail ? (
+        <form className="auth-form" onSubmit={withPassword.submit}>
+          <Field label="Email">
+            <Input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
+          </Field>
+          <Field label="Password">
+            <Input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          </Field>
+          <ErrorLine error={withPassword.error} />
+          <Button variant="primary" type="submit" loading={withPassword.busy} full>
+            Sign in
+          </Button>
+          {mail && (
+            <a className="auth-link auth-forgot" href="#/forgot">
+              Forgot your password?
+            </a>
+          )}
+        </form>
+      ) : (
+        <form className="auth-form" onSubmit={withCode.submit}>
+          <Field label="Email" hint="We’ll email you a code — no password needed.">
+            <Input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
+          </Field>
+          <ErrorLine error={withCode.error} />
+          <Button variant="primary" type="submit" loading={withCode.busy} full>
+            Email me a code
+          </Button>
+        </form>
+      )}
+    </Card>
+  )
+}
+
+export function ForgotPassword() {
+  const [email, setEmail] = useState('')
+  const [sent, setSent] = useState(false)
+  const [password, setPassword] = useState('')
+  const [done, setDone] = useState(false)
+  const request = useSubmit(async () => {
+    await api('POST', '/password/forgot', { email })
+    setSent(true)
+  })
+  const reset = useSubmit(async (code) => {
+    if (password.length < 8) throw new Error('Use at least 8 characters for the password.')
+    const r = await api('POST', '/password/reset', { email, code, password })
+    if (r.user) return signedIn(r.user)
+    setDone(true)
+  })
+  if (done)
+    return (
+      <Card title="Password changed" subtitle="Sign in with your new password.">
+        <div className="auth-form">
+          <Button variant="primary" full onClick={() => navigate('/signin', { replace: true })}>
+            Sign in
+          </Button>
+        </div>
+      </Card>
+    )
+  return (
+    <Card title="Reset your password" subtitle={sent ? null : 'We’ll email you a code to set a new one.'} footer={<a href="#/signin">Back to sign in</a>}>
+      {sent ? (
+        <CodeStep
+          to={email}
+          busy={reset.busy}
+          error={reset.error}
+          onVerify={(code) => reset.submit(null, code)}
+          onResend={() => api('POST', '/password/forgot', { email })}
+          onBack={() => setSent(false)}
+          extra={
+            <Field label="New password" hint="At least 8 characters.">
+              <Input type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            </Field>
+          }
+        />
+      ) : (
+        <form className="auth-form" onSubmit={request.submit}>
+          <Field label="Email">
+            <Input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
+          </Field>
+          <ErrorLine error={request.error} />
+          <Button variant="primary" type="submit" loading={request.busy} full>
+            Email me a code
+          </Button>
+        </form>
+      )}
     </Card>
   )
 }

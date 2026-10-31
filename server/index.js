@@ -12,6 +12,7 @@ import { desktopRouter, ensureDesktopUser, desktopWorkspaceDir } from './desktop
 import * as git from './git.js'
 import { initChat } from './chat.js'
 import { attachWs, closeWs } from './ws.js'
+import { logMail } from './mail.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.join(here, '..')
@@ -47,6 +48,7 @@ app.get('/', (req, res) => {
 
 // ---------- boot ----------
 
+logMail()
 await ensureEnvAdmin()
 if (DESKTOP) await ensureDesktopUser()
 const workspace = DESKTOP ? desktopWorkspaceDir() : WORKSPACE_DIR

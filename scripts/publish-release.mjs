@@ -53,8 +53,11 @@ try {
     exists = false
   }
   if (exists) {
-    console.log(`Updating ${PUBLIC} ${tag}…`)
-    gh('release', 'upload', tag, '-R', PUBLIC, '--clobber', ...files)
+    // resuming: send only what isn't there yet (or differs in size)
+    const there = new Map(JSON.parse(gh('release', 'view', tag, '-R', PUBLIC, '--json', 'assets')).assets.map((a) => [a.name, a.size]))
+    const todo = files.filter((f) => there.get(path.basename(f)) !== fs.statSync(f).size)
+    console.log(`Updating ${PUBLIC} ${tag}: ${todo.length} of ${files.length} files to upload…`)
+    if (todo.length) gh('release', 'upload', tag, '-R', PUBLIC, '--clobber', ...todo)
     gh('release', 'edit', tag, '-R', PUBLIC, '--title', title, '--notes-file', notesFile, '--draft=false', '--latest')
   } else {
     console.log(`Publishing ${PUBLIC} ${tag}…`)

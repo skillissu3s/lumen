@@ -17,6 +17,34 @@ export const MAX_FILE_BYTES = Number(env.MAX_FILE_MB || 2) * 1024 * 1024
 export const ADMIN_EMAIL = (env.ADMIN_EMAIL || '').trim().toLowerCase()
 export const ADMIN_PASSWORD = env.ADMIN_PASSWORD || ''
 export const ADMIN_NAME = env.ADMIN_NAME || ''
+
+// ---------- mail ----------
+
+export const SMTP_URL = (env.SMTP_URL || '').trim()
+const smtpUrl = (() => {
+  if (!SMTP_URL) return null
+  try {
+    const u = new URL(SMTP_URL)
+    const secure = u.protocol === 'smtps:'
+    return {
+      host: u.hostname,
+      port: u.port ? Number(u.port) : secure ? 465 : 587,
+      secure,
+      user: u.username ? decodeURIComponent(u.username) : '',
+      pass: u.password ? decodeURIComponent(u.password) : '',
+    }
+  } catch {
+    return null
+  }
+})()
+export const SMTP_HOST = env.SMTP_HOST || smtpUrl?.host || ''
+export const SMTP_PORT = Number(env.SMTP_PORT || smtpUrl?.port || 587)
+export const SMTP_SECURE = bool(env.SMTP_SECURE, SMTP_PORT === 465)
+export const SMTP_USER = env.SMTP_USER || smtpUrl?.user || ''
+export const SMTP_PASS = env.SMTP_PASS || smtpUrl?.pass || ''
+export const MAIL_FROM = env.MAIL_FROM || SMTP_USER || ''
+export const MAIL_LOG_CODES = bool(env.MAIL_LOG_CODES)
+export const MAIL_CAPTURE_FILE = env.MAIL_CAPTURE_FILE || ''
 export const SECURE_COOKIES = bool(env.SECURE_COOKIES, PUBLIC_URL.startsWith('https://'))
 export const TRUST_PROXY = bool(env.TRUST_PROXY, true)
 /** The workspace folder: its own setting on the desktop (users pick it), DATA_DIR/workspace on a server */

@@ -779,3 +779,42 @@
   color: var(--accent-text);
   background: var(--accent);
 }
+
+/* sign in with a code */
+.auth-switch {
+  margin-top: 18px;
+}
+.auth-switch .ui-segmented {
+  display: flex;
+}
+.auth-switch .ui-segmented-option {
+  flex: 1;
+  justify-content: center;
+}
+.auth-sent {
+  color: var(--text-muted);
+}
+.auth-sent b {
+  color: var(--text);
+  font-weight: 600;
+}
+.code-input {
+  font-family: var(--mono);
+  font-size: 22px;
+  letter-spacing: 0.35em;
+  text-align: center;
+  min-height: 44px;
+}
+.auth-row {
+  display: flex;
+  justify-content: space-between;
+}
+.auth-link:disabled {
+  color: var(--text-faint);
+  cursor: default;
+}
+.auth-forgot {
+  justify-self: center;
+  margin-left: 0;
+  font-size: var(--fs-sm);
+}

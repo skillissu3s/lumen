@@ -56,6 +56,7 @@ let admin = null
 let adminJar = new CookieJar()
 let member = null
 let memberJar = new CookieJar()
+let captureFile = ''
 
 async function api(jar, method, url, body) {
   const headers = {}
@@ -89,8 +90,9 @@ before(async () => {
   const port = await freePort()
   base = `http://127.0.0.1:${port}`
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lumen-test-'))
+  captureFile = path.join(dataDir, 'mail.capture')
   child = spawn(process.execPath, [indexPath], {
-    env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', DATA_DIR: dataDir, LUMEN_ALLOW_FILE_REMOTES: '1' },
+    env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', DATA_DIR: dataDir, LUMEN_ALLOW_FILE_REMOTES: '1', MAIL_LOG_CODES: '1', MAIL_CAPTURE_FILE: captureFile },
     stdio: ['ignore', 'inherit', 'inherit'],
   })
   await waitFor(`${base}/api/info`)
@@ -109,6 +111,35 @@ async function inviteMember(email, name) {
   res = await api(jar, 'POST', `/api/invites/${token}/accept`, { name, password: 'password123', email })
   assert.equal(res.status, 200)
   return { jar, user: (await res.json()).user }
+}
+
+function clearCapture() {
+  try {
+    fs.writeFileSync(captureFile, '')
+  } catch {
+    /* not created yet */
+  }
+}
+
+function captured() {
+  try {
+    return fs
+      .readFileSync(captureFile, 'utf8')
+      .trim()
+      .split('\n')
+      .filter(Boolean)
+      .map((l) => JSON.parse(l))
+  } catch {
+    return []
+  }
+}
+
+function lastCode(email) {
+  const lines = captured()
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (lines[i].to === email && lines[i].code) return lines[i].code
+  }
+  return null
 }
 
 test('info → setup → info shows user and seeded files', async () => {
@@ -288,6 +319,138 @@ test('git sync to a local bare repo', { skip: !hasGit }, async () => {
 
   const log = execFileSync('git', ['--git-dir', bare, 'log', '--oneline', '--all'], { encoding: 'utf8' })
   assert.match(log, /Lumen:/)
+})
+
+test('mail codes: info shows mail on; passwordless member login works', async () => {
+  let res = await fetch(`${base}/api/info`)
+  assert.equal((await res.json()).mail, true)
+
+  await inviteMember('pw@example.com', 'Pw')
+  const jar = new CookieJar()
+
+  clearCapture()
+  res = await api(jar, 'POST', '/api/login/code', { email: 'pw@example.com' })
+  assert.equal(res.status, 200)
+  assert.deepEqual(await res.json(), { sent: true })
+
+  const code = lastCode('pw@example.com')
+  assert.ok(code, 'a login code was emailed')
+
+  res = await api(jar, 'POST', '/api/login/code/verify', { email: 'pw@example.com', code })
+  assert.equal(res.status, 200)
+  const user = (await res.json()).user
+  assert.equal(user.role, 'member')
+
+  res = await api(jar, 'GET', '/api/me')
+  assert.equal(res.status, 200)
+  assert.equal((await res.json()).user.email, 'pw@example.com')
+})
+
+test('mail codes: five wrong tries kill a code', async () => {
+  const jar = new CookieJar()
+  clearCapture()
+  let res = await api(jar, 'POST', '/api/login/code', { email: 'pw@example.com' })
+  assert.equal(res.status, 200)
+  const code = lastCode('pw@example.com')
+  assert.ok(code, 'a login code was emailed')
+
+  for (let i = 0; i < 5; i++) {
+    res = await api(jar, 'POST', '/api/login/code/verify', { email: 'pw@example.com', code: '000000' })
+    assert.equal(res.status, 400)
+  }
+
+  res = await api(jar, 'POST', '/api/login/code/verify', { email: 'pw@example.com', code })
+  assert.equal(res.status, 400, 'code is dead after 5 wrong tries')
+})
+
+test('mail codes: unknown email says sent but sends nothing; admin has no login code', async () => {
+  clearCapture()
+  let res = await api(new CookieJar(), 'POST', '/api/login/code', { email: 'nobody@example.com' })
+  assert.equal(res.status, 200)
+  assert.deepEqual(await res.json(), { sent: true })
+  assert.equal(captured().length, 0, 'no email for an unknown account')
+
+  res = await api(new CookieJar(), 'POST', '/api/login/code', { email: 'admin@example.com' })
+  assert.equal(res.status, 200)
+  assert.deepEqual(await res.json(), { sent: true })
+  assert.equal(captured().length, 0, 'no login code for an admin')
+})
+
+test('mail codes: admin two-step login', async () => {
+  const jar = new CookieJar()
+  clearCapture()
+  let res = await api(jar, 'POST', '/api/login', { email: 'admin@example.com', password: 'password123' })
+  assert.equal(res.status, 200)
+  const body = await res.json()
+  assert.equal(body.needsCode, true)
+  assert.equal(body.email, 'ad…@example.com')
+  assert.ok(body.challenge)
+
+  res = await api(jar, 'GET', '/api/me')
+  assert.equal(res.status, 401, 'no cookie until the code is verified')
+
+  const code = lastCode('admin@example.com')
+  assert.ok(code, 'an admin code was emailed')
+
+  res = await api(jar, 'POST', '/api/login/verify', { challenge: body.challenge, code: '000000' })
+  assert.equal(res.status, 400)
+
+  res = await api(jar, 'POST', '/api/login/verify', { challenge: body.challenge, code })
+  assert.equal(res.status, 200)
+  const user = (await res.json()).user
+  assert.equal(user.role, 'admin')
+
+  res = await api(jar, 'GET', '/api/me')
+  assert.equal(res.status, 200)
+  assert.equal((await res.json()).user.handle, admin.handle)
+})
+
+test('mail codes: forgot/reset ends sessions and sets a new password', async () => {
+  const reset = await inviteMember('reset@example.com', 'Reset')
+  const jar = new CookieJar()
+
+  clearCapture()
+  let res = await api(jar, 'POST', '/api/password/forgot', { email: 'reset@example.com' })
+  assert.equal(res.status, 200)
+  assert.deepEqual(await res.json(), { sent: true })
+
+  const code = lastCode('reset@example.com')
+  assert.ok(code, 'a reset code was emailed')
+
+  res = await api(jar, 'POST', '/api/password/reset', { email: 'reset@example.com', code, password: 'newpassword1' })
+  assert.equal(res.status, 200)
+  const user = (await res.json()).user
+  assert.equal(user.role, 'member')
+
+  res = await api(reset.jar, 'GET', '/api/me')
+  assert.equal(res.status, 401, 'old sessions are ended')
+
+  res = await api(jar, 'GET', '/api/me')
+  assert.equal(res.status, 200, 'reset signs the member in')
+
+  res = await api(new CookieJar(), 'POST', '/api/login', { email: 'reset@example.com', password: 'newpassword1' })
+  assert.equal(res.status, 200)
+})
+
+test('mail codes: invite with an email is emailed', async () => {
+  clearCapture()
+  const res = await api(adminJar, 'POST', '/api/admin/invites', { email: 'invited@example.com', role: 'member' })
+  assert.equal(res.status, 200)
+  const body = await res.json()
+  assert.equal(body.emailed, true)
+  const mails = captured()
+  assert.ok(mails.some((m) => m.to === 'invited@example.com' && /invited you to/.test(m.subject)))
+})
+
+test('mail codes: rate limit returns 429', async () => {
+  await inviteMember('limited@example.com', 'Limited')
+  let res
+  for (let i = 0; i < 5; i++) {
+    res = await api(new CookieJar(), 'POST', '/api/login/code', { email: 'limited@example.com' })
+    assert.equal(res.status, 200)
+  }
+  res = await api(new CookieJar(), 'POST', '/api/login/code', { email: 'limited@example.com' })
+  assert.equal(res.status, 429)
 })
 
 test('login: wrong password 401, then rate limited', async () => {

@@ -312,3 +312,8 @@
     flex-wrap: wrap;
   }
 }
+.invite-sent {
+  margin-top: 12px;
+  color: var(--success);
+  font-size: var(--fs-sm);
+}

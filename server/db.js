@@ -47,6 +47,18 @@ CREATE TABLE IF NOT EXISTS chat_reads (
   last_at TEXT NOT NULL,
   PRIMARY KEY (user_id, channel)
 );
+CREATE TABLE IF NOT EXISTS codes (
+  id TEXT PRIMARY KEY,
+  email TEXT,
+  purpose TEXT NOT NULL,
+  code_hash TEXT NOT NULL,
+  challenge_hash TEXT,
+  user_id TEXT,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  used_at INTEGER
+);
 `)
 
 export function getSetting(key, fallback = null) {

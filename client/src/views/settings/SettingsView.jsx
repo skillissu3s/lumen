@@ -253,7 +253,7 @@ function Members() {
             setError('')
             try {
               const r = await api('POST', '/admin/invites', { email: form.email || null, role: form.role, note: form.note })
-              setLink(r.url)
+              setLink({ url: r.url, emailed: r.emailed ? form.email : null })
               setForm({ email: '', role: 'member', note: '' })
               load()
             } catch (err) {
@@ -268,14 +268,15 @@ function Members() {
           </Button>
         </form>
         {error && <p className="auth-error">{error}</p>}
+        {link?.emailed && <p className="invite-sent">Invite emailed to {link.emailed}. You can also share the link yourself:</p>}
         {link && (
           <div className="invite-link">
-            <code>{link}</code>
+            <code>{link.url}</code>
             <Button
               icon={Copy}
               size="sm"
               onClick={() => {
-                navigator.clipboard?.writeText(link)
+                navigator.clipboard?.writeText(link.url)
                 toast('Invite link copied')
               }}
             >

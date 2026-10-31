@@ -12,9 +12,14 @@ otherwise the server answers 403. Sessions are the httpOnly cookie
 
 | | | |
 |---|---|---|
-| `GET /api/info` | — | `{ app: "lumen", name, version, mode: "server"\|"desktop", needsSetup, user \| null }` |
+| `GET /api/info` | — | `{ app: "lumen", name, version, mode: "server"\|"desktop", needsSetup, mail: boolean, user \| null }` |
 | `POST /api/setup` | `{ email, name, password }` | only while there are no users: makes the first admin and signs in → `{ user }` |
-| `POST /api/login` | `{ email, password }` | `{ user }` + cookie |
+| `POST /api/login` | `{ email, password }` | members → `{ user }` + cookie. Admins (when `mail` is on) → `{ needsCode: true, challenge, email }` with no cookie; finish with `/api/login/verify`. Admins with `mail` off sign in like members |
+| `POST /api/login/verify` | `{ challenge, code }` | verifies the admin code for that challenge → `{ user }` + cookie |
+| `POST /api/login/code` | `{ email }` | passwordless sign-in for members: `{ sent: true }` (always; 404 only if `mail` is off) |
+| `POST /api/login/code/verify` | `{ email, code }` | verifies the login code → `{ user }` + cookie (members only) |
+| `POST /api/password/forgot` | `{ email }` | issues a reset code: `{ sent: true }` (always) |
+| `POST /api/password/reset` | `{ email, code, password }` | verifies the reset code, sets the password, ends that user's sessions. Members → `{ user }`; admins → `{ ok: true }` |
 | `POST /api/logout` | — | `{ ok: true }` |
 | `GET /api/me` | — | `{ user }` (401 if signed out) |
 | `PATCH /api/me` | `{ name? }` | `{ user }` |
@@ -33,7 +38,7 @@ otherwise the server answers 403. Sessions are the httpOnly cookie
 | `PATCH /api/admin/users/:id` | `{ role?, disabled?, name? }` | `{ user }` — can't demote or disable the last admin, or yourself |
 | `DELETE /api/admin/users/:id` | — | `{ ok }` — not yourself; their files stay |
 | `GET /api/admin/invites` | — | `{ invites: [{ id, email, role, note, createdAt, expiresAt, usedAt, expired }] }` |
-| `POST /api/admin/invites` | `{ email?, role?, note? }` | `{ invite, url }` — `url` is `<origin>/app.html#/invite/<token>`; shown once |
+| `POST /api/admin/invites` | `{ email?, role?, note? }` | `{ invite, url, emailed }` — `url` is `<origin>/app.html#/invite/<token>`; shown once. When `mail` is on and the invite has an email, the invite link is also emailed (`emailed: true`), or `emailed: false` + `emailError` if the send failed |
 | `DELETE /api/admin/invites/:id` | — | `{ ok }` |
 | `GET /api/admin/sync` | — | `{ config: { remote, branch, authorName, authorEmail, interval, hasToken, enabled }, status }` |
 | `PUT /api/admin/sync` | `{ remote, branch, token?, authorName?, authorEmail?, interval?, enabled }` | tests the remote, then saves → `{ config, status }` |
