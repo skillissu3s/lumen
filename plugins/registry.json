@@ -1,0 +1,6 @@
+{
+  "plugins": [
+    { "id": "focus-forest", "path": "focus-forest" },
+    { "id": "usage-monitor", "path": "usage-monitor" }
+  ]
+}

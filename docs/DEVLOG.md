@@ -131,3 +131,30 @@ professional". From here on OpenCode only gets non-UI work.
 - New docs had no owner (the server rejects those).
 - Vite re-bundling mid-session produced two copies of React; deps are now
   pre-bundled.
+
+### Plugin host (OpenCode, DeepSeek) + plugin pages (by hand)
+- `client/src/plugins/`: manifest validation, the injected SDK, srcdoc builder
+  (inlines the plugin's files, strips dev scripts, adds CSP), the host bridge
+  (one sandboxed iframe per plugin kept alive across pages, permission-checked
+  RPC, storage under `data/plugins/<id>/<you>/`, tasks/calendar/notify/ui/
+  system.activity, events, palette commands, rate limits), and the installer
+  (catalog, GitHub, folder). 76 tests pass.
+- Two OpenCode runs stalled before starting: a `<…/>` tag in the prompt text
+  made `opencode run` hang. Plain prompts only from now on.
+- By hand: the plugin page (frame laid over a content box, loading/error
+  states, reload) and Settings → Plugins (installed list with per-person on/off,
+  catalog, install from GitHub or a folder, a permission prompt in plain words,
+  update, uninstall).
+- Fixed in review: theme tokens never reached plugins — the token collector
+  skipped every rule because, with CSS nesting, style rules also have a
+  (usually empty) `cssRules` list.
+- Verified in the browser: installing Focus Forest from the catalog, the
+  plugin loading inside Lumen with the app's theme, and its RPC calls
+  (storage, tasks.list, ui.setStatus).
+
+### Release
+- Local Windows installer built and the packaged app started (signed-in local
+  user, seeded workspace folder).
+- Release workflow dry run: Windows .exe, macOS .dmg, Linux AppImage + .deb all
+  built on GitHub Actions. Package author/homepage added (Linux packages need them).
+- Pages workflow made manual until GitHub Pages is enabled.

@@ -225,3 +225,90 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* plugins */
+.set-empty {
+  padding: 16px 0;
+}
+.plugin-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+.plugin-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  color: var(--text-muted);
+  background: var(--bg-muted);
+}
+.plugin-info {
+  flex: 1;
+  min-width: 0;
+}
+.plugin-name {
+  font-weight: 600;
+}
+.plugin-name .faint {
+  font-weight: 400;
+  font-size: var(--fs-sm);
+}
+.plugin-info .muted {
+  margin-top: 2px;
+}
+.plugin-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+}
+.perm-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-sm);
+  color: var(--text-faint);
+}
+.perm-list li::before {
+  content: '· ';
+}
+.plugin-source {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-top: 16px;
+}
+.plugin-source .ui-input-wrap {
+  flex: 1;
+  min-width: 220px;
+}
+.perm-ask {
+  display: grid;
+  gap: 10px;
+}
+.perm-ask-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+.perm-ask ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0 0 0 20px;
+}
+@media (max-width: 860px) {
+  .plugin-row {
+    flex-wrap: wrap;
+  }
+}

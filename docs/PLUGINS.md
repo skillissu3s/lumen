@@ -74,6 +74,11 @@ default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline';
 img-src data: blob:; font-src data:; connect-src <none, or https: with "network">
 ```
 
+What the sandbox can't stop: a plugin can still navigate its own frame to an
+outside address (CSP has no rule for that), which could leak what it was allowed
+to read. Install plugins you trust — the permission prompt shows exactly what
+each one can read.
+
 The page's theme (light/dark and the colour tokens) is applied to the plugin's
 `:root` as CSS variables, so `var(--bg)`, `var(--text)`, `var(--accent)` etc.
 work inside the plugin and follow theme changes. Plugin pages should style

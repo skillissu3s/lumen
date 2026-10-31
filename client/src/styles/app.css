@@ -741,3 +741,10 @@
   padding: 24px;
   text-align: center;
 }
+
+/* a plugin's page: its frame is laid over this box */
+.plugin-box {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}

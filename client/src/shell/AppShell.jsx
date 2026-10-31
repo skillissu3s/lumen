@@ -9,6 +9,7 @@ import { onProblem } from '../store/workspace.js'
 import { navigate } from '../lib/router.js'
 import { Sidebar } from './Sidebar.jsx'
 import { CommandPalette } from './CommandPalette.jsx'
+import PluginFrames from '../plugins/PluginFrames.jsx'
 import { useShortcut, shortcutList, comboKeys } from './shortcuts.js'
 
 const TasksView = lazy(() => import('../views/tasks/TasksView.jsx'))
@@ -145,6 +146,7 @@ export function AppShell({ route }) {
           </ViewBoundary>
         </Suspense>
       </main>
+      <PluginFrames />
       <CommandPalette />
       <ShortcutsDialog />
       <Toaster toasts={toasts} onDismiss={dismiss} />
