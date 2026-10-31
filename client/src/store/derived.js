@@ -38,6 +38,7 @@ function listShape(path, parsed, id) {
     icon: meta.icon,
     owner: meta.owner,
     share: meta.share,
+    meta,
     sections: parsed.sections,
     items: parsed.items,
     all: parsed.all,

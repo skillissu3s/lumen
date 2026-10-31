@@ -36,6 +36,18 @@ export function useRoute() {
       listeners.add(fn)
       return () => listeners.delete(fn)
     },
-    () => parseHash(window.location.hash),
+    snapshot,
   )
+}
+
+// the same object while the hash is unchanged (React compares snapshots by identity)
+let lastHash = null
+let lastRoute = null
+function snapshot() {
+  const h = window.location.hash
+  if (h !== lastHash) {
+    lastHash = h
+    lastRoute = parseHash(h)
+  }
+  return lastRoute
 }

@@ -1,0 +1,128 @@
+// The signed-in app: sidebar + the current view, with the palette, toasts,
+// shortcuts help and global shortcuts around them.
+import { lazy, Suspense, useEffect, useState } from 'react'
+import { Menu as MenuIcon } from 'lucide-react'
+import { Dialog, Kbd, Spinner, Toaster } from '../components/ui/index.js'
+import { useUI, undoLast } from '../store/ui.js'
+import { usePrefs, setPrefs } from '../store/prefs.js'
+import { onProblem } from '../store/workspace.js'
+import { navigate } from '../lib/router.js'
+import { Sidebar } from './Sidebar.jsx'
+import { CommandPalette } from './CommandPalette.jsx'
+import { useShortcut, shortcutList, comboKeys } from './shortcuts.js'
+
+const TasksView = lazy(() => import('../views/tasks/TasksView.jsx'))
+const CalendarView = lazy(() => import('../views/calendar/CalendarView.jsx'))
+const DocsView = lazy(() => import('../views/docs/DocsView.jsx'))
+const ChatView = lazy(() => import('../views/chat/ChatView.jsx'))
+const SettingsView = lazy(() => import('../views/settings/SettingsView.jsx'))
+const PluginView = lazy(() => import('../views/PluginView.jsx'))
+
+function viewFor(route) {
+  const [first] = route.parts
+  switch (first) {
+    case undefined:
+    case 'today':
+    case 'inbox':
+    case 'upcoming':
+    case 'list':
+      return TasksView
+    case 'calendar':
+      return CalendarView
+    case 'docs':
+      return DocsView
+    case 'chat':
+      return ChatView
+    case 'settings':
+      return SettingsView
+    case 'plugin':
+      return PluginView
+    default:
+      return TasksView
+  }
+}
+
+function ShortcutsDialog() {
+  const open = useUI((s) => s.shortcutsOpen)
+  const groups = open ? shortcutList() : []
+  return (
+    <Dialog open={open} onClose={() => useUI.setState({ shortcutsOpen: false })} title="Keyboard shortcuts" size="lg">
+      <div className="shortcuts">
+        {groups.map((g) => (
+          <section key={g.group} className="shortcuts-group">
+            <h3>{g.group}</h3>
+            {g.items.map((s) => (
+              <div key={s.combo} className="shortcuts-row">
+                <span>{s.description}</span>
+                <Kbd keys={comboKeys(s.combo)} />
+              </div>
+            ))}
+          </section>
+        ))}
+      </div>
+    </Dialog>
+  )
+}
+
+export function AppShell({ route }) {
+  const toasts = useUI((s) => s.toasts)
+  const dismiss = useUI((s) => s.dismiss)
+  const toast = useUI((s) => s.toast)
+  const prefs = usePrefs()
+  const collapsed = prefs.sidebar?.collapsed
+  const [drawer, setDrawer] = useState(false)
+  const View = viewFor(route)
+
+  useEffect(() => onProblem((p) => toast(p.message, { tone: 'danger' })), [toast])
+  useEffect(() => setDrawer(false), [route.path])
+
+  useShortcut('mod+k', () => useUI.getState().openPalette(), { description: 'Search and commands', allowInInput: true })
+  useShortcut('mod+\\', () => setPrefs({ sidebar: { collapsed: !collapsed } }), { description: 'Show or hide the sidebar', allowInInput: true })
+  useShortcut('?', () => useUI.setState({ shortcutsOpen: true }), { description: 'Keyboard shortcuts' })
+  useShortcut('mod+z', () => undoLast(), { description: 'Undo the last change' })
+  useShortcut('g t', () => navigate('/today'), { description: 'Go to Today', group: 'Go to' })
+  useShortcut('g i', () => navigate('/inbox'), { description: 'Go to Inbox', group: 'Go to' })
+  useShortcut('g u', () => navigate('/upcoming'), { description: 'Go to Upcoming', group: 'Go to' })
+  useShortcut('g c', () => navigate('/calendar'), { description: 'Go to Calendar', group: 'Go to' })
+  useShortcut('g d', () => navigate('/docs'), { description: 'Go to Docs', group: 'Go to' })
+  useShortcut('g h', () => navigate('/chat'), { description: 'Go to Chat', group: 'Go to' })
+  useShortcut('g s', () => navigate('/settings'), { description: 'Go to Settings', group: 'Go to' })
+  useShortcut(
+    'q',
+    () => {
+      if (!['today', 'inbox', 'upcoming', 'list', undefined].includes(route.parts[0])) navigate('/inbox')
+      setTimeout(() => window.dispatchEvent(new CustomEvent('lumen:quick-add')), 50)
+    },
+    { description: 'Add a task' },
+  )
+
+  return (
+    <div className={`app${collapsed ? ' is-collapsed' : ''}${drawer ? ' has-drawer' : ''}`}>
+      <a className="skip-link" href="#main" onClick={(e) => {
+        e.preventDefault()
+        document.getElementById('main')?.focus()
+      }}>
+        Skip to content
+      </a>
+      <Sidebar route={route} onNavigate={() => setDrawer(false)} />
+      <div className="drawer-scrim" onClick={() => setDrawer(false)} aria-hidden="true" />
+      <main id="main" className="main" tabIndex={-1}>
+        <button type="button" className="drawer-toggle" aria-label="Open menu" onClick={() => setDrawer(true)}>
+          <MenuIcon size={18} />
+        </button>
+        <Suspense
+          fallback={
+            <div className="view-loading">
+              <Spinner size={16} />
+            </div>
+          }
+        >
+          <View route={route} />
+        </Suspense>
+      </main>
+      <CommandPalette />
+      <ShortcutsDialog />
+      <Toaster toasts={toasts} onDismiss={dismiss} />
+    </div>
+  )
+}

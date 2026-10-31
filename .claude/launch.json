@@ -23,6 +23,15 @@
         "--strictPort"
       ],
       "port": 5173
+    },
+    {
+      "name": "api",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "--disable-warning=ExperimentalWarning",
+        "server/index.js"
+      ],
+      "port": 3000
     }
   ]
 }

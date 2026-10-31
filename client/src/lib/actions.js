@@ -27,7 +27,7 @@ const toast = (message, action) => useUI.getState().toast(message, action ? { ac
 export function addTask(listPath, typedOrFields, where = {}) {
   const fields = typeof typedOrFields === 'string' ? parseQuickAdd(typedOrFields, { today: todayIso() }) : { ...typedOrFields }
   const id = newId()
-  ws().edit(listPath, (text) => addItem(text, { ...fields, status: ' ', id }, where).text, { create: true })
+  ws().edit(listPath, (text) => addItem(text, { ...fields, status: fields.status === '/' ? '/' : ' ', id }, where).text, { create: true })
   return id
 }
 
