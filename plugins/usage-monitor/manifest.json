@@ -1,0 +1,19 @@
+{
+  "id": "usage-monitor",
+  "name": "Usage Monitor",
+  "version": "1.0.0",
+  "description": "See where your time goes on the desktop.",
+  "author": "Lumen",
+  "entry": "index.html",
+  "files": ["index.html", "main.js", "charts.js", "style.css"],
+  "icon": "activity",
+  "permissions": ["storage", "system:activity", "notify"],
+  "background": true,
+  "view": { "title": "Usage", "icon": "activity" },
+  "commands": [
+    { "id": "pause", "title": "Pause tracking" },
+    { "id": "resume", "title": "Resume tracking" }
+  ],
+  "statusBar": false,
+  "minLumen": "0.1.0"
+}
