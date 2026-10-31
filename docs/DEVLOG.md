@@ -267,3 +267,25 @@ without lists, and notifications in the corner rather than the middle.
   clipboard (internal copies keep their arrows; text and URLs become cards),
   JSON Canvas link nodes, edge labels and ends, context menus, 12px snap
   (Alt frees it). `shared/canvas.js` gained `edgeMid` and `overlaps` (+ test).
+
+### Quick pickers on cards; calendar details card; no coloured edges
+Owner feedback after 0.3.0: All tasks still had the old cards; no coloured
+lines along tops or left edges; the calendar needed real UX work; the board's
+buttons hid under the desktop window controls; due date and priority should be
+settable right on a card; drop the calendar's New button.
+- `views/boards/pickers.jsx` now holds the pickers the card and its dialog
+  share (PopHead, Colors, LabelPicker) plus DuePicker and PriorityPicker.
+  A picker's popover renders in a portal, but React events still bubble to
+  the card, so it is wrapped in an element that stops click, pointerdown,
+  keydown and contextmenu (else the card would open or start a drag).
+- `views/boards/Composer.jsx` (from BoardPage) so All tasks uses the same
+  "Add a card" box; All tasks renders `.pb-list`s in `.pb-lanes`.
+- `AllTasks.jsx` has CRLF line endings: a multi-line Python replace silently
+  missed there, which left the old wrapper in place. Line-based edits work.
+- Calendar: `EventPreview.jsx` (details first, editor second); EventEditor
+  starts short for new items; TimeGrid shows a hover ghost, a draft block while
+  the new-item form is open, a now pill in the hours column, dimmed past time,
+  and day headings that open the day.
+- `.is-desktop-titlebar` padding now covers `.pb-bar` as well as
+  `.view-header`.
+

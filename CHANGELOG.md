@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+- **Set a card's due date, priority and labels right on the card.** Every open
+  card shows faint controls for them; a due date or priority already set is
+  itself the button. Each opens a small picker in place.
+- **All tasks** uses the same lists and cards as a board.
+- **Calendar**: a click on an event or task shows its details first (when,
+  repeat, place, calendar or board, notes) with edit, duplicate and delete;
+  tasks can be ticked off there or opened as their card. New items ask only for
+  what they need, with the rest behind More options, and a placeholder shows
+  where they will go. Hovering empty time shows where a click would start; the
+  time now sits in a pill on the hours; time already gone is a little dimmer;
+  a day's heading opens that day. The New button is gone (click the grid or
+  press N).
+- No coloured lines along the top or left of lists, events or idea cards: a
+  dot and a soft fill instead.
+- In the desktop app, the board's buttons no longer slip under the window's
+  minimise, maximise and close buttons.
+
 ## 0.3.0 — boards as obi has them, Notion-style docs
 
 - **Boards feel like obi's.** Cards lift and tilt as you drag them and the
