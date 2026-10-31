@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.2 — tidier cards, a desktop title bar, Notion-style pages
 
 - **Cards**: the quick controls for due date, priority and labels sit in a
   neat row instead of piling up; due dates use a plain calendar icon and a
