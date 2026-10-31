@@ -1,5 +1,5 @@
 ;(() => {
-  const { species: SPECIES, stageNames, render: renderTreeSvg } = window.ForestTrees
+  const { species: SPECIES, stageNames, grow: growTree } = window.ForestTrees
 
   const DEFAULT_SETTINGS = {
     defaultDuration: 25,
@@ -10,6 +10,9 @@
     sound: true,
     lastTag: '',
   }
+
+  // how many times a tree is redrawn over a session
+  const GROWTH_STEPS = 400
 
   const RANGES = [
     { id: 'today', label: 'Today' },
@@ -64,6 +67,7 @@
   let refs = {}
   let viewCleanup = null
   let lastStage = -1
+  let lastGrowth = -1
   let lastAriaKey = ''
   let lastStatus = null
   let audioCtx = null
@@ -131,21 +135,19 @@
     }
   }
 
-  function timeOfDay(iso) {
-    const date = new Date(iso)
-    if (Number.isNaN(date.getTime())) return ''
-    return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(date)
-  }
-
   function speciesName(id) {
     const found = SPECIES.find((item) => item.id === id)
     return found ? found.name : 'Oak'
   }
 
+  // the stage names follow the drawing: a seed, a sprout, then a crown that fills out
   function stageFor(progress) {
     const value = clamp01(progress)
     if (value >= 1) return 4
-    return Math.min(4, Math.floor(value * 5))
+    if (value >= 0.55) return 3
+    if (value >= 0.22) return 2
+    if (value >= 0.06) return 1
+    return 0
   }
 
   function treeWord(count) {
@@ -342,22 +344,104 @@
       </div>`).join('')}</div>`
   }
 
-  function ringMarkup({ progress, className = '', ariaLabel, center }) {
-    const offset = 100 - clamp01(progress) * 100
-    return `<div class="ring-wrap ${className}" id="ring-timer" role="timer" tabindex="-1" aria-label="${escapeHtml(ariaLabel)}">
-      <svg class="ring" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
-        <circle class="ring-track" cx="50" cy="50" r="45" pathLength="100"></circle>
-        <circle class="ring-progress" cx="50" cy="50" r="45" pathLength="100" stroke-dasharray="100" stroke-dashoffset="${offset}"></circle>
+  // the sky follows the clock
+  function skyNow(date = new Date()) {
+    const hour = date.getHours() + date.getMinutes() / 60
+    if (hour >= 5 && hour < 8) return 'dawn'
+    if (hour >= 8 && hour < 17.5) return 'day'
+    if (hour >= 17.5 && hour < 20.5) return 'dusk'
+    return 'night'
+  }
+
+  // where the tree stands in the scene: its ground line meets the hill's crest
+  const TREE_BOX = { x: 215, y: 52, size: 170 }
+
+  function sceneTree(species, progress, dead = false) {
+    return growTree(species, progress, dead, { ground: false, box: TREE_BOX })
+  }
+
+  function hasPetals(species, progress, dead) {
+    return !dead && progress >= 0.6 && (species === 'cherry' || species === 'maple')
+  }
+
+  const STARS = [[52, 30], [118, 62], [160, 22], [236, 48], [300, 18], [352, 70], [392, 34], [508, 26], [548, 74], [584, 40], [86, 96], [462, 98]]
+    .map(([x, y], i) => `<circle class="star${i % 3 ? '' : ' twinkle'}" cx="${x}" cy="${y}" r="${i % 4 ? 1.1 : 1.6}"></circle>`)
+    .join('')
+
+  const CLOUD = '<ellipse cx="0" cy="0" rx="36" ry="11"></ellipse><circle cx="-13" cy="-7" r="12"></circle><circle cx="7" cy="-12" r="15"></circle><circle cx="24" cy="-4" r="9"></circle>'
+
+  let glowId = 0
+
+  // the sun by day, a crescent moon at night, each with a soft halo
+  function sky(radius) {
+    const id = `ff-glow-${++glowId}`
+    const r = radius
+    return `<defs><radialGradient id="${id}"><stop offset="0" style="stop-color:var(--sun-glow);stop-opacity:.75"></stop><stop offset="1" style="stop-color:var(--sun-glow);stop-opacity:0"></stop></radialGradient></defs>
+      <g class="stars">${STARS}</g>
+      <g class="sun"><circle r="${r * 2.6}" fill="url(#${id})"></circle><circle class="sun-disc" r="${r}"></circle></g>
+      <g class="moon"><circle r="${r * 2.4}" fill="url(#${id})" opacity=".6"></circle><path class="moon-disc" d="M4 -${r} A${r} ${r} 0 1 0 4 ${r} A${r * 1.25} ${r * 1.25} 0 0 1 4 -${r} Z"></path></g>`
+  }
+
+  function landscape() {
+    return `${sky(19)}
+      <g transform="translate(0 50)"><g class="cloud drift-a">${CLOUD}</g></g>
+      <g transform="translate(0 86) scale(.7)"><g class="cloud drift-b">${CLOUD}</g></g>
+      <g transform="translate(0 34) scale(.55)"><g class="cloud drift-c">${CLOUD}</g></g>
+      <path class="hill-far" d="M0 160 C60 138 130 136 200 150 C270 164 330 132 410 128 C480 124 540 146 600 140 V260 H0 Z"></path>
+      <g class="hill-far-ink">
+        <path d="M89 145 L96 125 L103 145 Z"></path><path d="M104 144 L109 130 L114 144 Z"></path>
+        <circle cx="122" cy="135" r="7"></circle><rect x="121" y="138" width="2" height="7"></rect>
+        <path d="M413 131 L420 111 L427 131 Z"></path><path d="M429 130 L435 116 L441 130 Z"></path>
+        <circle cx="508" cy="127" r="8"></circle><rect x="507" y="130" width="2" height="7"></rect>
+      </g>
+      <path class="hill-mid" d="M0 196 C80 176 160 172 240 184 C320 196 380 178 460 172 C520 168 570 180 600 184 V260 H0 Z"></path>
+      <path class="hill-near" d="M0 236 C90 226 190 200 300 196 C410 200 510 224 600 232 V260 H0 Z"></path>
+      <ellipse class="mound" cx="300" cy="199" rx="64" ry="7"></ellipse>
+      <path class="tufts" d="M140 216 l2 -8 l2 8 M156 212 l1.6 -6 l1.6 6 M440 210 l1.6 -6 l1.6 6 M456 214 l2 -8 l2 8 M236 204 l1.4 -5 l1.4 5 M366 203 l1.4 -5 l1.4 5"></path>
+      <g class="flowers"><circle cx="118" cy="224" r="2"></circle><circle cx="186" cy="211" r="1.6"></circle><circle cx="486" cy="222" r="2"></circle></g>`
+  }
+
+  const PETALS = [[268, 98, 0], [322, 92, 1.6], [290, 120, 3.1], [340, 116, 4.4], [254, 124, 5.6], [306, 84, 6.8]]
+    .map(([x, y, delay]) => `<ellipse class="petal" cx="${x}" cy="${y}" rx="3" ry="1.8" style="animation-delay:${delay}s"></ellipse>`)
+    .join('')
+
+  /** The landscape with the tree on its hill; `progress` adds the line along the bottom. */
+  function sceneMarkup({ className = '', ariaLabel, tree, progress = null, badge = '', petals = false }) {
+    const line = progress === null
+      ? ''
+      : `<div class="scene-progress"><span class="ring-progress" style="transform:scaleX(${clamp01(progress)})"></span></div>`
+    return `<div class="scene sky-${skyNow()} ${className}${petals ? ' has-petals' : ''}" id="ring-timer" role="timer" tabindex="-1" aria-label="${escapeHtml(ariaLabel)}">
+      <svg class="scene-art" viewBox="0 0 600 260" preserveAspectRatio="xMidYMax slice" aria-hidden="true" focusable="false">
+        ${landscape()}
+        <g class="tree-sway"><g class="tree-holder" id="tree-holder">${tree}</g></g>
+        <g class="petals">${PETALS}</g>
       </svg>
-      <div class="ring-center">${center}</div>
+      ${badge ? `<span class="scene-badge" id="stage-label">${escapeHtml(badge)}</span>` : ''}
+      ${line}
     </div>`
+  }
+
+  // a new sky when the hour turns while the page stays open
+  function syncSky() {
+    if (!refs.ring) return
+    const sky = `sky-${skyNow()}`
+    if (refs.ring.classList.contains(sky)) return
+    refs.ring.classList.remove('sky-dawn', 'sky-day', 'sky-dusk', 'sky-night')
+    refs.ring.classList.add(sky)
+  }
+
+  function pop(element) {
+    if (!element) return
+    element.classList.remove('pop')
+    void element.getBoundingClientRect()
+    element.classList.add('pop')
   }
 
   function cacheRefs(root) {
     refs = {
       ring: root.querySelector('#ring-timer'),
       progress: root.querySelector('.ring-progress'),
-      time: root.querySelector('#ring-timer .time'),
+      time: root.querySelector('#ring-time'),
       tree: root.querySelector('#tree-holder'),
       stage: root.querySelector('#stage-label'),
     }
@@ -398,13 +482,15 @@
     const species = state.plant.species
     const selectedTask = state.plant.task
     root.innerHTML = `<div class="focus-screen">
-      ${ringMarkup({
-        progress: 1,
+      ${sceneMarkup({
+        className: 'is-plant',
         ariaLabel: `Focus timer, ${duration} minutes`,
-        center: `<div class="tree-holder pop" id="tree-holder">${renderTreeSvg(species, 4)}</div>
-          <div class="time" id="ring-time">${formatClock(duration * 60000)}</div>`,
+        tree: sceneTree(species, 1),
       })}
-      <p class="under-ring" id="ring-caption">Ready to plant · ${escapeHtml(speciesName(species))}</p>
+      <div class="readout">
+        <div class="time" id="ring-time">${formatClock(duration * 60000)}</div>
+        <p class="under-ring" id="ring-caption">Ready to plant · ${escapeHtml(speciesName(species))}</p>
+      </div>
       <div class="controls">
         <fieldset class="control-group">
           <legend>Duration</legend>
@@ -417,28 +503,30 @@
             <output id="duration-out" for="duration-range">${duration} min</output>
           </label>
         </fieldset>
-        <div class="control-group">
-          <span class="field-label" id="task-heading">Task <span class="hint">optional</span></span>
-          <div class="task-select" id="task-select">
-            <button type="button" class="select-button" id="task-button" aria-haspopup="listbox" aria-expanded="false" aria-controls="task-popover" aria-labelledby="task-heading task-value">
-              <span class="select-value${selectedTask ? '' : ' is-placeholder'}" id="task-value">${escapeHtml(selectedTask ? selectedTask.title : 'No task')}</span>
-              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
-            </button>
-            <div class="select-popover" id="task-popover" hidden>
-              <input type="search" class="search-input" id="task-search" placeholder="Search tasks" aria-label="Search tasks" aria-controls="task-options" aria-autocomplete="list" autocomplete="off">
-              <ul class="option-list" id="task-options" role="listbox" aria-label="Tasks"></ul>
+        <div class="two-col">
+          <div class="control-group">
+            <span class="field-label" id="task-heading">Task <span class="hint">optional</span></span>
+            <div class="task-select" id="task-select">
+              <button type="button" class="select-button" id="task-button" aria-haspopup="listbox" aria-expanded="false" aria-controls="task-popover" aria-labelledby="task-heading task-value">
+                <span class="select-value${selectedTask ? '' : ' is-placeholder'}" id="task-value">${escapeHtml(selectedTask ? selectedTask.title : 'No task')}</span>
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+              </button>
+              <div class="select-popover" id="task-popover" hidden>
+                <input type="search" class="search-input" id="task-search" placeholder="Search tasks" aria-label="Search tasks" aria-controls="task-options" aria-autocomplete="list" autocomplete="off">
+                <ul class="option-list" id="task-options" role="listbox" aria-label="Tasks"></ul>
+              </div>
             </div>
           </div>
-        </div>
-        <div class="control-group">
-          <label class="field-label" for="tag-input">Tag <span class="hint">optional</span></label>
-          <input type="text" id="tag-input" maxlength="40" placeholder="e.g. writing" autocomplete="off" value="${escapeHtml(state.plant.tag)}">
+          <div class="control-group">
+            <label class="field-label" for="tag-input">Tag <span class="hint">optional</span></label>
+            <input type="text" id="tag-input" maxlength="40" placeholder="e.g. writing" autocomplete="off" value="${escapeHtml(state.plant.tag)}">
+          </div>
         </div>
         <fieldset class="control-group">
           <legend>Tree</legend>
           <div class="species-grid">
             ${SPECIES.map((item) => `<button type="button" class="species" data-species="${item.id}" aria-pressed="${item.id === species}" title="${escapeHtml(item.name)}">
-              <span class="species-tree" aria-hidden="true">${renderTreeSvg(item.id, 4)}</span>
+              <span class="species-tree" aria-hidden="true">${growTree(item.id, 1)}</span>
               <span class="species-name">${escapeHtml(item.name)}</span>
             </button>`).join('')}
           </div>
@@ -484,10 +572,8 @@
       buttons.forEach((item) => item.setAttribute('aria-pressed', String(item.dataset.species === state.plant.species)))
       const holder = root.querySelector('#tree-holder')
       if (holder) {
-        holder.innerHTML = renderTreeSvg(state.plant.species, 4)
-        holder.classList.remove('pop')
-        void holder.offsetWidth
-        holder.classList.add('pop')
+        holder.innerHTML = sceneTree(state.plant.species, 1)
+        pop(holder)
       }
       const caption = root.querySelector('#ring-caption')
       if (caption) caption.textContent = `Ready to plant · ${speciesName(state.plant.species)}`
@@ -634,18 +720,20 @@
     const progress = clamp01((Date.now() - current.startMs) / (current.planned * 60000))
     const stage = stageFor(progress)
     lastStage = stage
+    lastGrowth = Math.round(progress * GROWTH_STEPS)
     lastAriaKey = ''
     root.innerHTML = `<div class="focus-screen">
-      ${ringMarkup({
+      ${sceneMarkup({
         progress,
         className: 'is-growing',
         ariaLabel: `${speciesName(current.species)}, ${stageNames[stage]}, ${Math.max(0, Math.ceil(remaining / 60000))} minutes remaining`,
-        center: `<div class="tree-holder pop" id="tree-holder">${renderTreeSvg(current.species, stage)}</div>
-          <div class="time" id="ring-time">${formatClock(remaining)}</div>`,
+        tree: sceneTree(current.species, progress),
+        badge: `${speciesName(current.species)} · ${stageNames[stage]}`,
+        petals: hasPetals(current.species, progress),
       })}
-      <div class="under-ring-stack">
-        <p class="under-ring" id="ring-caption">${escapeHtml(current.task ? current.task.title : 'No task')}</p>
-        <p class="stage-label" id="stage-label">${escapeHtml(speciesName(current.species))} · ${stageNames[stage]}</p>
+      <div class="readout">
+        <div class="time" id="ring-time">${formatClock(remaining)}</div>
+        <p class="under-ring" id="ring-caption">${escapeHtml(current.task ? current.task.title : 'Focusing')}${current.tag ? ` · ${escapeHtml(current.tag)}` : ''}</p>
       </div>
       <button type="button" class="button danger-text" id="give-up">Give up</button>
     </div>`
@@ -659,17 +747,20 @@
     const current = state.current
     const total = current.planned * 60000
     const elapsed = clamp01((total - remaining) / total)
-    if (refs.progress) refs.progress.style.strokeDashoffset = String(100 - elapsed * 100)
+    if (refs.progress) refs.progress.style.transform = `scaleX(${elapsed})`
     refs.time.textContent = formatClock(remaining)
+    syncSky()
+    // the tree grows a little every few seconds, and settles in with a pop at each stage
+    const growth = Math.round(elapsed * GROWTH_STEPS)
     const stage = stageFor(elapsed)
+    if (growth !== lastGrowth || stage !== lastStage) {
+      lastGrowth = growth
+      if (refs.tree) refs.tree.innerHTML = sceneTree(current.species, elapsed)
+      refs.ring?.classList.toggle('has-petals', hasPetals(current.species, elapsed))
+    }
     if (stage !== lastStage) {
       lastStage = stage
-      if (refs.tree) {
-        refs.tree.innerHTML = renderTreeSvg(current.species, stage)
-        refs.tree.classList.remove('pop')
-        void refs.tree.offsetWidth
-        refs.tree.classList.add('pop')
-      }
+      pop(refs.tree)
       if (refs.stage) refs.stage.textContent = `${speciesName(current.species)} · ${stageNames[stage]}`
     }
     const minutes = Math.max(0, Math.ceil(remaining / 60000))
@@ -693,21 +784,24 @@
     const grown = session.status === 'grown'
     const stats = todayStats()
     const breakLength = nextBreakLength()
-    const center = `<div class="tree-holder" id="tree-holder">${renderTreeSvg(session.species, 4, !grown)}</div>
-      <div class="time">${formatClock((grown ? session.planned : session.actual) * 60000)}</div>`
+    // a withered tree stays as big as it had grown
+    const reached = grown ? 1 : Math.max(0.3, clamp01(session.actual / Math.max(1, session.planned)))
     root.innerHTML = `<div class="focus-screen">
-      ${ringMarkup({
-        progress: grown ? 1 : clamp01(session.actual / Math.max(1, session.planned)),
-        className: grown ? 'is-complete' : 'is-dead',
+      ${sceneMarkup({
+        className: grown ? 'is-complete' : 'is-withered',
         ariaLabel: grown ? 'Tree grown' : 'Tree withered',
-        center,
+        tree: sceneTree(session.species, reached, !grown),
+        badge: `${formatMinutes(grown ? session.planned : session.actual)} focused`,
+        petals: grown && hasPetals(session.species, 1),
       })}
-      <h2 class="result-title" tabindex="-1">${grown
-        ? `Your ${escapeHtml(speciesName(session.species).toLowerCase())} has grown`
-        : `Your ${escapeHtml(speciesName(session.species).toLowerCase())} withered`}</h2>
-      <p class="under-ring">${grown
-        ? `${stats.grown} ${treeWord(stats.grown)} · ${formatMinutes(stats.minutes)} focused today`
-        : `${formatMinutes(session.actual)} focused · the tree was lost`}</p>
+      <div class="readout">
+        <h2 class="result-title" tabindex="-1">${grown
+          ? `Your ${escapeHtml(speciesName(session.species).toLowerCase())} has grown`
+          : `Your ${escapeHtml(speciesName(session.species).toLowerCase())} withered`}</h2>
+        <p class="under-ring">${grown
+          ? `${stats.grown} ${treeWord(stats.grown)} · ${formatMinutes(stats.minutes)} focused today`
+          : `${formatMinutes(session.actual)} focused · the tree was lost`}</p>
+      </div>
       <div class="result-actions">
         ${grown ? `<button type="button" class="button" id="take-break">Take a ${breakLength} min break</button>` : ''}
         ${grown && session.task ? '<button type="button" class="button" id="mark-done">Mark task done</button>' : ''}
@@ -748,14 +842,17 @@
     const progress = clamp01((Date.now() - breakState.startMs) / (breakState.planned * 60000))
     lastAriaKey = ''
     root.innerHTML = `<div class="focus-screen">
-      ${ringMarkup({
+      ${sceneMarkup({
         progress,
         className: 'is-break',
         ariaLabel: `Break, ${Math.max(0, Math.ceil(remaining / 60000))} minutes remaining`,
-        center: `<div class="ring-label">Break</div>
-          <div class="time" id="break-time">${formatClock(remaining)}</div>`,
+        tree: sceneTree(state.plant.species, 1),
+        badge: 'Break',
       })}
-      <p class="under-ring">Step away. Your next tree can wait.</p>
+      <div class="readout">
+        <div class="time" id="ring-time">${formatClock(remaining)}</div>
+        <p class="under-ring">Step away. Your next tree can wait.</p>
+      </div>
       <button type="button" class="button" id="skip-break">Skip break</button>
     </div>`
     cacheRefs(root)
@@ -768,8 +865,9 @@
     const breakState = state.break
     const total = breakState.planned * 60000
     const elapsed = clamp01((total - remaining) / total)
-    if (refs.progress) refs.progress.style.strokeDashoffset = String(100 - elapsed * 100)
+    if (refs.progress) refs.progress.style.transform = `scaleX(${elapsed})`
     refs.time.textContent = formatClock(remaining)
+    syncSky()
     const minutes = Math.max(0, Math.ceil(remaining / 60000))
     const ariaKey = String(minutes)
     if (ariaKey !== lastAriaKey) {
@@ -792,27 +890,22 @@
     const lost = sessions.filter((session) => session.status === 'dead')
     const focused = sessions.reduce((sum, session) => sum + (Number(session.actual) || 0), 0)
     const streak = currentStreak()
-    const garden = sessions.length
-      ? `<ul class="garden" aria-label="Trees">${sessions.map((session) => `
-        <li>
-          <button type="button" class="tree-tile${session.status === 'dead' ? ' is-dead' : ''}" data-session="${escapeHtml(session.id || session.start)}" aria-label="${escapeHtml(tileLabel(session))}">
-            <span class="tile-tree" aria-hidden="true">${renderTreeSvg(session.species, 4, session.status === 'dead')}</span>
-            <span class="tile-time">${escapeHtml(timeOfDay(session.start))}</span>
-          </button>
-        </li>`).join('')}</ul>`
+    const empty = sessions.length
+      ? ''
       : `<div class="empty"><p>No trees in this range yet.</p><button type="button" class="button primary" id="go-focus">Plant a tree</button></div>`
 
     root.innerHTML = `<div class="forest-screen">
       <div class="range-tabs" role="group" aria-label="Forest range">
         ${RANGES.map((item) => `<button type="button" class="range-tab" data-range="${item.id}" aria-pressed="${item.id === range}">${item.label}</button>`).join('')}
       </div>
+      ${groveMarkup(sessions)}
+      ${empty}
       <div class="totals">
         <div class="total"><span class="total-value">${formatMinutes(focused)}</span><span class="total-label">Focused</span></div>
         <div class="total"><span class="total-value">${grown.length}</span><span class="total-label">Trees grown</span></div>
         <div class="total"><span class="total-value">${lost.length}</span><span class="total-label">Trees lost</span></div>
         <div class="total"><span class="total-value">${streak}</span><span class="total-label">Day streak</span></div>
       </div>
-      ${garden}
       <section class="breakdowns">
         <h3>By tag</h3>
         ${barsMarkup(groupBy(sessions, (session) => session.tag || 'No tag'), 'No tagged sessions yet.')}
@@ -842,11 +935,17 @@
       })
     })
 
-    root.querySelectorAll('[data-session]').forEach((button) => {
-      button.addEventListener('click', () => {
-        const key = button.dataset.session
+    root.querySelectorAll('[data-session]').forEach((tree) => {
+      const open = () => {
+        const key = tree.dataset.session
         const session = state.sessions.find((item) => item.id === key || item.start === key)
         if (session) openSessionDialog(session)
+      }
+      tree.addEventListener('click', open)
+      tree.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return
+        event.preventDefault()
+        open()
       })
     })
     root.querySelector('#go-focus')?.addEventListener('click', () => {
@@ -856,6 +955,46 @@
     })
   }
 
+  // the most a grove shows at once; older trees still count in the totals
+  const GROVE_MAX = 160
+
+  // Every session is a tree in one meadow. Trees spread out along golden-ratio
+  // steps so any number of them fill it evenly; ones further back stand higher
+  // and smaller, and a longer session grows a bigger tree.
+  function groveMarkup(sessions) {
+    const shown = sessions.slice(-GROVE_MAX)
+    const few = shown.length <= 3
+    const trees = shown.map((session, i) => {
+      const depth = few ? 0.8 : (0.12 + i * 0.7548776) % 1
+      const across = few ? 0.5 + (i - (shown.length - 1) / 2) * 0.2 : (0.5 + i * 0.618034) % 1
+      const base = 148 + depth * 74
+      const size = (52 + depth * 64) * (0.72 + 0.28 * Math.min(1, (Number(session.planned) || 25) / 60))
+      return { session, x: 48 + across * 504, base, size }
+    }).sort((a, b) => a.base - b.base)
+    return `<div class="grove sky-${skyNow()}">
+      <svg class="grove-art" viewBox="0 0 600 240" preserveAspectRatio="xMidYMax meet" role="group" aria-label="Trees">
+        <g aria-hidden="true">
+          ${sky(16)}
+          <g transform="translate(0 40) scale(.8)"><g class="cloud drift-a">${CLOUD}</g></g>
+          <g transform="translate(0 70) scale(.55)"><g class="cloud drift-b">${CLOUD}</g></g>
+          <path class="hill-far" d="M0 140 C70 118 150 116 230 128 C310 140 380 112 460 110 C520 108 570 122 600 120 V240 H0 Z"></path>
+          <path class="hill-mid" d="M0 160 C120 146 220 150 300 154 C380 158 480 144 600 150 V240 H0 Z"></path>
+          <path class="hill-near" d="M0 176 C150 164 450 164 600 176 V240 H0 Z"></path>
+        </g>
+        ${trees.map(({ session, x, base, size }) => {
+          const dead = session.status === 'dead'
+          const label = tileLabel(session)
+          return `<g class="grove-tree${dead ? ' is-dead' : ''}" role="button" tabindex="0" data-session="${escapeHtml(session.id || session.start)}" aria-label="${escapeHtml(label)}">
+            <title>${escapeHtml(label)}</title>
+            <ellipse cx="${x.toFixed(1)}" cy="${base.toFixed(1)}" rx="${(size * 0.2).toFixed(1)}" ry="${(size * 0.035).toFixed(1)}" fill="#000" opacity=".14"></ellipse>
+            ${growTree(session.species, 1, dead, { ground: false, box: { x: x - size / 2, y: base - size * 0.86, size } })}
+          </g>`
+        }).join('')}
+      </svg>
+      ${sessions.length > GROVE_MAX ? `<span class="scene-badge">Newest ${GROVE_MAX} of ${sessions.length}</span>` : ''}
+    </div>`
+  }
+
   function tileLabel(session) {
     const status = session.status === 'grown' ? 'grown' : 'withered'
     return `${speciesName(session.species)}, ${status}, ${formatMinutes(session.actual)}, ${formatDateTime(new Date(session.start))}`
@@ -863,7 +1002,7 @@
 
   function openSessionDialog(session) {
     els.sessionTitle.textContent = speciesName(session.species)
-    els.sessionDetail.innerHTML = `<div class="session-tree">${renderTreeSvg(session.species, 4, session.status === 'dead')}</div>
+    els.sessionDetail.innerHTML = `<div class="session-tree">${growTree(session.species, 1, session.status === 'dead')}</div>
       <dl class="detail-grid">
         <dt>When</dt><dd>${escapeHtml(formatDateTime(new Date(session.start)))}</dd>
         <dt>Planned</dt><dd>${formatMinutes(session.planned)}</dd>

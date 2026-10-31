@@ -150,8 +150,9 @@ Uninstalling removes the folder (the plugin's data stays, under `data/plugins/<i
 ## Starter plugins
 
 - **Focus Forest** (`plugins/focus-forest`) — a focus timer in the spirit of
-  Forest: pick a task and a duration, a tree grows while you focus, giving up
-  leaves a dead tree, and your forest fills up day by day.
+  Forest: pick a task and a duration, a tree grows on a hill while you focus
+  (the sky follows the time of day), giving up leaves a withered tree, and
+  your sessions fill a meadow day by day.
 - **Usage Monitor** (`plugins/usage-monitor`) — on the desktop app, records which
   applications you use, splits time into productive / neutral / distracting,
   shows a timeline, totals and a focus score per day, week and month, and can

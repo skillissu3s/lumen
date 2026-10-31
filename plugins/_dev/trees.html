@@ -1,0 +1,19 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Trees</title>
+<style>
+body{margin:0;padding:16px;font:13px system-ui;background:#f6f5f1}
+.row{display:flex;gap:8px;align-items:end;margin-bottom:10px}
+.cell{width:150px;height:150px;background:#fff;border-radius:12px;box-shadow:0 0 0 1px #e8e6e0}
+.cell svg{width:100%;height:100%}
+.dead svg, svg.dead{filter:grayscale(.9) sepia(.35) brightness(.85)}
+</style></head><body>
+<div id="out"></div>
+<script src="../focus-forest/trees.js"></script>
+<script>
+const out=document.getElementById('out')
+for (const s of ForestTrees.species) {
+  const row=document.createElement('div'); row.className='row'
+  row.innerHTML = '<b style="width:90px">'+s.name+'</b>' + [0.03,0.12,0.2,0.35,0.55,0.75,1].map(p=>'<div class="cell">'+ForestTrees.grow(s.id,p)+'</div>').join('') + '<div class="cell">'+ForestTrees.grow(s.id,1,true)+'</div>'
+  out.appendChild(row)
+}
+</script></body></html>

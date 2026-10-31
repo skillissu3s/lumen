@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- **Focus Forest 1.1**, redrawn: your tree grows on a hill in a small landscape
+  whose sky follows the time of day (dawn, day, dusk, a starry night), with
+  drifting clouds. It grows smoothly through the session and sways a little;
+  cherry and maple drop petals once they are big. A thin line along the bottom
+  shows progress, with a large timer under it. A new tree: maple.
+- **Your forest** is now one meadow: every session stands in it as a tree,
+  bigger for longer sessions, further back for older ones, withered for one
+  you gave up. Click a tree for its details.
+- An updated plugin takes effect straight away, even with its page open.
+- Collapsed sidebar: the icons sit in the middle of the rail, and the
+  workspace button stays at the same height as when the sidebar is open.
+
 ## 0.3.4 — a held card lets go cleanly
 
 - Letting go of a held card no longer flashes it as completed for a moment.

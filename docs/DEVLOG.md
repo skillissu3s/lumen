@@ -322,3 +322,25 @@ settable right on a card; drop the calendar's New button.
 - Collapsed sidebar: the footer keeps one row; the sync state is a dot on the
   avatar.
 
+### Focus Forest 1.1
+- `trees.js` draws trees generatively: layered crowns (a fixed number of
+  overlapping circles per species from a seeded random, shaded with two radial
+  gradients inside a clip path), tapered trunks, tiered pines and a cactus.
+  `grow(species, progress, dead, { ground, box })` gives a tree at any
+  progress, so it grows continuously; `render(species, stage)` remains for the
+  five named stages. The crown's circle count is fixed so it swells instead of
+  reshuffling as it grows.
+- The focus screen is one SVG scene (`viewBox 0 0 600 260`, `slice`, so phones
+  crop the sides): sky colours come from CSS variables per `sky-dawn/day/dusk/
+  night` (from the clock, re-checked each tick), and the tree sits in it
+  through `box` so the ground line meets the hill's crest. The sway is on a
+  wrapper group, so redrawing the tree (every 1/400 of a session) doesn't
+  restart it.
+- The forest grove places trees with golden-ratio steps across and a
+  plastic-number sequence for depth, so any count fills the meadow evenly
+  (`meet`, so nothing is cropped on phones; at most 160 shown).
+- Plugin host: a version change in `lumen.json` (written after the files)
+  reloads that plugin's frame where it sat; before, an open view kept the old
+  copy until Lumen reloaded.
+- `plugins/_dev/trees.html` previews every species at every stage.
+

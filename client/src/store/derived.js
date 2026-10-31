@@ -100,7 +100,8 @@ export function selectPlugins(state) {
     } catch {
       manifest = {}
     }
-    out.push({ id, manifest, granted: entry.permissions || [] })
+    // lumen.json's version is written after the plugin's files, so it marks a finished install
+    out.push({ id, manifest, granted: entry.permissions || [], version: entry.version || manifest.version })
   }
   return out
 }

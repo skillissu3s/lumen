@@ -102,18 +102,22 @@ function sync() {
 }
 
 function ensureFrame(installed) {
-  const { id, manifest, granted } = installed
+  const { id, manifest, granted, version } = installed
   let rec = frames.get(id)
   if (rec) {
+    const updated = rec.iframe && version !== rec.version
     rec.manifest = manifest
     rec.granted = granted || []
+    rec.version = version
     registerCommands(rec)
-    if (manifest.background && !rec.iframe) createFrame(rec)
+    if (updated) reloadFrame(rec)
+    else if (manifest.background && !rec.iframe) createFrame(rec)
     return rec
   }
   rec = {
     id,
     manifest,
+    version,
     granted: granted || [],
     iframe: null,
     state: 'loading',
@@ -126,6 +130,17 @@ function ensureFrame(installed) {
   registerCommands(rec)
   if (manifest.background) createFrame(rec)
   return rec
+}
+
+// an updated plugin: its new files load in a fresh frame, where the old one sat
+async function reloadFrame(rec) {
+  const target = rec.target
+  rec.ro?.disconnect()
+  rec.ro = null
+  rec.iframe?.remove()
+  rec.iframe = null
+  await createFrame(rec)
+  if (target?.isConnected) showFrame(rec, target)
 }
 
 function destroyFrame(id) {
