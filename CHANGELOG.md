@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.6 — a sliding sidebar, themes, and a fuller idea board
 
 - **The sidebar slides** open and closed, as obi's does: the full sidebar and
   the icon rail are two columns, and one slides shut as the other opens, with
