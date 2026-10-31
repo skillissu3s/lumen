@@ -36,6 +36,11 @@ export default defineConfig({
       },
     },
   },
+  // bundle every dependency up front: a re-bundle mid-session can leave two
+  // copies of React in the dev server's cache
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react-dom/client', 'zustand', 'zustand/vanilla', 'lucide-react', 'markdown-it', 'dompurify', 'diff-match-patch'],
+  },
   server: {
     port: 5173,
     proxy: {

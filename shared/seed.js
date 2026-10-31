@@ -7,12 +7,10 @@ calendars/*.md  merge=union
 chat/**/*.jsonl merge=union
 `
 
-const WELCOME = (name) => `---
+const WELCOME = () => `---
 title: Welcome
 owner: {{handle}}
 ---
-# Welcome to Lumen${name ? `, ${name}` : ''}
-
 Everything here is plain text in your workspace folder (or GitHub repository):
 
 - **Tasks** live in \`lists/*.md\`, one markdown line each — \`- [ ] Call the bank 📅 2026-11-02 ⏰ 10:30\`.
@@ -31,7 +29,7 @@ export function seedFiles({ handle, name = '', chat = false, now = new Date() })
     '.gitattributes': GITATTRIBUTES,
     'lists/inbox.md': `---\nname: Inbox\nicon: 📥\nowner: ${handle}\n---\n- [ ] Try Lumen: type "Plan the week tomorrow 9am for 30m" in the box above 🆔 ${newId()}\n`,
     'calendars/personal.md': `---\nname: Personal\ncolor: blue\nowner: ${handle}\ndefault: true\n---\n`,
-    'docs/welcome.md': WELCOME(name).replace('{{handle}}', handle),
+    'docs/welcome.md': WELCOME().replace('{{handle}}', handle),
   }
   if (chat) files['chat/channels.json'] = json([{ id: 'general', name: 'general', members: 'everyone', created: now.toISOString(), by: handle }])
   return files

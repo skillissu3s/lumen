@@ -154,7 +154,7 @@ export function deleteCalendar(path) {
 export function createDoc({ title, folder } = {}) {
   const dir = folder ? `docs/${slugify(folder)}` : 'docs'
   const path = uniquePath(dir, title, 'md', ws().paths)
-  ws().createFile(path, withFrontMatter({ title }, `# ${title}\n`))
+  ws().createFile(path, withFrontMatter({ title, owner: ws().user?.handle }, ''))
   return path
 }
 

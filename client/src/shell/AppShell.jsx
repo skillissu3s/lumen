@@ -1,6 +1,6 @@
 // The signed-in app: sidebar + the current view, with the palette, toasts,
 // shortcuts help and global shortcuts around them.
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { Component, lazy, Suspense, useEffect, useState } from 'react'
 import { Menu as MenuIcon } from 'lucide-react'
 import { Dialog, Kbd, Spinner, Toaster } from '../components/ui/index.js'
 import { useUI, undoLast } from '../store/ui.js'
@@ -39,6 +39,29 @@ function viewFor(route) {
       return PluginView
     default:
       return TasksView
+  }
+}
+
+// one broken view shouldn't take the whole app down
+class ViewBoundary extends Component {
+  state = { error: null }
+  static getDerivedStateFromError(error) {
+    return { error }
+  }
+  componentDidUpdate(prev) {
+    if (prev.path !== this.props.path && this.state.error) this.setState({ error: null })
+  }
+  render() {
+    if (!this.state.error) return this.props.children
+    return (
+      <div className="view view-error" role="alert">
+        <h2>Something went wrong on this page</h2>
+        <p className="muted">{String(this.state.error.message || this.state.error)}</p>
+        <button type="button" className="ui-button ui-button--secondary" onClick={() => location.reload()}>
+          Reload
+        </button>
+      </div>
+    )
   }
 }
 
@@ -117,7 +140,9 @@ export function AppShell({ route }) {
             </div>
           }
         >
-          <View route={route} />
+          <ViewBoundary path={route.path}>
+            <View route={route} />
+          </ViewBoundary>
         </Suspense>
       </main>
       <CommandPalette />

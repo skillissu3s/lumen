@@ -653,6 +653,17 @@
   min-height: 0;
   overflow: auto;
 }
+/* small section heading in side panels (calendar, chat) */
+.cal-side-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 24px;
+  padding: 0 2px 0 4px;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--text-faint);
+}
 .muted {
   color: var(--text-muted);
 }
@@ -721,4 +732,12 @@
 }
 .is-desktop-titlebar .view-header > * {
   -webkit-app-region: no-drag;
+}
+
+.view-error {
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
 }
