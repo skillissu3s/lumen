@@ -1411,7 +1411,7 @@ button.pb-list-dot:hover {
   rotate: 2deg;
   scale: 1.01;
 }
-.pb-ghost.settling {
+.pb-ghost.is-landing {
   transition: translate 180ms cubic-bezier(0.2, 0.8, 0.2, 1), rotate 180ms var(--ease), scale 180ms var(--ease), box-shadow 180ms var(--ease);
 }
 html.pb-dragging,

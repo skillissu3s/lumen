@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Letting go of a held card no longer flashes it as completed for a moment.
+
 ## 0.3.3 — steadier and smoother
 
 - Idea boards no longer have sticky notes.

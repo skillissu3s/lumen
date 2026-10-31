@@ -195,7 +195,7 @@ export function useBoardDrag({ lanesRef, onDrop, startDrop }) {
     requestAnimationFrame(() => {
       const gap = lanesRef.current?.querySelector(g.item.kind === 'card' ? '.pb-placeholder' : '.pb-list-placeholder')
       const to = gap ? gap.getBoundingClientRect() : g.rect
-      g.ghost.classList.add('settling')
+      g.ghost.classList.add('is-landing') // (not 'settling': a card's settling is it being ticked off)
       g.ghost.classList.remove('lifted')
       g.ghost.style.translate = `${to.left - g.rect.left}px ${to.top - g.rect.top}px`
       setTimeout(() => {
