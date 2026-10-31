@@ -1,131 +1,229 @@
-/* Settings: a vertical tab list beside one readable column of cards. */
+/* Settings: a dialog over the app, as obi has it: a column of places on the left
+   (grouped: You, Workspace, App), and one page of flat rows on the right. */
 
-.settings {
-  flex-direction: row;
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 860;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--overlay);
+  animation: settings-fade 160ms var(--ease);
 }
-.set-nav {
+@keyframes settings-fade {
+  from {
+    opacity: 0;
+  }
+}
+.settings-modal {
+  position: relative;
+  display: flex;
+  width: min(940px, 100%);
+  height: min(720px, calc(100vh - 48px));
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow-lg), 0 0 0 1px var(--border);
+  animation: settings-in 220ms cubic-bezier(0.2, 0.9, 0.3, 1.1);
+}
+@keyframes settings-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+}
+.settings-nav {
   flex: none;
-  width: 232px;
-  padding: 0 10px;
+  width: 212px;
+  padding: 16px 10px;
+  overflow-y: auto;
+  background: var(--bg-subtle);
   border-right: 1px solid var(--border);
 }
-.set-nav-head {
-  height: 52px;
-  padding-left: 8px;
+.settings-nav-title {
+  padding: 2px 10px 6px;
+  font-size: var(--fs-md);
+  font-weight: 650;
+  letter-spacing: -0.01em;
 }
-.set-nav [role='tablist'] {
+.settings-nav [role='tablist'] {
   display: grid;
   gap: 1px;
 }
-.set-nav .nav-item {
-  width: 100%;
-  text-align: left;
-}
-.set-nav .nav-item .nav-icon {
+.settings-nav-label {
+  padding: 14px 10px 5px;
   color: var(--text-faint);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
-.set-nav .nav-item.is-active .nav-icon {
+.settings-nav button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: left;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.settings-nav button:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.settings-nav button.active {
+  background: var(--bg-active);
+  color: var(--text);
+  font-weight: 550;
+}
+.settings-nav button.active svg {
   color: var(--accent);
 }
-.set-nav-select {
+.settings-nav-select {
   display: none;
 }
-.set-main {
+.settings-body {
   flex: 1;
   min-width: 0;
   overflow-y: auto;
+  padding: 24px 34px 48px;
+  animation: settings-page 200ms var(--ease);
 }
-.set-column {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 32px 40px 96px;
+@keyframes settings-page {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
 }
-
-/* the page's own heading */
-.set-page-head {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  margin-bottom: 28px;
+.settings-body h2 {
+  margin: 0 0 4px;
+  font-size: 19px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
 }
-.set-page-icon {
+.settings-body .section-sub {
+  margin: 0 0 18px;
+  color: var(--text-faint);
+  font-size: 13px;
+}
+.settings-body h3 {
+  margin: 26px 0 6px;
+  color: var(--text-faint);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.settings-body .set-section:first-of-type h3 {
+  margin-top: 8px;
+}
+.set-section-desc {
+  margin: -2px 0 8px;
+}
+.settings-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
   display: grid;
   place-items: center;
-  flex: none;
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  color: var(--tint);
-  background: var(--tint-bg);
-}
-.set-page-head h1 {
-  font-size: var(--fs-xl);
-  font-weight: 600;
-  letter-spacing: var(--tracking-tight);
-}
-.set-page-head p {
-  margin-top: 2px;
-  max-width: 560px;
-}
-
-/* sections are cards of rows */
-.set-section + .set-section {
-  margin-top: 28px;
-}
-.set-section-head {
-  margin: 0 2px 10px;
-}
-.set-section-head h2 {
-  font-size: var(--fs);
-  font-weight: 600;
-}
-.set-section-head p {
-  margin-top: 2px;
-  max-width: 560px;
-  font-size: var(--fs-sm);
-}
-.set-section-body {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
-}
-.set-section-body > * {
-  padding-left: 18px;
-  padding-right: 18px;
-}
-.set-section-body > * + * {
-  border-top: 1px solid var(--border);
-}
-.set-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 24px;
-  min-height: 56px;
-  padding-top: 12px;
-  padding-bottom: 12px;
-}
-.set-row-label {
-  display: grid;
-  gap: 2px;
-  font-weight: 500;
-}
-.set-hint {
-  font-size: var(--fs-sm);
-  font-weight: 400;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
   color: var(--text-faint);
 }
-.set-row-control {
+.settings-close:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+/* one setting: name and a line about it, then its control */
+.setting {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  gap: 18px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--border);
+}
+.set-section-body > .setting:last-child {
+  border-bottom: none;
+}
+.setting-text {
+  flex: 1;
   min-width: 0;
 }
-.set-row-control .ui-input-wrap,
-.set-row-control .ui-select {
-  min-width: 200px;
+.setting-name {
+  font-size: 13.5px;
+  font-weight: 550;
 }
+.setting-desc {
+  margin-top: 2px;
+  color: var(--text-faint);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.setting-control {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex-shrink: 0;
+  min-width: 0;
+  max-width: 60%;
+}
+.setting-control .ui-input-wrap,
+.setting-control .ui-select {
+  width: 220px;
+  max-width: 100%;
+}
+.setting.stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+.setting.stacked .setting-control {
+  max-width: none;
+  justify-content: flex-start;
+}
+
+/* the avatar and name at the top of Account */
+.settings-summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 4px 0 14px;
+  border-bottom: 1px solid var(--border);
+}
+.settings-summary-text {
+  flex: 1;
+  min-width: 0;
+}
+.settings-summary-title {
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+.settings-summary-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-top: 3px;
+  font-size: 12.5px;
+}
+.set-badge {
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+  background: var(--accent-soft);
+  color: var(--accent-fg);
+  font-size: 11px;
+  font-weight: 600;
+}
+
 .set-value {
   display: inline-flex;
   align-items: center;
@@ -144,23 +242,10 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.set-profile {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding-top: 16px;
-  padding-bottom: 16px;
-  background: var(--bg-subtle);
-}
-.set-profile-name {
-  font-size: var(--fs-md);
-  font-weight: 600;
-}
 .set-form {
   display: grid;
   gap: 14px;
-  padding-top: 18px;
-  padding-bottom: 18px;
+  padding: 14px 0 6px;
 }
 .set-form > * {
   max-width: 440px;
@@ -171,16 +256,11 @@
   gap: 12px;
 }
 .set-section-body > .customize {
-  padding-top: 18px;
-  padding-bottom: 18px;
+  padding-top: 8px;
 }
 .set-section-body .cz-grid {
   grid-template-columns: 200px minmax(0, 280px);
   font-size: var(--fs);
-}
-.set-section-body .shortcuts {
-  padding-top: 8px;
-  padding-bottom: 8px;
 }
 .accents {
   display: flex;
@@ -192,10 +272,59 @@
   border-radius: 50%;
   background: var(--sw);
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+  transition: transform var(--dur) var(--ease);
+}
+.accent-swatch:hover {
+  transform: scale(1.1);
 }
 .accent-swatch[aria-checked='true'] {
   box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--sw);
 }
+@media (max-width: 760px) {
+  .settings-overlay {
+    padding: 0;
+  }
+  .settings-modal {
+    flex-direction: column;
+    height: 100%;
+    border-radius: 0;
+  }
+  .settings-nav {
+    width: auto;
+    padding: 12px 56px 10px 12px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .settings-nav [role='tablist'],
+  .settings-nav-title {
+    display: none;
+  }
+  .settings-nav-select {
+    display: block;
+    width: 100%;
+    height: 34px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: var(--radius);
+    background: var(--bg-muted);
+  }
+  .settings-body {
+    padding: 18px 16px 48px;
+  }
+  .setting {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .setting-control {
+    max-width: none;
+    justify-content: flex-start;
+  }
+  .set-section-body .cz-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .invite-form {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 120px auto;
@@ -207,7 +336,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 0 18px 16px;
+  margin: 12px 0 4px;
   padding: 8px 8px 8px 12px;
   border-radius: var(--radius-md);
   background: var(--bg-subtle);
@@ -265,42 +394,7 @@
   color: var(--danger);
 }
 
-@media (max-width: 860px) {
-  .set-nav [role='tablist'] {
-    display: none;
-  }
-  .set-nav-select {
-    display: block;
-    width: 100%;
-    height: 32px;
-    padding: 0 8px;
-    border: 0;
-    border-radius: var(--radius);
-    background: var(--bg-muted);
-  }
-  .settings {
-    flex-direction: column;
-  }
-  .set-nav {
-    width: auto;
-    padding: 0 12px 8px 52px;
-    background: none;
-    border-right: 0;
-    border-bottom: 1px solid var(--border);
-  }
-  .set-column {
-    padding: 20px 16px 96px;
-  }
-  .set-row {
-    grid-template-columns: 1fr;
-    gap: 8px;
-  }
-  .set-section-body .cz-grid {
-    grid-template-columns: 1fr;
-  }
-  .set-row-control {
-    justify-content: flex-start;
-  }
+@media (max-width: 760px) {
   .invite-form {
     grid-template-columns: 1fr;
   }

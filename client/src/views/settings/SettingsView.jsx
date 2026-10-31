@@ -1,6 +1,6 @@
 // Settings: one page per topic, saved as you change them.
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { CalendarDays, Copy, Database, ExternalLink, FolderOpen, GitBranch, Info, Kanban, Keyboard, Palette, Puzzle, RefreshCw, Trash2, UserRound, Users } from 'lucide-react'
+import { CalendarDays, Copy, Database, ExternalLink, FolderOpen, GitBranch, Info, Kanban, Keyboard, Palette, Puzzle, RefreshCw, Trash2, UserRound, Users, X } from 'lucide-react'
 import { Avatar, Button, Dialog, Field, Input, Kbd, Segmented, Select, Spinner, Switch } from '../../components/ui/index.js'
 import { useSession } from '../../store/session.js'
 import { useWorkspace } from '../../store/workspace.js'
@@ -20,28 +20,26 @@ const PluginSettings = lazy(() => import('./PluginSettings.jsx'))
 const ACCENTS = ['indigo', 'blue', 'teal', 'green', 'orange', 'rose', 'violet', 'graphite']
 const ACCENT_HEX = { indigo: '#5b5bd6', blue: '#0b6bcb', teal: '#0d7f72', green: '#18794e', orange: '#c2410c', rose: '#c62a5a', violet: '#7c3aed', graphite: '#3a3a37' }
 
+// a group of settings under a small heading, the way obi lays them out
 function Section({ title, description, children }) {
   return (
     <section className="set-section">
-      {(title || description) && (
-        <div className="set-section-head">
-          {title && <h2>{title}</h2>}
-          {description && <p className="muted">{description}</p>}
-        </div>
-      )}
+      {title && <h3>{title}</h3>}
+      {description && <p className="setting-desc set-section-desc">{description}</p>}
       <div className="set-section-body">{children}</div>
     </section>
   )
 }
 
-function Row({ label, hint, children }) {
+// one setting: its name (and a line about it) on the left, the control on the right
+function Row({ label, hint, children, stacked }) {
   return (
-    <div className="set-row">
-      <div className="set-row-label">
-        <span>{label}</span>
-        {hint && <span className="set-hint">{hint}</span>}
+    <div className={`setting${stacked ? ' stacked' : ''}`}>
+      <div className="setting-text">
+        <div className="setting-name">{label}</div>
+        {hint && <div className="setting-desc">{hint}</div>}
       </div>
-      <div className="set-row-control">{children}</div>
+      <div className="setting-control">{children}</div>
     </div>
   )
 }
@@ -61,7 +59,7 @@ function Account() {
 
   if (mode === 'github')
     return (
-      <Section title="Account" description="You’re using Lumen with a GitHub repository. Nothing about you is stored anywhere else.">
+      <Section description="You’re using Lumen with a GitHub repository. Nothing about you is stored anywhere else.">
         <Row label="Signed in as">
           <span className="set-value">
             <Avatar name={user?.name} size={22} /> {user?.name} <span className="faint">@{user?.handle}</span>
@@ -98,7 +96,7 @@ function Account() {
     )
   if (mode === 'desktop')
     return (
-      <Section title="Account" description="The desktop app runs for you alone on this computer — there is no account to manage.">
+      <Section description="The desktop app runs for you alone on this computer — there is no account to manage.">
         <Row label="Name">
           <span className="set-value">{user?.name}</span>
         </Row>
@@ -107,12 +105,13 @@ function Account() {
   return (
     <>
       <Section title="Profile">
-        <div className="set-profile">
-          <Avatar name={user?.name} size={40} />
-          <div>
-            <div className="set-profile-name">{user?.name}</div>
-            <div className="faint">
-              {user?.email} · {user?.role === 'admin' ? 'Admin' : 'Member'}
+        <div className="settings-summary">
+          <Avatar name={user?.name} size={48} />
+          <div className="settings-summary-text">
+            <div className="settings-summary-title">{user?.name}</div>
+            <div className="settings-summary-meta">
+              <span className="faint">@{user?.handle}</span>
+              {user?.role === 'admin' && <span className="set-badge">Admin</span>}
             </div>
           </div>
         </div>
@@ -631,74 +630,94 @@ function About() {
   )
 }
 
-export default function SettingsView({ route }) {
+export default function SettingsView({ route, onClose }) {
   const mode = useSession((s) => s.mode)
   const role = useSession((s) => s.user?.role)
   const tabs = [
-    { id: 'account', label: 'Account', icon: UserRound, tint: 'indigo', about: 'Your profile and how you sign in.', el: Account },
-    { id: 'appearance', label: 'Appearance', icon: Palette, tint: 'violet', about: 'How Lumen looks on this account, on every device.', el: Appearance },
-    { id: 'calendar', label: 'Calendar', icon: CalendarDays, tint: 'blue', about: 'Hours, colours and what the calendar shows. The same options as its Customize panel.', el: CalendarTab },
-    { id: 'tasks', label: 'Boards and tasks', icon: Kanban, tint: 'amber', about: 'Where new tasks land and how boards open.', el: TasksTab },
-    { id: 'plugins', label: 'Plugins', icon: Puzzle, tint: 'pink', about: 'Add features to Lumen. Plugins run sandboxed with only the access you grant.', el: () => <Suspense fallback={<Spinner size={16} />}><PluginSettings /></Suspense> },
-    ...(mode === 'server' && role === 'admin' ? [{ id: 'members', label: 'Members', icon: Users, tint: 'green', about: 'Only admins can invite people or change who has access.', el: Members }] : []),
-    ...(mode !== 'server' || role === 'admin' ? [{ id: 'sync', label: 'Sync', icon: GitBranch, tint: 'teal', about: 'Keep the workspace in a GitHub repository, as plain text.', el: Sync }] : []),
-    { id: 'workspace', label: 'Workspace', icon: Database, tint: 'gray', about: 'Its name, where the files live, and a full export.', el: Workspace },
-    { id: 'shortcuts', label: 'Shortcuts', icon: Keyboard, tint: 'gray', about: 'Press ? anywhere to see these.', el: Shortcuts },
-    { id: 'about', label: 'About', icon: Info, tint: 'gray', about: 'Version, updates and source.', el: About },
+    { group: 'You' },
+    { id: 'account', label: 'Account', icon: UserRound, about: 'Your profile and how you sign in.', el: Account },
+    { id: 'appearance', label: 'Appearance', icon: Palette, about: 'How Lumen looks on this account, on every device.', el: Appearance },
+    { group: 'Workspace' },
+    { id: 'workspace', label: 'General', icon: Database, about: 'The workspace’s name, where its files live, and a full export.', el: Workspace },
+    { id: 'tasks', label: 'Boards and tasks', icon: Kanban, about: 'Where new tasks land and how boards open.', el: TasksTab },
+    { id: 'calendar', label: 'Calendar', icon: CalendarDays, about: 'Hours, colours and what the calendar shows.', el: CalendarTab },
+    ...(mode === 'server' && role === 'admin' ? [{ id: 'members', label: 'Members', icon: Users, about: 'Only admins can invite people or change who has access.', el: Members }] : []),
+    ...(mode !== 'server' || role === 'admin' ? [{ id: 'sync', label: 'Sync', icon: GitBranch, about: 'Keep the workspace in a GitHub repository, as plain text.', el: Sync }] : []),
+    { id: 'plugins', label: 'Plugins', icon: Puzzle, about: 'Add features to Lumen. Plugins run sandboxed with only the access you grant.', el: PluginsTab },
+    { group: 'App' },
+    { id: 'shortcuts', label: 'Shortcuts', icon: Keyboard, about: 'Press ? anywhere to see these.', el: Shortcuts },
+    { id: 'about', label: 'About', icon: Info, about: 'Version, updates and source.', el: About },
   ]
-  const current = tabs.find((t) => t.id === route.parts[1]) || tabs[0]
+  const pages = tabs.filter((t) => t.id)
+  const current = pages.find((t) => t.id === route.parts[1]) || pages.find((t) => t.id === 'appearance')
   const Panel = current.el
   const go = (id) => navigate(`/settings/${id}`, { replace: true })
+  useEffect(() => {
+    const onKey = (e) => e.key === 'Escape' && !e.defaultPrevented && !document.querySelector('.ui-popover, .ui-dialog') && onClose?.()
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
   return (
-    <div className="view settings">
-      <nav className="set-nav" aria-label="Settings">
-        <div className="set-nav-head view-title">Settings</div>
-        <div role="tablist" aria-orientation="vertical">
-          {tabs.map((t, i) => (
-            <button
-              key={t.id}
-              type="button"
-              role="tab"
-              aria-selected={t.id === current.id}
-              tabIndex={t.id === current.id ? 0 : -1}
-              className={`nav-item${t.id === current.id ? ' is-active' : ''}`}
-              onClick={() => go(t.id)}
-              onKeyDown={(e) => {
-                const d = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0
-                if (!d) return
-                e.preventDefault()
-                const next = tabs[(i + d + tabs.length) % tabs.length]
-                go(next.id)
-                setTimeout(() => e.currentTarget.parentElement?.querySelector('[aria-selected="true"]')?.focus(), 0)
-              }}
-            >
-              <t.icon size={16} strokeWidth={1.75} className="nav-icon" aria-hidden="true" />
-              <span className="nav-label">{t.label}</span>
-            </button>
-          ))}
-        </div>
-        <select className="set-nav-select" value={current.id} onChange={(e) => go(e.target.value)} aria-label="Settings page">
-          {tabs.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.label}
-            </option>
-          ))}
-        </select>
-      </nav>
-      <div className="set-main" role="tabpanel" aria-label={current.label}>
-        <div className="set-column">
-          <header className="set-page-head">
-            <span className="set-page-icon" style={{ '--tint': `var(--c-${current.tint})`, '--tint-bg': `var(--c-${current.tint}-bg)` }}>
-              <current.icon size={18} strokeWidth={1.75} />
-            </span>
-            <div>
-              <h1>{current.label}</h1>
-              <p className="muted">{current.about}</p>
-            </div>
-          </header>
+    <div className="settings-overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
+      <div className="settings-modal" role="dialog" aria-modal="true" aria-label="Settings">
+        <nav className="settings-nav" aria-label="Settings">
+          <div className="settings-nav-title">Settings</div>
+          <div role="tablist" aria-orientation="vertical">
+            {tabs.map((t) =>
+              t.group ? (
+                <div key={t.group} className="settings-nav-label">
+                  {t.group}
+                </div>
+              ) : (
+                <button
+                  key={t.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={t.id === current.id}
+                  tabIndex={t.id === current.id ? 0 : -1}
+                  className={t.id === current.id ? 'active' : ''}
+                  onClick={() => go(t.id)}
+                  onKeyDown={(e) => {
+                    const d = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0
+                    if (!d) return
+                    e.preventDefault()
+                    const at = pages.indexOf(t)
+                    go(pages[(at + d + pages.length) % pages.length].id)
+                    const list = e.currentTarget.parentElement
+                    setTimeout(() => list?.querySelector('[aria-selected="true"]')?.focus(), 0)
+                  }}
+                >
+                  <t.icon size={15} strokeWidth={1.8} aria-hidden="true" />
+                  {t.label}
+                </button>
+              ),
+            )}
+          </div>
+          <select className="settings-nav-select" value={current.id} onChange={(e) => go(e.target.value)} aria-label="Settings page">
+            {pages.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </nav>
+        <div className="settings-body" role="tabpanel" aria-label={current.label} key={current.id}>
+          <h2>{current.label}</h2>
+          <p className="section-sub">{current.about}</p>
           <Panel />
         </div>
+        <button type="button" className="settings-close" aria-label="Close settings" onClick={onClose}>
+          <X size={18} />
+        </button>
       </div>
     </div>
+  )
+}
+
+function PluginsTab() {
+  return (
+    <Suspense fallback={<Spinner size={16} />}>
+      <PluginSettings />
+    </Suspense>
   )
 }

@@ -1,12 +1,12 @@
 // The signed-in app: sidebar + the current view, with the palette, toasts,
 // shortcuts help and global shortcuts around them.
-import { Component, lazy, Suspense, useEffect, useState } from 'react'
+import { Component, lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { Menu as MenuIcon } from 'lucide-react'
 import { Dialog, Kbd, Spinner, Toaster } from '../components/ui/index.js'
 import { useUI, undoLast } from '../store/ui.js'
 import { usePrefs, setPrefs } from '../store/prefs.js'
 import { onProblem } from '../store/workspace.js'
-import { navigate } from '../lib/router.js'
+import { navigate, parseHash } from '../lib/router.js'
 import { useConfig, inboxPath } from '../store/hooks.js'
 import { Sidebar } from './Sidebar.jsx'
 import { CommandPalette } from './CommandPalette.jsx'
@@ -37,8 +37,6 @@ function viewFor(route) {
       return DocsView
     case 'chat':
       return ChatView
-    case 'settings':
-      return SettingsView
     case 'plugin':
       return PluginView
     default:
@@ -107,7 +105,12 @@ export function AppShell({ route }) {
   const prefs = usePrefs()
   const collapsed = prefs.sidebar?.collapsed
   const [drawer, setDrawer] = useState(false)
-  const View = viewFor(route)
+  // Settings open over the page you were on, as a dialog
+  const settings = route.parts[0] === 'settings'
+  const behind = useRef(parseHash('#/today'))
+  if (!settings) behind.current = route
+  const page = settings ? behind.current : route
+  const View = viewFor(page)
 
   useEffect(() => onProblem((p) => toast(p.message, { tone: 'danger' })), [toast])
   const config = useConfig()
@@ -158,11 +161,19 @@ export function AppShell({ route }) {
             </div>
           }
         >
-          <ViewBoundary path={route.path}>
-            <View route={route} />
+          <ViewBoundary path={page.path}>
+            <View route={page} />
           </ViewBoundary>
         </Suspense>
       </main>
+      {settings && (
+        <Suspense fallback={null}>
+          <SettingsView route={route} onClose={() => {
+              const q = new URLSearchParams(behind.current.query).toString()
+              navigate(`${behind.current.path}${q ? `?${q}` : ''}`)
+            }} />
+        </Suspense>
+      )}
       <PluginFrames />
       <CommandPalette />
       <ShortcutsDialog />
