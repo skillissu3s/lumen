@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.4 — a held card lets go cleanly
 
 - Letting go of a held card no longer flashes it as completed for a moment.
 
