@@ -1,10 +1,10 @@
-# Push a tag like vX.Y.Z that matches the version in package.json. The workflow
-# builds installers on Windows, macOS and Linux and publishes them as a release
-# of the PUBLIC repository skillissu3s/lumen-releases (the source stays private).
-# Installed apps check that repository and update themselves.
+# Builds the installers when a tag vX.Y.Z (matching package.json) is pushed, and
+# keeps them in a DRAFT release of this private repository — using only the
+# built-in token, no secrets.
 #
-# Needs the secret RELEASES_TOKEN: a fine-grained token with access to only
-# skillissu3s/lumen-releases and the permission Contents: Read and write.
+# `node scripts/publish-release.mjs vX.Y.Z` then copies them to the public
+# skillissu3s/lumen-releases repository, where people download them and where
+# installed apps look for updates (see package.json → build.publish).
 name: Release
 
 on:
@@ -16,7 +16,17 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  draft:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Make sure the draft release exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create "$TAG" -R "$GITHUB_REPOSITORY" --draft --title "Lumen ${TAG#v}" --notes "Build of $TAG"
+
+  build:
+    needs: draft
     strategy:
       fail-fast: false
       matrix:
@@ -30,12 +40,14 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx vite build
-      - name: Check the release token
+      # --publish never: build only (latest*.yml for the update feed is still written)
+      - run: npx electron-builder --publish never
+      - name: Attach the installers to the draft
         shell: bash
         env:
-          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
         run: |
-          if [ -z "$GH_TOKEN" ]; then echo "::error::Add the RELEASES_TOKEN secret (see the top of this file)"; exit 1; fi
-      - run: npx electron-builder --publish always
-        env:
-          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+          shopt -s nullglob
+          files=(release/*.exe release/*.dmg release/*.AppImage release/*.deb release/*.blockmap release/latest*.yml)
+          gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber "${files[@]}"

@@ -180,3 +180,8 @@ professional". From here on OpenCode only gets non-UI work.
 - Verified locally: the packaged 0.1.1 reads its update feed from
   lumen-releases (`app-update.yml`) and reaches GitHub ("no published versions"
   until the first release there).
+- Publishing changed so no secret is needed: the owner shouldn't have to make
+  tokens, and storing one in Actions isn't something the assistant may do. The
+  private repo's Release workflow builds into a draft with its built-in token;
+  `scripts/publish-release.mjs vX.Y.Z` copies the files to lumen-releases with
+  the changelog section as notes (run with the GitHub CLI already signed in).

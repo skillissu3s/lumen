@@ -99,6 +99,11 @@ why, step by step, is in [docs/DEVLOG.md](docs/DEVLOG.md).
 
 ## Releases
 
-Push a tag `vX.Y.Z` matching `package.json`; `.github/workflows/release.yml`
-builds Windows, macOS and Linux installers into a draft release. Publish the
-draft to make it the latest download.
+1. Bump `version` in `package.json` and add a section to `CHANGELOG.md`.
+2. Commit, then push a tag: `git tag vX.Y.Z && git push origin vX.Y.Z`. The
+   Release workflow builds Windows, macOS and Linux installers into a draft
+   release of this repository (no secrets needed).
+3. `node scripts/publish-release.mjs vX.Y.Z` copies them, with the changelog
+   section as notes, to the public
+   [lumen-releases](https://github.com/skillissu3s/lumen-releases) repository.
+   Download links and the apps' automatic updates read from there.
