@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { parseItems, addItem, moveItem } from './items.js'
-import { boardOf, boardSettings, setBoardSettings, renameColumn, removeColumn, moveColumn, addColumn, boardProgress } from './board.js'
+import { boardOf, boardSettings, setBoardSettings, renameColumn, removeColumn, moveColumn, addColumn, boardProgress, columnize } from './board.js'
 
 const TEXT = `---
 name: Launch
@@ -69,4 +69,20 @@ test('rename keeps the colour; remove only when empty; move columns', () => {
 test('moving a card between columns is moving it to that section', () => {
   const t = moveItem(TEXT, 'a2', { section: 'Doing' })
   assert.deepEqual(board(t).columns[1].items.map((i) => i.id), ['b1', 'a2'])
+})
+
+test('columnize turns a plain list into To do / Doing / Done', () => {
+  const text = '---\nname: Inbox\n---\n- [ ] Open one 🆔 a1\n- [x] Finished 🆔 b2\n- [ ] Open two 🆔 c3\n'
+  const t = columnize(text)
+  const board = boardOf(parseItems(t), t)
+  assert.deepEqual(board.columns.map((c) => c.name), ['To do', 'Doing', 'Done'])
+  assert.deepEqual(board.columns[0].items.map((i) => i.id), ['a1', 'c3'])
+  assert.deepEqual(board.columns[2].items.map((i) => i.id), ['b2'])
+  assert.equal(columnize(t), t)
+})
+
+test('a new column goes in before the settings block', () => {
+  const t = addColumn(setBoardSettings('## A\n', { done: 'A' }), 'B')
+  assert.ok(t.indexOf('## B') < t.indexOf('%% kanban:settings'))
+  assert.equal(boardSettings(t).done, 'A')
 })

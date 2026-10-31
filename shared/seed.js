@@ -49,7 +49,7 @@ const INBOX = (handle) =>
     '',
     '%% kanban:settings',
     '```',
-    JSON.stringify({ 'kanban-plugin': 'board', lumen: { done: 'Done', columns: { Doing: 'amber', Done: 'green' } } }),
+    JSON.stringify({ 'kanban-plugin': 'board', lumen: { done: 'Done', columns: { Doing: 'blue', Done: 'green' } } }),
     '```',
     '%%',
     '',
@@ -61,7 +61,7 @@ export function seedFiles({ handle, name = '', chat = false, now = new Date() })
   const files = {
     'lumen.json': json({ version: 1, name: name ? `${name}'s workspace` : 'My workspace', inbox: 'inbox', plugins: {} }),
     '.gitattributes': GITATTRIBUTES,
-    'lists/inbox.md': `---\nname: Inbox\nicon: inbox\nowner: ${handle}\n---\n- [ ] Try Lumen: type "Plan the week tomorrow 9am for 30m" in the box above 🆔 ${newId()}\n`,
+    'lists/inbox.md': INBOX(handle),
     'calendars/personal.md': `---\nname: Personal\ncolor: blue\nowner: ${handle}\ndefault: true\n---\n`,
     'docs/welcome.md': WELCOME().replace('{{handle}}', handle),
   }

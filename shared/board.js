@@ -18,7 +18,7 @@
 //   ```
 //   %%
 
-import { addSection, isOpen, parseItems, renameSection } from './items.js'
+import { addSection, isOpen, moveItem, parseItems, renameSection } from './items.js'
 
 export const BOARD_COLORS = ['gray', 'red', 'orange', 'amber', 'green', 'teal', 'blue', 'indigo', 'violet', 'pink']
 export const DEFAULT_COLUMNS = ['To do', 'Doing', 'Done']
@@ -119,8 +119,33 @@ export function boardProgress(board) {
   return { open, finished, total: open + finished }
 }
 
-/** Adds a column at the end */
-export const addColumn = (text, name) => addSection(text, name)
+const NL = String.fromCharCode(10)
+
+// a new column goes at the end, before the settings block (which stays last)
+export function addColumn(text, name) {
+  const lines = String(text ?? '').split(NL)
+  const r = settingsRange(lines)
+  if (!r) return addSection(text, name)
+  const body = addSection(lines.slice(0, r[0]).join(NL), name)
+  return body + NL + lines.slice(r[0]).join(NL).trimEnd() + NL
+}
+
+/** A plain list (no headings) as a board: open cards under "To do", finished ones under "Done" */
+export function columnize(text) {
+  const parsed = parseItems(text)
+  if (parsed.sections.length) return text
+  const [todo, doing, done] = DEFAULT_COLUMNS
+  let t
+  const first = parsed.items[0]
+  if (first) {
+    const lines = String(text).split(NL)
+    lines.splice(first.line, 0, `## ${todo}`, '')
+    t = lines.join(NL)
+  } else t = addColumn(text, todo)
+  t = addColumn(addColumn(t, doing), done)
+  for (const item of parseItems(t).items) if (!isOpen(item.status) && item.section === todo) t = moveItem(t, item.id, { section: done })
+  return setBoardSettings(t, { done, columns: { [doing]: 'blue', [done]: 'green' } })
+}
 
 /** Renames a column, carrying its colour (and done-ness) along */
 export function renameColumn(text, from, to) {

@@ -440,7 +440,7 @@
   color: var(--text);
 }
 .idea-tool.is-primary {
-  color: var(--accent-text);
+  color: var(--accent);
 }
 .idea-zoom-level {
   min-width: 48px;

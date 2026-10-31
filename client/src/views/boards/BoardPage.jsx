@@ -1,14 +1,14 @@
 // A board: its columns side by side, cards that drag between them, a card that
 // opens to everything about it. The board is the list file's markdown.
 import { useMemo, useRef, useState } from 'react'
-import { Check, ChevronLeft, ChevronRight, Columns3, List, MoreHorizontal, Palette, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, Columns3, Kanban, LayoutGrid, List, MoreHorizontal, Palette, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import { Button, ColorPicker, Dialog, EmptyState, IconBadge, Menu, Popover, Segmented } from '../../components/ui/index.js'
 import { useLists } from '../../store/hooks.js'
 import { usePrefs } from '../../store/prefs.js'
 import { useWorkspace } from '../../store/workspace.js'
 import { navigate } from '../../lib/router.js'
 import { deleteList, updateListMeta } from '../../lib/actions.js'
-import { addCard, addColumn, moveCard, moveColumn, removeColumn, renameColumn, setColumnColor, setDoneColumn } from '../../lib/boardActions.js'
+import { addCard, addColumn, moveCard, moveColumn, removeColumn, renameColumn, setColumnColor, setDoneColumn, setUpColumns } from '../../lib/boardActions.js'
 import { boardOf, boardProgress } from '../../../../shared/board.js'
 import { isOpen } from '../../../../shared/items.js'
 import { ListEditor } from '../../shell/ListEditor.jsx'
@@ -252,7 +252,7 @@ export default function BoardPage({ route }) {
     <div className="view board-view">
       <header className="view-header board-header">
         <h1 className="view-title" ref={titleRef}>
-          <IconBadge name={list.icon} color={list.color || 'gray'} size={26} />
+          <IconBadge name={list.icon} color={list.color || 'gray'} size={26} fallback={Kanban} />
           <span>{list.name}</span>
         </h1>
         {progress.total > 0 && (
@@ -296,6 +296,15 @@ export default function BoardPage({ route }) {
         </div>
       </header>
 
+      {layout === 'board' && columns.length === 1 && columns[0].name === null && (
+        <div className="board-setup">
+          <LayoutGrid size={16} />
+          <span>This board has no columns yet. Sort its cards into To do, Doing and Done to move them along as work progresses.</span>
+          <Button size="sm" variant="primary" onClick={() => setUpColumns(path)}>
+            Set up columns
+          </Button>
+        </div>
+      )}
       {layout === 'board' ? (
         <div className="board">
           {columns.map((col, i) => (

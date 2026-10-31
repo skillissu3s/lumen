@@ -831,3 +831,24 @@
     width: 90px;
   }
 }
+
+/* a plain list that has no columns yet */
+.board-setup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 24px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+.board-setup > svg {
+  flex: none;
+  color: var(--accent);
+}
+.board-setup > span {
+  flex: 1;
+}

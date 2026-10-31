@@ -3,7 +3,7 @@
 import { useWorkspace } from '../store/workspace.js'
 import { useUI } from '../store/ui.js'
 import { addItem, isOpen, moveItem, parseItems, removeItem, insertBlock, updateItem as editItem, newId } from '../../../shared/items.js'
-import { addColumn as addCol, boardOf, moveColumn as moveCol, removeColumn as removeCol, renameColumn as renameCol, setBoardSettings, DEFAULT_COLUMNS } from '../../../shared/board.js'
+import { addColumn as addCol, boardOf, moveColumn as moveCol, removeColumn as removeCol, renameColumn as renameCol, setBoardSettings, columnize, DEFAULT_COLUMNS } from '../../../shared/board.js'
 import { withFrontMatter } from '../../../shared/frontmatter.js'
 import { parseQuickAdd } from '../../../shared/quickadd.js'
 import { todayIso } from '../../../shared/dates.js'
@@ -125,3 +125,6 @@ export function updateIdeaMeta(path, patch) {
 }
 
 export const deleteIdeaBoard = (path) => ws().removeFile(path)
+
+/** Gives a plain list the usual three columns */
+export const setUpColumns = (path) => edit(path, (text) => columnize(text))

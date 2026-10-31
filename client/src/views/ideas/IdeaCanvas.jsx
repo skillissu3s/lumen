@@ -98,7 +98,7 @@ export function IdeaCanvas({ path }) {
   const drag = useRef(null)
   const saved = useRef(file?.text)
   const timer = useRef(null)
-  const fitted = useRef(false)
+  const fitted = useRef(!parseCanvas(file?.text).nodes.length) // an empty board starts at 100%
   const modelRef = useRef(model)
   modelRef.current = model
 
