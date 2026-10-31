@@ -79,3 +79,55 @@ briefs, and every result is reviewed, tested and committed by Claude:
 - Two variants built. **B kept** (product-first: headline beside a CSS-built app
   window; features as a two-column list) — it shows the product above the fold.
   A (editorial, centred) was set aside.
+
+### Change of course: the UI is written by hand
+The owner saw the delegated UI (the UI kit's first look, the plugin pages) and
+asked for the UI to be done directly — "beautiful, clean, minimalistic and
+professional". From here on OpenCode only gets non-UI work.
+
+- **Visual system rewritten** (`tokens.css`, `base.css`, `ui.css`): warm
+  neutrals, hairline borders, ink-coloured primary actions, the accent reserved
+  for focus/selection/today, soft layered shadows on floating surfaces only,
+  Inter with tightened headings. Light and dark, 8 accents, 3 densities.
+  The kit's component *behaviour* (keyboard, ARIA, focus traps) was kept.
+- **Sign-in screens**: sign in, first-run admin setup, invite acceptance,
+  GitHub connect (token → pick a repository → branch).
+- **Shell**: sidebar (workspace menu, search, Today/Inbox/Upcoming/Calendar/
+  Docs/Chat, lists with drag-onto-list, plugin pages, save status), command
+  palette (go to, create, tasks, docs, commands), shortcuts registry + help
+  dialog (`?`), toasts with undo (Ctrl+Z), mobile drawer, error boundary per view.
+- **Tasks**: grouping logic in `taskQueries.js` (tested); natural-language quick
+  add with removable chips; rows with drag reorder/move; task panel (status,
+  dates, time + duration, repeat, priority, notes, subtasks); board view by
+  status / priority / date; Today's schedule strip; keyboard (j/k, x, e, t, m,
+  1–4, Alt+↑/↓…).
+- **Calendar**: `calendarMath.js` (tested); Structured-style timeline with
+  free-time gaps; day/3-day/week grid with drag to create/move/resize and a
+  keyboard slot cursor; month with drag between days; agenda; editor popover
+  that reads "Gym 7am for 1h every mon"; this/following/all for repeating
+  events; side panel with mini month, calendars, task lists and "To schedule"
+  (drag onto the grid); Customize panel; .ics import/export.
+  Verified in the browser: creating, moving (file shows the right lines), the
+  repeat dialog writing `🚫` + a detached copy.
+- **Docs**: tree, write/split/preview, toolbar + shortcuts, list continuation,
+  clickable checklists, autosave.
+- **Chat**: channels + DMs, grouping, markdown, mentions, replies, edit/delete,
+  typing, presence, unread, optimistic send.
+- **Settings**: account, appearance, calendar, tasks, members + invites,
+  sync (server/desktop git, GitHub mode status), workspace export, shortcuts, about.
+- **Landing page** rewritten to match (the client-core agent's placeholder had
+  replaced the delegated one).
+- **Focus Forest**: of two Big Pickle variants, A (single calm column) was kept.
+
+### Bugs found in review and fixed
+- 409 conflict responses returned private file text to users without access.
+- The git auth header was malformed (pushes to GitHub would always fail).
+- WebSocket users in desktop mode weren't marked as the desktop user.
+- Workspace store: repeated conflicts flattened by-id operations into text
+  diffs; remote notices during an in-flight write corrupted the queue; restored
+  offline edits overwrote newer remote text.
+- `useRoute` returned a new object per read (render loop); the command registry
+  name clashed with a method; prefs re-rendered on every workspace change.
+- New docs had no owner (the server rejects those).
+- Vite re-bundling mid-session produced two copies of React; deps are now
+  pre-bundled.
