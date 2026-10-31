@@ -7,12 +7,16 @@ import { useUI, undoLast } from '../store/ui.js'
 import { usePrefs, setPrefs } from '../store/prefs.js'
 import { onProblem } from '../store/workspace.js'
 import { navigate } from '../lib/router.js'
+import { useConfig, inboxPath } from '../store/hooks.js'
 import { Sidebar } from './Sidebar.jsx'
 import { CommandPalette } from './CommandPalette.jsx'
 import PluginFrames from '../plugins/PluginFrames.jsx'
 import { useShortcut, shortcutList, comboKeys } from './shortcuts.js'
 
 const TasksView = lazy(() => import('../views/tasks/TasksView.jsx'))
+const AllTasks = lazy(() => import('../views/tasks/AllTasks.jsx'))
+const BoardPage = lazy(() => import('../views/boards/BoardPage.jsx'))
+const IdeasView = lazy(() => import('../views/ideas/IdeasView.jsx'))
 const CalendarView = lazy(() => import('../views/calendar/CalendarView.jsx'))
 const DocsView = lazy(() => import('../views/docs/DocsView.jsx'))
 const ChatView = lazy(() => import('../views/chat/ChatView.jsx'))
@@ -20,14 +24,13 @@ const SettingsView = lazy(() => import('../views/settings/SettingsView.jsx'))
 const PluginView = lazy(() => import('../views/PluginView.jsx'))
 
 function viewFor(route) {
-  const [first] = route.parts
-  switch (first) {
-    case undefined:
-    case 'today':
-    case 'inbox':
-    case 'upcoming':
-    case 'list':
-      return TasksView
+  switch (route.parts[0]) {
+    case 'tasks':
+      return AllTasks
+    case 'board':
+      return BoardPage
+    case 'ideas':
+      return IdeasView
     case 'calendar':
       return CalendarView
     case 'docs':
@@ -41,6 +44,15 @@ function viewFor(route) {
     default:
       return TasksView
   }
+}
+
+// addresses from before boards: lists and Upcoming live elsewhere now
+function redirectOld(route, inbox) {
+  const [first, second] = route.parts
+  if (first === 'list' && second) return `/board/${second}${route.query.task ? `?card=${route.query.task}` : ''}`
+  if (first === 'inbox') return `/board/${inbox.slice(6, -3)}`
+  if (first === 'upcoming') return '/tasks?group=date'
+  return null
 }
 
 // one broken view shouldn't take the whole app down
@@ -98,6 +110,11 @@ export function AppShell({ route }) {
   const View = viewFor(route)
 
   useEffect(() => onProblem((p) => toast(p.message, { tone: 'danger' })), [toast])
+  const config = useConfig()
+  useEffect(() => {
+    const to = redirectOld(route, inboxPath(config))
+    if (to) navigate(to, { replace: true })
+  }, [route, config])
   useEffect(() => setDrawer(false), [route.path])
 
   useShortcut('mod+k', () => useUI.getState().openPalette(), { description: 'Search and commands', allowInInput: true })
@@ -105,8 +122,8 @@ export function AppShell({ route }) {
   useShortcut('?', () => useUI.setState({ shortcutsOpen: true }), { description: 'Keyboard shortcuts' })
   useShortcut('mod+z', () => undoLast(), { description: 'Undo the last change' })
   useShortcut('g t', () => navigate('/today'), { description: 'Go to Today', group: 'Go to' })
-  useShortcut('g i', () => navigate('/inbox'), { description: 'Go to Inbox', group: 'Go to' })
-  useShortcut('g u', () => navigate('/upcoming'), { description: 'Go to Upcoming', group: 'Go to' })
+  useShortcut('g a', () => navigate('/tasks'), { description: 'Go to All tasks', group: 'Go to' })
+  useShortcut('g i', () => navigate('/ideas'), { description: 'Go to Ideas', group: 'Go to' })
   useShortcut('g c', () => navigate('/calendar'), { description: 'Go to Calendar', group: 'Go to' })
   useShortcut('g d', () => navigate('/docs'), { description: 'Go to Docs', group: 'Go to' })
   useShortcut('g h', () => navigate('/chat'), { description: 'Go to Chat', group: 'Go to' })
@@ -114,7 +131,7 @@ export function AppShell({ route }) {
   useShortcut(
     'q',
     () => {
-      if (!['today', 'inbox', 'upcoming', 'list', undefined].includes(route.parts[0])) navigate('/inbox')
+      if (!['today', undefined].includes(route.parts[0])) navigate('/today')
       setTimeout(() => window.dispatchEvent(new CustomEvent('lumen:quick-add')), 50)
     },
     { description: 'Add a task' },

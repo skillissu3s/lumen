@@ -367,7 +367,7 @@ export default function CalendarView({ route }) {
                 </div>
                 {lists.map((l) => (
                   <div key={l.path} className="cal-src">
-                    <Checkbox checked={!hidden.has(l.path)} onChange={() => toggleHidden(l.path)} label={<span className="cal-src-name">{l.icon ? <span>{l.icon}</span> : <ColorDot color={l.color || 'gray'} size={8} />} {l.name}</span>} />
+                    <Checkbox checked={!hidden.has(l.path)} onChange={() => toggleHidden(l.path)} label={<span className="cal-src-name"><ColorDot color={l.color || 'gray'} size={8} /> {l.name}</span>} />
                   </div>
                 ))}
               </section>
@@ -390,7 +390,6 @@ export default function CalendarView({ route }) {
                 >
                   <ColorDot color={i.source.color || 'gray'} size={6} />
                   <span className="cal-inbox-title">
-                    {i.icon && `${i.icon} `}
                     {i.label || i.title}
                   </span>
                   {itemDay(i) && <span className="cal-inbox-late">{relativeDay(itemDay(i))}</span>}

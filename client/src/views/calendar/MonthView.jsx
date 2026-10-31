@@ -28,7 +28,6 @@ function Chip({ o, colorBy, h12, onOpen, draggable }) {
     >
       {!o.allDay && <span className="mchip-dot" />}
       {!o.allDay && <span className="mchip-time tabular">{formatTime(o.time, h12)}</span>}
-      {o.item.icon && <span>{o.item.icon}</span>}
       <span className="mchip-title">{o.item.label || o.item.title}</span>
     </button>
   )
@@ -133,8 +132,7 @@ export function AgendaView({ days, occs, settings, h12, onOpen, onToggle }) {
                     <button type="button" className={`tl-mini-check${done ? ' is-on' : ''}`} aria-label={done ? 'Mark as open' : 'Complete'} onClick={() => onToggle(o)} />
                   ) : null}
                   <button type="button" className="agenda-title" onClick={(e) => onOpen(o, e.currentTarget)} aria-label={blockLabel(o, h12)}>
-                    {o.item.icon && <span>{o.item.icon}</span>}
-                    {o.item.label || o.item.title}
+                                  {o.item.label || o.item.title}
                     {o.item.source?.name && <span className="faint"> · {o.item.source.name}</span>}
                   </button>
                 </li>

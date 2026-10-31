@@ -1,14 +1,15 @@
-// The left column: workspace, search, the main places, your lists, plugins, and
-// at the bottom whether everything is saved.
+// The left column: workspace, search, the main places, your boards, plugins,
+// and at the bottom whether everything is saved.
 import { useMemo, useRef, useState } from 'react'
-import { CalendarDays, CalendarRange, ChevronDown, CircleAlert, CloudOff, FileText, Inbox, Keyboard, LogOut, MessagesSquare, Plus, Search, Settings, Sun } from 'lucide-react'
-import { Avatar, ColorDot, ContextMenu, Dialog, Button, Menu, Spinner, Tooltip } from '../components/ui/index.js'
+import { CalendarDays, ChevronDown, CircleAlert, CloudOff, FileText, Kanban, Keyboard, Lightbulb, LogOut, MessagesSquare, Plus, Search, Settings, Sun } from 'lucide-react'
+import { Avatar, Button, ContextMenu, Dialog, IconBadge, Menu, Spinner, Tooltip } from '../components/ui/index.js'
 import { useSession } from '../store/session.js'
 import { useWorkspace } from '../store/workspace.js'
 import { useUI } from '../store/ui.js'
-import { useConfig, useLists, usePlugins, inboxPath } from '../store/hooks.js'
+import { useConfig, useLists, usePlugins } from '../store/hooks.js'
 import { usePrefs } from '../store/prefs.js'
-import { createList, deleteList, updateListMeta, moveItemToFile } from '../lib/actions.js'
+import { deleteList, updateListMeta } from '../lib/actions.js'
+import { createBoard, moveCard } from '../lib/boardActions.js'
 import { navigate } from '../lib/router.js'
 import { flatItems, isOpen, itemDay } from '../../../shared/items.js'
 import { todayIso } from '../../../shared/dates.js'
@@ -16,9 +17,9 @@ import { ListEditor } from './ListEditor.jsx'
 import { iconByName } from './icons.js'
 import { UpdateNotice } from './UpdateNotice.jsx'
 
-const countOpen = (list) => flatItems(list).filter((i) => !i.parent && isOpen(i.status)).length
+const countOpen = (list) => list.items.filter((i) => i.kind === 'task' && isOpen(i.status)).length
 
-function NavItem({ href, icon: Icon, label, count, active, children, onDrop, ...props }) {
+function NavItem({ href, icon: Icon, tint, label, count, active, children, onDrop, ...props }) {
   const [over, setOver] = useState(false)
   const dropProps = onDrop
     ? {
@@ -36,8 +37,8 @@ function NavItem({ href, icon: Icon, label, count, active, children, onDrop, ...
       }
     : {}
   return (
-    <a href={href} className={`nav-item${active ? ' is-active' : ''}${over ? ' is-drop' : ''}`} aria-current={active ? 'page' : undefined} {...dropProps} {...props}>
-      <span className="nav-icon">{Icon ? <Icon size={16} strokeWidth={1.75} /> : children}</span>
+    <a href={href} className={`nav-item${active ? ' is-active' : ''}${over ? ' is-drop' : ''}`} style={tint ? { '--tint': `var(--c-${tint})` } : undefined} aria-current={active ? 'page' : undefined} {...dropProps} {...props}>
+      <span className="nav-icon">{Icon ? <Icon size={16} strokeWidth={1.9} /> : children}</span>
       <span className="nav-label">{label}</span>
       {count ? <span className="nav-count">{count}</span> : null}
     </a>
@@ -61,7 +62,6 @@ function SyncStatus() {
       <div className={`sync-status is-${saving.state}`} role="status">
         {s.icon || <span className="sync-dot" />}
         <span className="sync-text">{s.text}</span>
-        <span className="sync-where">{where}</span>
       </div>
     </Tooltip>
   )
@@ -84,25 +84,18 @@ export function Sidebar({ route, onNavigate }) {
   const [confirm, setConfirm] = useState(null)
   const addRef = useRef(null)
 
-  const inbox = inboxPath(config)
   const today = todayIso()
-  const inboxList = lists.find((l) => l.path === inbox)
-  const others = lists.filter((l) => l.path !== inbox)
-  const todayCount = useMemo(
-    () => lists.reduce((n, l) => n + flatItems(l).filter((i) => !i.parent && isOpen(i.status) && itemDay(i) && itemDay(i) <= today).length, 0),
-    [lists, today],
-  )
+  const todayCount = useMemo(() => lists.reduce((n, l) => n + flatItems(l).filter((i) => !i.parent && i.kind === 'task' && isOpen(i.status) && itemDay(i) && itemDay(i) <= today).length, 0), [lists, today])
+  const openCount = useMemo(() => lists.reduce((n, l) => n + countOpen(l), 0), [lists])
   const path = route.path
   const at = (p) => path === p || path.startsWith(`${p}/`)
   const views = plugins.filter((p) => p.manifest.view && !prefs.plugins.disabled.includes(p.id))
   const statuses = Object.entries(pluginStatus).filter(([, t]) => t)
 
-  const moveTo = (toPath) => ({ path: from, id }) => from !== toPath && moveItemToFile(from, id, toPath, {})
-
-  const listMenu = (l) => [
-    { label: 'Edit list…', onSelect: () => setEditor({ anchor: document.getElementById(`nav-${l.id}`), list: l }) },
+  const boardMenu = (l) => [
+    { label: 'Edit board…', onSelect: () => setEditor({ anchor: document.getElementById(`nav-${l.id}`), list: l }) },
     'separator',
-    { label: 'Delete list…', danger: true, onSelect: () => setConfirm(l) },
+    { label: 'Delete board…', danger: true, onSelect: () => setConfirm(l) },
   ]
 
   return (
@@ -137,33 +130,31 @@ export function Sidebar({ route, onNavigate }) {
 
       <div className="sidebar-scroll" onClick={(e) => e.target.closest('a') && onNavigate?.()}>
         <div className="nav-group">
-          <NavItem href="#/today" icon={Sun} label="Today" count={todayCount} active={at('/today') || path === '/'} />
-          <NavItem href="#/inbox" icon={Inbox} label="Inbox" count={inboxList ? countOpen(inboxList) : 0} active={at('/inbox')} onDrop={moveTo(inbox)} />
-          <NavItem href="#/upcoming" icon={CalendarRange} label="Upcoming" active={at('/upcoming')} />
-          <NavItem href="#/calendar" icon={CalendarDays} label="Calendar" active={at('/calendar')} />
-          <NavItem href="#/docs" icon={FileText} label="Docs" active={at('/docs')} />
-          {mode === 'server' && <NavItem href="#/chat" icon={MessagesSquare} label="Chat" count={chatUnread} active={at('/chat')} />}
+          <NavItem href="#/today" icon={Sun} tint="amber" label="Today" count={todayCount} active={at('/today') || path === '/'} />
+          <NavItem href="#/tasks" icon={Kanban} tint="indigo" label="All tasks" count={openCount} active={at('/tasks')} />
+          <NavItem href="#/calendar" icon={CalendarDays} tint="blue" label="Calendar" active={at('/calendar')} />
+          <NavItem href="#/ideas" icon={Lightbulb} tint="violet" label="Ideas" active={at('/ideas')} />
+          <NavItem href="#/docs" icon={FileText} tint="teal" label="Docs" active={at('/docs')} />
+          {mode === 'server' && <NavItem href="#/chat" icon={MessagesSquare} tint="green" label="Chat" count={chatUnread} active={at('/chat')} />}
         </div>
 
         <div className="nav-section">
           <div className="nav-section-head">
-            <span>Lists</span>
-            <button ref={addRef} type="button" className="nav-section-add" aria-label="New list" onClick={() => setEditor({ anchor: addRef.current })}>
+            <span>Boards</span>
+            <button ref={addRef} type="button" className="nav-section-add" aria-label="New board" onClick={() => setEditor({ anchor: addRef.current })}>
               <Plus size={14} />
             </button>
           </div>
-          {others.map((l) => (
-            <ContextMenu key={l.path} items={listMenu(l)}>
-              <NavItem id={`nav-${l.id}`} href={`#/list/${l.id}`} label={l.name} count={countOpen(l)} active={path === `/list/${l.id}`} onDrop={moveTo(l.path)}>
-                {l.icon ? <span className="nav-emoji">{l.icon}</span> : <ColorDot color={l.color || 'gray'} size={8} />}
+          {lists.map((l) => (
+            <ContextMenu key={l.path} items={boardMenu(l)}>
+              <NavItem id={`nav-${l.id}`} href={`#/board/${l.id}`} label={l.name} count={countOpen(l)} active={path === `/board/${l.id}`} onDrop={({ path: from, id }) => from !== l.path && moveCard(from, id, l.path, null)}>
+                <IconBadge name={l.icon} color={l.color || 'gray'} size={18} fallback={Kanban} />
               </NavItem>
             </ContextMenu>
           ))}
-          {!others.length && (
-            <button type="button" className="nav-hint" onClick={() => setEditor({ anchor: addRef.current })}>
-              New list
-            </button>
-          )}
+          <button type="button" className="nav-hint" onClick={() => setEditor({ anchor: addRef.current })}>
+            <Plus size={14} /> New board
+          </button>
         </div>
 
         {views.length > 0 && (
@@ -171,10 +162,9 @@ export function Sidebar({ route, onNavigate }) {
             <div className="nav-section-head">
               <span>Plugins</span>
             </div>
-            {views.map((p) => {
-              const Icon = iconByName(p.manifest.view.icon || p.manifest.icon)
-              return <NavItem key={p.id} href={`#/plugin/${p.id}`} icon={Icon} label={p.manifest.view.title || p.manifest.name} count={pluginBadges[p.id]} active={path === `/plugin/${p.id}`} />
-            })}
+            {views.map((p) => (
+              <NavItem key={p.id} href={`#/plugin/${p.id}`} icon={iconByName(p.manifest.view.icon || p.manifest.icon)} tint="gray" label={p.manifest.view.title || p.manifest.name} count={pluginBadges[p.id]} active={path === `/plugin/${p.id}`} />
+            ))}
           </div>
         )}
       </div>
@@ -204,11 +194,12 @@ export function Sidebar({ route, onNavigate }) {
         onOpenChange={(o) => !o && setEditor(null)}
         anchor={editor?.anchor}
         initial={editor?.list || {}}
+        kind="board"
         onSave={(v) => {
           if (editor?.list) updateListMeta(editor.list.path, v)
           else {
-            const p = createList(v)
-            navigate(`/list/${p.slice(6, -3)}`)
+            const p = createBoard(v)
+            navigate(`/board/${p.slice(6, -3)}`)
           }
         }}
       />
@@ -217,7 +208,7 @@ export function Sidebar({ route, onNavigate }) {
         onClose={() => setConfirm(null)}
         size="sm"
         title={`Delete “${confirm?.name}”?`}
-        description="The list and all its tasks will be removed. In GitHub mode, git history still has them."
+        description="The board and all its cards will be removed. With GitHub sync, git history still has them."
         footer={
           <>
             <Button variant="ghost" onClick={() => setConfirm(null)}>
@@ -227,11 +218,11 @@ export function Sidebar({ route, onNavigate }) {
               variant="danger"
               onClick={() => {
                 deleteList(confirm.path)
-                if (path === `/list/${confirm.id}`) navigate('/inbox')
+                if (path === `/board/${confirm.id}`) navigate('/tasks')
                 setConfirm(null)
               }}
             >
-              Delete list
+              Delete board
             </Button>
           </>
         }

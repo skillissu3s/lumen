@@ -23,7 +23,7 @@ export const workspaceRoot = () => root
 
 export const gitSha = (buf) => crypto.createHash('sha1').update(`blob ${buf.length}\0`).update(buf).digest('hex')
 
-const TEXT_EXT = /\.(md|markdown|txt|json|jsonl|js|mjs|css|html|svg|ics|csv|yml|yaml)$/i
+const TEXT_EXT = /\.(md|markdown|txt|json|jsonl|canvas|js|mjs|css|html|svg|ics|csv|yml|yaml)$/i
 const IGNORED = /(^|\/)(\.git|node_modules|\.obsidian|\.trash|\.DS_Store)(\/|$)/
 
 /** A path from a client, made safe: relative, forward slashes, no `..`, a text type */

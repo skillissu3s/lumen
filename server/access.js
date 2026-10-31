@@ -3,10 +3,20 @@
 // everything is theirs.
 import { splitFrontMatter } from '../shared/frontmatter.js'
 
-export const SHARED_KINDS = /^(lists\/[^/]+\.md|calendars\/[^/]+\.md|docs\/.+\.md)$/
+export const SHARED_KINDS = /^(lists\/[^/]+\.md|calendars\/[^/]+\.md|docs\/.+\.md|ideas\/[^/]+\.canvas)$/
 
 export function metaOf(path, text) {
   if (!SHARED_KINDS.test(path)) return null
+  // an idea board (JSON Canvas) keeps its owner and sharing under "lumen"
+  if (path.endsWith('.canvas')) {
+    let lumen = {}
+    try {
+      lumen = JSON.parse(text || '{}').lumen || {}
+    } catch {
+      /* unreadable: no owner, so admins only */
+    }
+    return { owner: lumen.owner ? String(lumen.owner) : null, share: lumen.share ?? null }
+  }
   const { meta } = splitFrontMatter(text)
   return { owner: meta.owner ? String(meta.owner) : null, share: meta.share ?? null }
 }

@@ -11,6 +11,7 @@ import { ConflictError, AuthError } from '../storage/errors.js'
 const LIST_RE = /^lists\/[^/]+\.md$/
 const CALENDAR_RE = /^calendars\/[^/]+\.md$/
 const PLUGIN_RE = /^plugins\/[^/]+\/manifest\.json$/
+const IDEAS_RE = /^ideas\/[^/]+\.canvas$/
 
 const problems = createEmitter()
 
@@ -204,7 +205,7 @@ function removePath(path) {
 
 function isCore(path, handle) {
   if (path === 'lumen.json') return true
-  if (LIST_RE.test(path) || CALENDAR_RE.test(path) || PLUGIN_RE.test(path)) return true
+  if (LIST_RE.test(path) || CALENDAR_RE.test(path) || PLUGIN_RE.test(path) || IDEAS_RE.test(path)) return true
   if (handle && path === `users/${handle}/settings.json`) return true
   return false
 }

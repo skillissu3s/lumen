@@ -1,12 +1,13 @@
 // Ctrl/⌘ K: jump anywhere, find any task or doc, run any command.
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarDays, CalendarRange, CircleCheck, Command, FileText, Hash, Inbox, MessagesSquare, Plus, Search, Settings, Sun } from 'lucide-react'
+import { CalendarDays, CalendarRange, CircleCheck, Command, FileText, Kanban, Lightbulb, MessagesSquare, Plus, Search, Settings, Sun } from 'lucide-react'
 import { useUI } from '../store/ui.js'
 import { useSession } from '../store/session.js'
-import { useAllItems, useDocs, useLists, usePlugins } from '../store/hooks.js'
+import { useAllItems, useDocs, useIdeas, useLists, usePlugins } from '../store/hooks.js'
 import { navigate } from '../lib/router.js'
 import { createDoc } from '../lib/actions.js'
-import { isOpen } from '../../../shared/items.js'
+import { createBoard } from '../lib/boardActions.js'
+import { isOpen, itemDay } from '../../../shared/items.js'
 import { iconByName } from './icons.js'
 import { Kbd } from '../components/ui/index.js'
 import { comboKeys } from './shortcuts.js'
@@ -34,6 +35,7 @@ export function CommandPalette() {
   const commandMap = useUI((s) => s.commandMap)
   const mode = useSession((s) => s.mode)
   const lists = useLists()
+  const ideas = useIdeas()
   const docs = useDocs()
   const plugins = usePlugins()
   const items = useAllItems()
@@ -54,15 +56,26 @@ export function CommandPalette() {
     const go = (p) => () => navigate(p)
     const out = [
       { section: 'Go to', label: 'Today', icon: Sun, run: go('/today') },
-      { section: 'Go to', label: 'Inbox', icon: Inbox, run: go('/inbox') },
-      { section: 'Go to', label: 'Upcoming', icon: CalendarRange, run: go('/upcoming') },
+      { section: 'Go to', label: 'All tasks', icon: Kanban, run: go('/tasks') },
+      { section: 'Go to', label: 'Upcoming', icon: CalendarRange, run: go('/tasks?group=date') },
       { section: 'Go to', label: 'Calendar', icon: CalendarDays, run: go('/calendar') },
+      { section: 'Go to', label: 'Ideas', icon: Lightbulb, run: go('/ideas') },
       { section: 'Go to', label: 'Docs', icon: FileText, run: go('/docs') },
       ...(mode === 'server' ? [{ section: 'Go to', label: 'Chat', icon: MessagesSquare, run: go('/chat') }] : []),
       { section: 'Go to', label: 'Settings', icon: Settings, run: go('/settings') },
-      ...lists.map((l) => ({ section: 'Lists', label: l.name, emoji: l.icon, icon: Hash, run: go(`/list/${l.id}`) })),
+      ...ideas.map((b) => ({ section: 'Idea boards', label: b.name, icon: iconByName(b.icon, Lightbulb), run: go(`/ideas/${b.id}`) })),
+      ...lists.map((l) => ({ section: 'Boards', label: l.name, icon: iconByName(l.icon, Kanban), run: go(`/board/${l.id}`) })),
       ...plugins.filter((p) => p.manifest.view).map((p) => ({ section: 'Plugins', label: p.manifest.view.title || p.manifest.name, icon: iconByName(p.manifest.icon), run: go(`/plugin/${p.id}`) })),
       { section: 'Create', label: 'New task', icon: Plus, run: () => window.dispatchEvent(new CustomEvent('lumen:quick-add')) },
+      {
+        section: 'Create',
+        label: 'New board',
+        icon: Plus,
+        run: () => {
+          const p = createBoard({ name: 'Untitled board' })
+          navigate(`/board/${p.slice(6, -3)}`)
+        },
+      },
       { section: 'Create', label: 'New event', icon: Plus, run: () => navigate('/calendar?new=1') },
       {
         section: 'Create',
@@ -76,7 +89,7 @@ export function CommandPalette() {
       ...Object.values(commandMap).map((c) => ({ section: c.section || 'Commands', label: c.title, icon: Command, shortcut: c.shortcut, run: c.run })),
     ]
     return out
-  }, [lists, plugins, mode, commandMap])
+  }, [lists, ideas, plugins, mode, commandMap])
 
   const results = useMemo(() => {
     const needle = q.trim().toLowerCase()
@@ -84,7 +97,7 @@ export function CommandPalette() {
     if (needle.length >= 2) {
       const tasks = items
         .filter((i) => i.kind === 'task' && isOpen(i.status))
-        .map((i) => ({ section: 'Tasks', label: i.label || i.title, emoji: i.icon, icon: CircleCheck, hint: i.source.name, s: score(i.label || i.title, needle) * 0.9, run: () => navigate(`/list/${i.path.slice(6, -3)}?task=${i.id}`) }))
+        .map((i) => ({ section: 'Tasks', label: i.label || i.title, icon: CircleCheck, hint: i.source.name, s: score(i.label || i.title, needle) * 0.9, run: () => navigate(i.path.startsWith('lists/') ? `/board/${i.path.slice(6, -3)}?card=${i.id}` : `/calendar?date=${itemDay(i) || ''}`) }))
         .filter((e) => e.s > 0)
       const docHits = docs.map((d) => ({ section: 'Docs', label: d.title, icon: FileText, hint: d.folder, s: score(d.title, needle) * 0.9, run: () => navigate(`/${d.path}`) })).filter((e) => e.s > 0)
       found = [...found, ...tasks, ...docHits]
@@ -155,7 +168,7 @@ export function CommandPalette() {
                   onMouseMove={() => setActive(i)}
                   onClick={() => run(r)}
                 >
-                  <span className="palette-icon">{r.emoji || (Icon && <Icon size={15} strokeWidth={1.75} />)}</span>
+                  <span className="palette-icon">{Icon && <Icon size={15} strokeWidth={1.75} />}</span>
                   <span className="palette-label">{r.label}</span>
                   {r.hint && <span className="palette-hint">{r.hint}</span>}
                   {r.shortcut && <Kbd keys={comboKeys(r.shortcut)} />}

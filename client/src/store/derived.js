@@ -3,6 +3,7 @@
 
 import { parseItems, flatItems } from '../../../shared/items.js'
 import { splitFrontMatter } from '../../../shared/frontmatter.js'
+import { parseCanvas } from '../../../shared/canvas.js'
 
 const parseCache = new Map() // path → { text, result }
 
@@ -118,4 +119,17 @@ export function selectDocs(state) {
     out.push({ path, title, folder })
   }
   return out.sort((a, b) => a.path.localeCompare(b.path))
+}
+
+export function selectIdeas(state) {
+  const out = []
+  for (const path of state.paths) {
+    const m = /^ideas\/([^/]+)\.canvas$/.exec(path)
+    if (!m) continue
+    const f = state.files[path]
+    const canvas = f ? parseMemo(path, f.text, parseCanvas) : { nodes: [], edges: [], lumen: {} }
+    const lumen = canvas.lumen
+    out.push({ path, id: m[1], name: lumen.name || m[1], color: lumen.color || 'violet', icon: lumen.icon || 'lightbulb', owner: lumen.owner, share: lumen.share, nodes: canvas.nodes, edges: canvas.edges })
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name))
 }

@@ -1,6 +1,7 @@
 // The day as a timeline, after Structured: each timed item is a coloured pill
 // on a line, sized by how long it takes, with free time between them visible.
-import { Check, Plus } from 'lucide-react'
+import { CalendarDays, Check, Plus } from 'lucide-react'
+import { iconByName } from '../../shell/icons.js'
 import { formatTime, fromMinutes, humanDuration, nowMinutes, todayIso, toMinutes, dayName, dayOfMonth, monthName } from '../../../../shared/dates.js'
 import { freeGaps, layoutDay } from '../../../../shared/calendar.js'
 import { isOpen } from '../../../../shared/items.js'
@@ -11,7 +12,10 @@ function Pill({ o, color, onToggle, height }) {
   const done = o.item.kind === 'task' && !isOpen(o.item.status)
   return (
     <span className={`tl-pill${done ? ' is-done' : ''}`} style={{ height, '--c': `var(--c-${color})`, '--c-bg': `var(--c-${color}-bg)` }}>
-      <span className="tl-pill-icon">{o.item.icon || (o.item.kind === 'task' ? '' : '•')}</span>
+      {o.item.kind !== 'task' && <span className="tl-pill-icon">{(() => {
+        const Icon = iconByName(o.item.source?.icon, CalendarDays)
+        return <Icon size={15} strokeWidth={2} />
+      })()}</span>}
       {o.item.kind === 'task' && !o.ghost && (
         <button
           type="button"
@@ -68,7 +72,6 @@ export function TimelineView({ date, occs, settings, h12, onCreate, onOpen, onTo
                     <span className="tl-mini-dot" />
                   )}
                   <button type="button" className="tl-untimed-title" onClick={(e) => onOpen(o, e.currentTarget)} aria-label={blockLabel(o, h12)}>
-                    {o.item.icon && <span>{o.item.icon}</span>}
                     {o.item.label || o.item.title}
                   </button>
                 </div>

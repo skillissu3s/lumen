@@ -1,0 +1,481 @@
+/* Ideas: the gallery of idea boards, and the canvas itself */
+
+/* ---- gallery ---- */
+.idea-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  padding: 8px 24px 32px;
+}
+.idea-tile {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+  overflow: hidden;
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.idea-tile:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
+}
+.idea-tile:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.idea-tile-preview {
+  display: block;
+  width: 100%;
+  height: 128px;
+  background-color: var(--bg-subtle);
+  background-image: radial-gradient(var(--border) 1px, transparent 1px);
+  background-size: 14px 14px;
+  border-bottom: 1px solid var(--border);
+  padding: 6px;
+}
+.pv-card {
+  fill: var(--surface);
+  stroke: var(--border-strong);
+  stroke-width: 3;
+}
+.pv-group {
+  fill: none;
+  stroke: var(--border-strong);
+  stroke-width: 3;
+  stroke-dasharray: 10 8;
+}
+.idea-tile-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  min-width: 0;
+}
+.idea-tile-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 550;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.idea-tile-count {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+.idea-tile.is-new {
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 174px;
+  border-style: dashed;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+.idea-tile.is-new:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+/* ---- one board ---- */
+.idea-board-view .view-header {
+  border-bottom: 1px solid var(--border);
+}
+.idea-back {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-left: -8px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+}
+.idea-back:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.idea-hint {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+@media (max-width: 720px) {
+  .idea-hint {
+    display: none;
+  }
+}
+
+.idea-canvas {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+.idea-surface {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background-color: var(--bg-subtle);
+  background-image: radial-gradient(var(--border-strong) 1px, transparent 1.2px);
+  cursor: default;
+  touch-action: none;
+  user-select: none;
+}
+.idea-surface:focus-visible {
+  outline: none;
+  box-shadow: inset var(--focus-ring);
+}
+.idea-world {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 0;
+}
+
+/* cards */
+.idea {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  cursor: grab;
+}
+.idea.has-color {
+  border-color: color-mix(in srgb, var(--nc) 55%, var(--border));
+  background: var(--nc-bg);
+}
+.idea.has-color::before {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: -1px;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: var(--nc);
+}
+.idea.is-selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), var(--shadow);
+}
+.idea.is-editing {
+  cursor: text;
+}
+.idea-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 10px 12px;
+  font-size: var(--fs);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.idea-body.md > :first-child {
+  margin-top: 0;
+}
+.idea-body.md > :last-child {
+  margin-bottom: 0;
+}
+.idea-body.md h1,
+.idea-body.md h2,
+.idea-body.md h3 {
+  font-size: var(--fs-md);
+  margin: 0 0 4px;
+}
+.idea-body.md p,
+.idea-body.md ul,
+.idea-body.md ol {
+  margin: 0 0 6px;
+}
+.idea-body.md ul,
+.idea-body.md ol {
+  padding-left: 18px;
+}
+.idea-placeholder {
+  color: var(--text-faint);
+}
+.idea-edit {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  resize: none;
+  border: 0;
+  outline: none;
+  padding: 10px 12px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  line-height: 1.5;
+  user-select: text;
+}
+
+/* connection handles on each side, shown on hover */
+.idea-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  background: var(--surface);
+  opacity: 0;
+  cursor: crosshair;
+  transition: opacity var(--dur) var(--ease);
+}
+.idea:hover .idea-handle,
+.idea.is-selected .idea-handle {
+  opacity: 1;
+}
+.idea.is-editing .idea-handle {
+  display: none;
+}
+.idea-handle.is-top {
+  top: -7px;
+  left: calc(50% - 6px);
+}
+.idea-handle.is-bottom {
+  bottom: -7px;
+  left: calc(50% - 6px);
+}
+.idea-handle.is-left {
+  left: -7px;
+  top: calc(50% - 6px);
+}
+.idea-handle.is-right {
+  right: -7px;
+  top: calc(50% - 6px);
+}
+.idea-resize {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 2px solid var(--accent);
+  background: var(--surface);
+  cursor: nwse-resize;
+}
+
+/* groups */
+.idea-group {
+  position: absolute;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 45%, transparent);
+  cursor: grab;
+}
+.idea-group.has-color {
+  border-color: color-mix(in srgb, var(--nc) 60%, transparent);
+  background: color-mix(in srgb, var(--nc-bg) 55%, transparent);
+}
+.idea-group.is-selected {
+  border-style: solid;
+  border-color: var(--accent);
+}
+.idea-group-label,
+.idea-group-label-edit {
+  position: absolute;
+  left: 12px;
+  top: -26px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.idea-group.has-color .idea-group-label {
+  color: var(--nc);
+}
+.idea-group-label-edit {
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  outline: none;
+  user-select: text;
+}
+
+/* edges */
+.idea-edges {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  overflow: visible;
+  color: var(--text-faint);
+  pointer-events: none;
+}
+.idea-edge-line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+}
+.idea-edge-line.is-draft {
+  stroke-dasharray: 6 5;
+  color: var(--accent);
+}
+.idea-edge-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 14;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+.idea-edge:hover {
+  color: var(--text-muted);
+}
+.idea-edge.is-selected {
+  color: var(--accent);
+}
+
+/* the toolbar over a selected card */
+.idea-bar {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.idea-swatch {
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.idea-swatch::after {
+  content: '';
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--sw);
+}
+.idea-swatch:hover {
+  background: var(--bg-hover);
+}
+.idea-swatch[aria-pressed='true']::after {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--sw);
+}
+.idea-bar-btn {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.idea-bar-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.idea-bar-btn.is-danger:hover {
+  color: var(--danger);
+}
+.idea-bar-sep {
+  width: 1px;
+  height: 16px;
+  margin: 0 3px;
+  background: var(--border);
+}
+
+/* floating tools */
+.idea-tools,
+.idea-zoom {
+  position: absolute;
+  bottom: 16px;
+  z-index: 4;
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.idea-tools {
+  left: 50%;
+  transform: translateX(-50%);
+}
+.idea-zoom {
+  right: 16px;
+}
+.idea-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  min-width: 28px;
+  justify-content: center;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  cursor: pointer;
+}
+.idea-tool:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.idea-tool.is-primary {
+  color: var(--accent-text);
+}
+.idea-zoom-level {
+  min-width: 48px;
+  font-variant-numeric: tabular-nums;
+}
+
+.idea-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: var(--text-muted);
+  pointer-events: none;
+  text-align: center;
+  padding: 24px;
+}
+.idea-empty p {
+  margin: 0;
+}
+.idea-empty .faint {
+  color: var(--text-faint);
+  font-size: var(--fs-sm);
+  max-width: 340px;
+}
+
+@media (max-width: 720px) {
+  .idea-tiles {
+    padding: 8px 16px 24px;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+  .idea-tools {
+    left: 16px;
+    transform: none;
+  }
+}

@@ -923,18 +923,6 @@
   align-items: center;
   gap: 6px;
 }
-.editor-emoji {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 30px;
-  height: 30px;
-  border-radius: var(--radius);
-  font-size: 17px;
-}
-.editor-emoji:hover {
-  background: var(--bg-hover);
-}
 .editor-title {
   flex: 1;
   min-width: 0;

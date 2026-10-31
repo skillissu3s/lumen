@@ -2,7 +2,7 @@
 // ones), event or task, when, repeat, colour, place and notes.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarDays, Clock, MapPin, Repeat, Trash2 } from 'lucide-react'
-import { Button, ColorPicker, DateField, DurationField, EmojiPicker, Popover, Segmented, Select, Switch, Textarea, TimeField } from '../../components/ui/index.js'
+import { Button, ColorPicker, DateField, DurationField, Popover, Segmented, Select, Switch, Textarea, TimeField } from '../../components/ui/index.js'
 import { parseQuickAdd } from '../../../../shared/quickadd.js'
 import { joinIcon, splitIcon } from '../../../../shared/items.js'
 import { fromMinutes, formatTime, humanDuration, relativeDay, todayIso, toMinutes } from '../../../../shared/dates.js'
@@ -16,9 +16,7 @@ import { RepeatField } from '../shared/RepeatField.jsx'
  */
 export function EventEditor({ open, onClose, anchor, value, isNew, calendars, lists, h12, onSave, onDelete, defaultDuration = 30 }) {
   const [f, setF] = useState(value)
-  const [emoji, setEmoji] = useState(false)
   const titleRef = useRef(null)
-  const emojiRef = useRef(null)
   useEffect(() => {
     if (open) {
       const { icon, label } = splitIcon(value.title || '')
@@ -86,9 +84,6 @@ export function EventEditor({ open, onClose, anchor, value, isNew, calendars, li
     <Popover open={open} onOpenChange={(o) => !o && onClose()} anchor={anchor} placement="right-start" className="editor" aria-label={isNew ? 'New item' : 'Edit item'}>
       <form onSubmit={save} className="editor-form" onKeyDown={(e) => e.key === 'Enter' && (e.ctrlKey || e.metaKey) && save(e)}>
         <div className="editor-title-row">
-          <button ref={emojiRef} type="button" className="editor-emoji" aria-label="Choose an icon" onClick={() => setEmoji(true)}>
-            {f.icon || <span className="faint">☺</span>}
-          </button>
           <input
             ref={titleRef}
             className="editor-title"
@@ -98,15 +93,6 @@ export function EventEditor({ open, onClose, anchor, value, isNew, calendars, li
             onChange={(e) => set({ label: e.target.value })}
           />
         </div>
-        <Popover open={emoji} onOpenChange={setEmoji} anchor={emojiRef}>
-          <EmojiPicker
-            value={f.icon}
-            onChange={(v) => {
-              set({ icon: v || null })
-              setEmoji(false)
-            }}
-          />
-        </Popover>
         {preview && (
           <div className="editor-preview" aria-live="polite">
             {preview.found.map((p) => (
@@ -132,7 +118,7 @@ export function EventEditor({ open, onClose, anchor, value, isNew, calendars, li
 
         <div className="editor-grid">
           <span className="editor-label">{f.kind === 'event' ? 'Calendar' : 'List'}</span>
-          <Select value={f.path} onChange={(e) => set({ path: e.target.value })} options={targets.map((t) => ({ value: t.path, label: `${t.icon ? `${t.icon}  ` : ''}${t.name}` }))} aria-label={f.kind === 'event' ? 'Calendar' : 'List'} disabled={!isNew && f.series} />
+          <Select value={f.path} onChange={(e) => set({ path: e.target.value })} options={targets.map((t) => ({ value: t.path, label: t.name }))} aria-label={f.kind === 'event' ? 'Calendar' : 'List'} disabled={!isNew && f.series} />
 
           <span className="editor-label">Date</span>
           <div className="editor-inline">

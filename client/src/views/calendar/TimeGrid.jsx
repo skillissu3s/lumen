@@ -45,7 +45,6 @@ function Block({ o, style, color, h12, compact, onPointerDown, onOpen, onKey, on
           </button>
         )}
         <span className="block-title">
-          {o.item.icon && <span className="block-icon">{o.item.icon}</span>}
           {o.item.label || o.item.title}
         </span>
         {!compact && (
@@ -256,7 +255,6 @@ export function TimeGrid({ days, occs, settings, h12, onCreate, onOpen, onMove, 
                     aria-label={blockLabel(o, h12)}
                     onClick={(e) => onOpen(o, e.currentTarget)}
                   >
-                    {o.item.icon && <span>{o.item.icon}</span>}
                     <span className="allday-title">{o.item.label || o.item.title}</span>
                   </button>
                 )

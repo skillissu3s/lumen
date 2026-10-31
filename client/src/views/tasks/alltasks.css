@@ -1,0 +1,177 @@
+/* All tasks: a board of every card, and the schedule rail. */
+
+.all-tasks-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.all-tasks-body .board {
+  flex: 1;
+  min-width: 0;
+}
+.col-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--col);
+}
+.filter-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--radius);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--text-muted);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.filter-button:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+.filter-button.is-active {
+  color: var(--accent-fg);
+  background: var(--accent-soft);
+  box-shadow: none;
+}
+
+/* the schedule rail */
+.rail {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  width: 268px;
+  padding: 4px 14px 16px;
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+}
+.rail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 36px;
+}
+.rail-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+.rail-title svg {
+  color: var(--c-blue);
+}
+.rail-title:hover {
+  color: var(--accent-fg);
+}
+.rail-month {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 6px 0;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.rail-month span {
+  flex: 1;
+}
+.rail-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.rail-dow {
+  height: 22px;
+  display: grid;
+  place-items: center;
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+.rail-day {
+  position: relative;
+  height: 30px;
+  border-radius: var(--radius);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+.rail-day:hover {
+  background: var(--bg-hover);
+}
+.rail-day.is-out {
+  color: var(--text-faint);
+}
+.rail-day.is-today {
+  color: var(--accent-fg);
+  font-weight: 700;
+}
+.rail-day.is-selected {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+.rail-day.is-over {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+.rail-day i {
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--c-blue);
+}
+.rail-day i.is-late {
+  background: var(--danger);
+}
+.rail-day.is-selected i {
+  background: var(--accent-text);
+}
+.rail-day-title {
+  margin: 14px 0 6px;
+  font-weight: 600;
+}
+.rail-list {
+  display: grid;
+  gap: 4px;
+}
+.rail-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 4px 8px;
+  border-radius: var(--radius);
+  text-align: left;
+  font-size: var(--fs-sm);
+  background: var(--bg-subtle);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.rail-chip:hover {
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+.rail-chip i {
+  flex: none;
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--bc);
+}
+.rail-chip span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.rail-hint {
+  margin-top: 8px;
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+@media (max-width: 1100px) {
+  .rail {
+    display: none;
+  }
+}

@@ -1,7 +1,7 @@
-// The small form for making or changing a list or calendar: name, icon, colour,
-// and (on a server) who it's shared with.
+// The small form for making or changing a board, calendar or idea board:
+// name, icon, colour, and (on a server) who it's shared with.
 import { useEffect, useState } from 'react'
-import { Button, ColorPicker, EmojiPicker, Input, Popover, Segmented } from '../components/ui/index.js'
+import { Button, ColorPicker, IconBadge, IconPicker, Input, Popover, Segmented } from '../components/ui/index.js'
 import { api } from '../lib/api.js'
 import { useSession } from '../store/session.js'
 
@@ -34,11 +34,7 @@ export function ShareField({ value, onChange }) {
         <div className="share-people">
           {people.map((p) => (
             <label key={p.handle} className="share-person">
-              <input
-                type="checkbox"
-                checked={chosen.includes(p.handle)}
-                onChange={(e) => onChange(e.target.checked ? [...chosen, p.handle] : chosen.filter((h) => h !== p.handle))}
-              />
+              <input type="checkbox" checked={chosen.includes(p.handle)} onChange={(e) => onChange(e.target.checked ? [...chosen, p.handle] : chosen.filter((h) => h !== p.handle))} />
               <span>{p.name}</span>
               <span className="share-handle">@{p.handle}</span>
             </label>
@@ -50,17 +46,21 @@ export function ShareField({ value, onChange }) {
   )
 }
 
-export function ListEditor({ open, onOpenChange, anchor, initial = {}, kind = 'list', onSave }) {
-  const [name, setName] = useState(initial.name || '')
-  const [color, setColor] = useState(initial.color || (kind === 'calendar' ? 'blue' : null))
-  const [icon, setIcon] = useState(initial.icon || null)
-  const [share, setShare] = useState(initial.share ?? null)
+const DEFAULT_ICON = { board: 'kanban', calendar: 'calendar', ideas: 'lightbulb' }
+const NOUN = { board: 'Board', calendar: 'Calendar', ideas: 'Idea board' }
+
+export function ListEditor({ open, onOpenChange, anchor, initial = {}, kind = 'board', onSave }) {
+  const [name, setName] = useState('')
+  const [color, setColor] = useState('blue')
+  const [icon, setIcon] = useState(DEFAULT_ICON[kind])
+  const [share, setShare] = useState(null)
   const [picking, setPicking] = useState(false)
   useEffect(() => {
     if (!open) return
     setName(initial.name || '')
-    setColor(initial.color || (kind === 'calendar' ? 'blue' : null))
-    setIcon(initial.icon || null)
+    setColor(initial.color || 'blue')
+    // an emoji from before icons were names becomes the default icon
+    setIcon(/^[a-z-]+$/.test(initial.icon || '') ? initial.icon : DEFAULT_ICON[kind])
     setShare(initial.share ?? null)
     setPicking(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -74,17 +74,19 @@ export function ListEditor({ open, onOpenChange, anchor, initial = {}, kind = 'l
   return (
     <Popover open={open} onOpenChange={onOpenChange} anchor={anchor} placement="right-start" className="list-editor">
       <form onSubmit={submit} className="list-editor-form">
+        <b className="list-editor-title">{initial.name ? `Edit ${NOUN[kind].toLowerCase()}` : `New ${NOUN[kind].toLowerCase()}`}</b>
         <div className="list-editor-row">
-          <button type="button" className="icon-pick" aria-label="Choose an icon" onClick={() => setPicking(!picking)}>
-            {icon || <span className="icon-pick-empty">#</span>}
+          <button type="button" className="icon-pick" aria-label="Choose an icon" aria-expanded={picking} onClick={() => setPicking(!picking)}>
+            <IconBadge name={icon} color={color} size={30} />
           </button>
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={kind === 'calendar' ? 'Calendar name' : 'List name'} aria-label="Name" autoFocus />
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={`${NOUN[kind]} name`} aria-label="Name" autoFocus />
         </div>
         {picking && (
-          <EmojiPicker
+          <IconPicker
             value={icon}
+            color={color}
             onChange={(v) => {
-              setIcon(v || null)
+              setIcon(v)
               setPicking(false)
             }}
           />

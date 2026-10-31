@@ -7,7 +7,7 @@ import { blobSha } from '../../../shared/merge.js'
 import { ConflictError, AuthError, OfflineError } from './errors.js'
 
 const API = 'https://api.github.com'
-const TEXT_EXT = /\.(md|markdown|txt|json|jsonl|js|mjs|css|html|svg|ics|csv|yml|yaml)$/i
+const TEXT_EXT = /\.(md|markdown|txt|json|jsonl|canvas|js|mjs|css|html|svg|ics|csv|yml|yaml)$/i
 const IGNORED = /(^|\/)(\.git|\.obsidian|node_modules)(\/|$)/
 const POLL_MS = 30000
 

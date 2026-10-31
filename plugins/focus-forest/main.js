@@ -992,7 +992,7 @@
         return
       }
       updateGrowing(remaining)
-      setStatusText(`🌳 ${formatClock(remaining)}`)
+      setStatusText(`Focus ${formatClock(remaining)}`)
     } else if (state.phase === 'break' && state.break) {
       const now = Date.now()
       const remaining = state.break.endMs - now

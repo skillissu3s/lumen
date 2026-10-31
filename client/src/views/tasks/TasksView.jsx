@@ -16,7 +16,7 @@ import { useShortcut } from '../../shell/shortcuts.js'
 import { ListEditor } from '../../shell/ListEditor.jsx'
 import { QuickAdd } from './QuickAdd.jsx'
 import { TaskRow } from './TaskRow.jsx'
-import { TaskPanel } from './TaskPanel.jsx'
+import { CardDialog } from '../boards/CardDialog.jsx'
 import { BoardView } from './BoardView.jsx'
 import { listGroups, todayGroups, upcomingGroups } from './taskQueries.js'
 import './tasks.css'
@@ -284,7 +284,7 @@ export default function TasksView({ route }) {
   ]
 
   return (
-    <div className={`view tasks-view${panel ? ' has-panel' : ''}`}>
+    <div className="view tasks-view">
       <div className="tasks-main">
         <header className="view-header">
           <h1 className="view-title" ref={titleRef}>
@@ -371,7 +371,7 @@ export default function TasksView({ route }) {
           </div>
         )}
       </div>
-      {panel && <TaskPanel path={panel.path} id={panel.id} onClose={() => setPanel(null)} />}
+      {panel && <CardDialog path={panel.path} id={panel.id} onClose={() => setPanel(null)} />}
       {page.list && (
         <ListEditor open={editList} onOpenChange={setEditList} anchor={titleRef} initial={page.list} onSave={(v) => updateListMeta(page.list.path, v)} />
       )}

@@ -3,7 +3,7 @@
 
 import { useMemo } from 'react'
 import { useWorkspace } from './workspace.js'
-import { selectConfig, selectLists, selectCalendars, selectAllItems, selectPlugins, selectDocs } from './derived.js'
+import { selectConfig, selectLists, selectCalendars, selectAllItems, selectPlugins, selectDocs, selectIdeas } from './derived.js'
 
 const useFilesAndPaths = () => [useWorkspace((s) => s.files), useWorkspace((s) => s.paths)]
 
@@ -21,6 +21,7 @@ export const useCalendars = () => useDerived(selectCalendars)
 export const useAllItems = () => useDerived(selectAllItems)
 export const usePlugins = () => useDerived(selectPlugins)
 export const useDocs = () => useDerived(selectDocs)
+export const useIdeas = () => useDerived(selectIdeas)
 
 /** The inbox list's path from lumen.json */
 export function inboxPath(config) {

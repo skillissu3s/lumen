@@ -7,6 +7,8 @@ import { describeRecurrence } from '../../../../shared/recurrence.js'
 import { isOpen, itemDay } from '../../../../shared/items.js'
 import { deleteItem, moveItemToFile, toggleTask, updateItem } from '../../lib/actions.js'
 import { progressOf } from './taskQueries.js'
+import { colorFor, splitTitle } from '../../lib/colors.js'
+import { Label } from '../boards/CardDialog.jsx'
 
 const PRIORITY_COLOR = { highest: 'red', high: 'orange', medium: 'blue' }
 
@@ -27,7 +29,7 @@ export function taskMenu(item, lists, extra = []) {
     { section: 'Priority' },
     ...['high', 'medium', 'low'].map((p) => ({ label: p[0].toUpperCase() + p.slice(1), checked: item.priority === p, onSelect: set({ priority: item.priority === p ? null : p }) })),
     'separator',
-    ...(lists.length > 1 ? [{ section: 'Move to' }, ...lists.filter((l) => l.path !== item.path).slice(0, 8).map((l) => ({ label: `${l.icon ? `${l.icon} ` : ''}${l.name}`, onSelect: () => moveItemToFile(item.path, item.id, l.path, {}) })), 'separator'] : []),
+    ...(lists.length > 1 ? [{ section: 'Move to' }, ...lists.filter((l) => l.path !== item.path).slice(0, 8).map((l) => ({ label: l.name, onSelect: () => moveItemToFile(item.path, item.id, l.path, {}) })), 'separator'] : []),
     ...extra,
     { label: 'Delete', danger: true, onSelect: () => deleteItem(item.path, item.id), shortcut: 'Del' },
   ]
@@ -39,7 +41,7 @@ function Meta({ item, today, showList, h12, hideDay }) {
   if (showList && item.source) {
     parts.push(
       <span key="list" className="tmeta tmeta-list">
-        {item.source.icon ? <span>{item.source.icon}</span> : <ColorDot color={item.source.color || 'gray'} size={6} />}
+        <ColorDot color={item.source.color || 'gray'} size={6} />
         {item.source.name}
       </span>,
     )
@@ -163,8 +165,7 @@ export const TaskRow = memo(function TaskRow({ item, lists, showList, selected, 
             />
           ) : (
             <span className="trow-title" onDoubleClick={() => setEditing(true)}>
-              {item.icon && <span className="trow-icon">{item.icon}</span>}
-              <TitleText text={item.label || item.title} />
+              <TitleText text={item.title} />
             </span>
           )}
           <Meta item={item} today={today} showList={showList} h12={h12} hideDay={hideDay} />
@@ -187,20 +188,15 @@ export const TaskRow = memo(function TaskRow({ item, lists, showList, selected, 
   )
 })
 
-// tags in a title are shown softer than the words around them
+// a title's words, then its #tags as coloured labels
 function TitleText({ text }) {
-  const parts = String(text).split(/(\s#[\p{L}\p{N}_\-/]+)/u)
+  const { text: words, tags } = splitTitle(text)
   return (
-    <span className="trow-text">
-      {parts.map((p, i) =>
-        /^\s#/.test(p) ? (
-          <span key={i} className="trow-tag">
-            {p}
-          </span>
-        ) : (
-          p
-        ),
-      )}
-    </span>
+    <>
+      <span className="trow-text">{words}</span>
+      {tags.map((t) => (
+        <Label key={t} tag={t} color={colorFor(t)} />
+      ))}
+    </>
   )
 }
