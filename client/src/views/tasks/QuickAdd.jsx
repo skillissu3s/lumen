@@ -6,6 +6,7 @@ import { parseQuickAdd } from '../../../../shared/quickadd.js'
 import { relativeDay, formatTime, humanDuration, todayIso } from '../../../../shared/dates.js'
 import { describeRecurrence } from '../../../../shared/recurrence.js'
 import { usePrefs } from '../../store/prefs.js'
+import './tasks.css'
 
 const PRIORITY_LABEL = { highest: 'Highest', high: 'High', medium: 'Medium', low: 'Low', lowest: 'Lowest' }
 

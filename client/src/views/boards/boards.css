@@ -852,3 +852,32 @@
 .board-setup > span {
   flex: 1;
 }
+
+/* on a phone the controls get a row of their own under the title */
+@media (max-width: 720px) {
+  .all-tasks .view-header,
+  .board-header {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 52px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    row-gap: 8px;
+  }
+  .all-tasks .view-title,
+  .board-header .view-title {
+    white-space: nowrap;
+  }
+  .all-tasks .view-actions,
+  .board-header .view-actions {
+    flex: 1 1 100%;
+    margin-left: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .all-tasks .board-search,
+  .board-header .board-search {
+    flex: 1;
+    min-width: 120px;
+  }
+}
