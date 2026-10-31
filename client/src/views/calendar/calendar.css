@@ -1,8 +1,10 @@
 /* Calendar: header, side panel, time grid, timeline, month, agenda, editor. */
 
 .cal-header {
-  gap: 8px;
-  padding-left: 12px;
+  gap: 10px;
+  height: 58px;
+  padding-left: 16px;
+  padding-right: 20px;
 }
 .cal-title {
   min-width: 0;
@@ -57,17 +59,26 @@
   flex-direction: column;
   gap: 4px;
   flex: none;
-  width: 248px;
-  padding: 14px 12px;
+  width: 260px;
+  padding: 18px 16px 24px;
   overflow-y: auto;
   border-right: 1px solid var(--border);
 }
 .cal-side .ui-mini-month {
   width: 100%;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 .cal-side-section {
-  margin-top: 14px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.cal-side .cal-side-head {
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 .cal-side-section:hover .nav-section-add {
   opacity: 1;
@@ -75,7 +86,7 @@
 .cal-src {
   display: flex;
   align-items: center;
-  height: 28px;
+  height: 32px;
   padding: 0 2px 0 4px;
   border-radius: var(--radius);
 }
@@ -120,9 +131,10 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 30px;
-  margin-bottom: 4px;
-  padding: 4px 8px;
+  min-height: 36px;
+  margin-bottom: 6px;
+  padding: 6px 10px;
+  transition: box-shadow var(--dur) var(--ease), transform var(--dur) var(--ease);
   border-radius: var(--radius);
   font-size: var(--fs-sm);
   background: var(--surface);
@@ -131,6 +143,7 @@
 }
 .cal-inbox-item:hover {
   box-shadow: inset 0 0 0 1px var(--border-strong), var(--shadow-sm);
+  transform: translateY(-1px);
 }
 .cal-inbox-title {
   flex: 1;
@@ -148,7 +161,7 @@
 /* ---------- time grid ---------- */
 
 .tgrid {
-  --gutter: 56px;
+  --gutter: 64px;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -172,42 +185,43 @@
 }
 .tgrid-day {
   display: flex;
-  align-items: baseline;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
-  gap: 6px;
-  height: 40px;
-  padding-top: 10px;
+  gap: 2px;
+  height: 60px;
 }
 .tgrid-dayname {
-  font-size: var(--fs-sm);
-  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
 }
 .tgrid-daynum {
-  font-size: var(--fs-md);
-  font-weight: 600;
+  display: inline-grid;
+  place-items: center;
+  min-width: 30px;
+  height: 30px;
+  border-radius: var(--radius-full);
+  font-size: 18px;
+  font-weight: 550;
   font-variant-numeric: tabular-nums;
 }
 .tgrid-day.is-today .tgrid-dayname {
   color: var(--accent-fg);
 }
 .tgrid-day.is-today .tgrid-daynum {
-  display: inline-grid;
-  place-items: center;
-  min-width: 26px;
-  height: 26px;
-  margin-top: -4px;
-  border-radius: var(--radius-full);
   background: var(--accent);
   color: var(--accent-text);
-  font-size: var(--fs);
 }
 .tgrid-allday {
   display: grid;
   grid-template-columns: var(--gutter) 1fr;
   flex: none;
-  max-height: 128px;
+  max-height: 136px;
   overflow-y: auto;
-  padding: 4px 10px 4px 0;
+  padding: 6px 10px 6px 0;
   border-bottom: 1px solid var(--border);
 }
 .tgrid-allday-label {
@@ -218,15 +232,15 @@
 }
 .tgrid-allday-rows {
   display: grid;
-  gap: 2px;
+  gap: 3px;
 }
 .allday-chip {
   display: flex;
   align-items: center;
   gap: 5px;
-  height: 22px;
-  margin: 0 2px;
-  padding: 0 8px;
+  height: 24px;
+  margin: 0 3px;
+  padding: 0 9px;
   border-radius: 5px;
   font-size: var(--fs-sm);
   font-weight: 500;
@@ -263,7 +277,7 @@
 }
 .tgrid-hour {
   position: absolute;
-  right: 10px;
+  right: 14px;
   transform: translateY(-50%);
   font-size: var(--fs-xs);
   color: var(--text-faint);
@@ -346,7 +360,7 @@
   z-index: 2;
   display: flex;
   overflow: hidden;
-  border-radius: 6px;
+  border-radius: 7px;
   background: var(--c-bg);
   color: var(--c-fg);
   box-shadow: inset 3px 0 0 var(--c), 0 0 0 1px var(--surface);
@@ -365,10 +379,10 @@
 .block-inner {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
   min-width: 0;
   width: 100%;
-  padding: 4px 6px 4px 9px;
+  padding: 5px 8px 5px 11px;
   font-size: var(--fs-sm);
   line-height: 1.3;
 }
@@ -693,14 +707,17 @@
   grid-template-columns: 32px repeat(7, minmax(0, 1fr));
 }
 .month-head {
-  height: 32px;
+  height: 38px;
   align-items: center;
   border-bottom: 1px solid var(--border);
 }
 .month-dayname {
-  padding-left: 10px;
-  font-size: var(--fs-sm);
-  color: var(--text-muted);
+  padding-left: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
 }
 .month-body {
   display: grid;
@@ -719,9 +736,9 @@
   container-type: inline-size;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   min-width: 0;
-  padding: 4px 4px 6px;
+  padding: 6px 6px 8px;
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
   overflow: hidden;
@@ -1125,4 +1142,12 @@
   .tl-rows > li {
     grid-template-columns: 52px 48px minmax(0, 1fr);
   }
+}
+
+/* switching between day, week, month and the timeline */
+.tgrid,
+.month,
+.timeline,
+.agenda {
+  animation: view-in 200ms var(--ease);
 }

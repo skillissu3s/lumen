@@ -6,6 +6,7 @@ import { addDays, formatTime, humanDuration, relativeDay, todayIso } from '../..
 import { describeRecurrence } from '../../../../shared/recurrence.js'
 import { isOpen, itemDay } from '../../../../shared/items.js'
 import { deleteItem, moveItemToFile, toggleTask, updateItem } from '../../lib/actions.js'
+import { celebrate } from '../../lib/celebrate.js'
 import { progressOf } from './taskQueries.js'
 import { colorFor, splitTitle } from '../../lib/colors.js'
 import { Label } from '../boards/Card.jsx'
@@ -149,7 +150,7 @@ export const TaskRow = memo(function TaskRow({ item, lists, showList, selected, 
           ) : (
             <span className="trow-expand-space" />
           )}
-          <TaskCheckbox status={item.status} color={PRIORITY_COLOR[item.priority]} label={`Complete “${item.label || item.title}”`} onToggle={() => toggleTask(item.path, item.id)} tabIndex={-1} />
+          <TaskCheckbox status={item.status} color={PRIORITY_COLOR[item.priority]} label={`Complete “${item.label || item.title}”`} onToggle={(_, e) => (isOpen(item.status) && celebrate(e?.currentTarget), toggleTask(item.path, item.id))} tabIndex={-1} />
           {editing ? (
             <input
               ref={titleRef}

@@ -17,7 +17,7 @@
   line-height: 1;
   white-space: nowrap;
   user-select: none;
-  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease), color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease), color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), transform 90ms var(--ease);
 }
 .ui-button--sm {
   --h: 26px;

@@ -39,7 +39,6 @@ function Card({ item, onOpen, colIndex, cols, onMove }) {
       <div className="bcard-top">
         <TaskCheckbox status={item.status} label="Complete" onToggle={() => toggleTask(item.path, item.id)} tabIndex={-1} />
         <span className="bcard-title">
-          {item.icon && <span className="trow-icon">{item.icon}</span>}
           {item.label || item.title}
         </span>
       </div>

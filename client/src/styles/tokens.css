@@ -149,4 +149,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   :root { --dur: 0ms; }
+  *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; }
 }

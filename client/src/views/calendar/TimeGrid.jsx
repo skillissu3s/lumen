@@ -13,10 +13,10 @@ const HOURS = (from, to) => Array.from({ length: to - from }, (_, i) => from + i
 // side by side while each block still has room for a few words; in a narrow
 // column, overlapping blocks stack like cards instead, each a little to the right
 function placeBlock(o, colWidth) {
-  if (o.cols === 1) return { left: 2, right: 2 }
-  if (colWidth / o.cols >= 72) return { left: `calc(${(o.col / o.cols) * 100}% + 2px)`, width: `calc(${100 / o.cols}% - 4px)` }
+  if (o.cols === 1) return { left: 4, right: 6 }
+  if (colWidth / o.cols >= 72) return { left: `calc(${(o.col / o.cols) * 100}% + 4px)`, width: `calc(${100 / o.cols}% - 7px)` }
   const step = Math.min(14, (colWidth - 48) / (o.cols - 1))
-  return { left: 2 + o.col * step, right: 2, zIndex: 2 + o.col }
+  return { left: 4 + o.col * step, right: 6, zIndex: 2 + o.col }
 }
 
 export function blockLabel(o, h12) {
@@ -324,7 +324,7 @@ export function TimeGrid({ days, occs, settings, h12, onCreate, onOpen, onMove, 
                       color={colorOf(o.item, colorBy)}
                       compact={h < 38}
                       dragging={hidden}
-                      style={{ top, height: Math.max(h - 2, 16), ...placeBlock(o, box.colWidth) }}
+                      style={{ top: top + 1, height: Math.max(h - 3, 16), ...placeBlock(o, box.colWidth) }}
                       onPointerDown={onBlockPointerDown(o)}
                       onOpen={onOpen}
                       onKey={onBlockKey(o)}
@@ -334,7 +334,7 @@ export function TimeGrid({ days, occs, settings, h12, onCreate, onOpen, onMove, 
                 })}
                 {d === today && now >= dayStart * 60 && now <= dayEnd * 60 && <div className="now-line" style={{ top: minutesToY(now, geo) }} aria-hidden="true" />}
                 {preview && preview.day === d && (
-                  <div className="block is-preview" style={{ top: minutesToY(preview.start, geo), height: ((preview.end - preview.start) / 60) * hourHeight - 2, left: 2, right: 2, '--c': `var(--c-${preview.occ ? colorOf(preview.occ.item, colorBy) : 'gray'})`, '--c-bg': `var(--c-${preview.occ ? colorOf(preview.occ.item, colorBy) : 'gray'}-bg)`, '--c-fg': `var(--c-${preview.occ ? colorOf(preview.occ.item, colorBy) : 'gray'}-fg)` }} aria-hidden="true">
+                  <div className="block is-preview" style={{ top: minutesToY(preview.start, geo), height: ((preview.end - preview.start) / 60) * hourHeight - 3, left: 4, right: 6, '--c': `var(--c-${preview.occ ? colorOf(preview.occ.item, colorBy) : 'gray'})`, '--c-bg': `var(--c-${preview.occ ? colorOf(preview.occ.item, colorBy) : 'gray'}-bg)`, '--c-fg': `var(--c-${preview.occ ? colorOf(preview.occ.item, colorBy) : 'gray'}-fg)` }} aria-hidden="true">
                     <div className="block-inner">
                       <span className="block-title">{preview.occ ? titleOf(preview.occ.item) : 'New'}</span>
                       <span className="block-time">

@@ -30,7 +30,7 @@ export function TaskCheckbox({
       data-status={state}
       className={`ui-task-checkbox ${className}`.trim()}
       style={style}
-      onClick={() => onToggle?.(NEXT[state])}
+      onClick={(e) => onToggle?.(NEXT[state], e)}
       {...props}
     >
       {state === 'x' ? (

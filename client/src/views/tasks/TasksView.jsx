@@ -1,8 +1,8 @@
 // Today, Inbox, Upcoming and every list: grouped task rows, quick add, a board
 // for lists, and the task panel on the right.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowRight, CalendarDays, ChevronRight, Columns3, List, MoreHorizontal, Plus, Sun } from 'lucide-react'
-import { Button, ColorDot, EmptyState, Menu, Segmented } from '../../components/ui/index.js'
+import { ArrowRight, CalendarDays, ChevronRight, Columns3, Kanban, List, MoreHorizontal, Plus, Sun } from 'lucide-react'
+import { Button, EmptyState, IconBadge, Menu, Segmented } from '../../components/ui/index.js'
 import { useAllItems, useCalendars, useConfig, useLists, inboxPath } from '../../store/hooks.js'
 import { usePrefs, setPrefs } from '../../store/prefs.js'
 import { useUI } from '../../store/ui.js'
@@ -81,7 +81,6 @@ function TodaySchedule({ today }) {
         {occ.map((o) => (
           <span key={o.key} className="schedule-item" style={{ '--c': `var(--c-${o.item.color || o.item.source?.color || 'blue'})` }}>
             <span className="schedule-time tabular">{o.allDay ? 'All day' : formatTime(o.time, h12)}</span>
-            {o.item.icon && <span>{o.item.icon}</span>}
             <span className="schedule-title">{o.item.label || o.item.title}</span>
           </span>
         ))}
@@ -157,7 +156,7 @@ export default function TasksView({ route }) {
     const groups = listGroups(list, { ...listPrefs, today, keep }).map((g) => ({ ...g, items: g.items.map((i) => ({ ...i, path: list.path, source: { name: list.name, color: list.color, icon: list.icon } })) }))
     return {
       title: list.name,
-      icon: list.icon ? <span className="view-title-emoji">{list.icon}</span> : list.path === inbox ? null : <ColorDot color={list.color || 'gray'} size={9} />,
+      icon: <IconBadge name={list.icon} color={list.color || 'gray'} size={24} fallback={Kanban} />,
       subtitle: null,
       showList: false,
       addTo: list.path,
