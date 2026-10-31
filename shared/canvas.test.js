@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { parseCanvas, serializeCanvas, newCanvas, insideGroup, facingSide, anchor, bounds, colorName, colorCode } from './canvas.js'
+import { parseCanvas, serializeCanvas, newCanvas, insideGroup, facingSide, anchor, bounds, colorName, colorCode, edgeMid, overlaps } from './canvas.js'
 
 test('round trip, one node per line, unknown keys kept', () => {
   const text = serializeCanvas({
@@ -38,4 +38,12 @@ test('geometry', () => {
   assert.deepEqual(bounds([inside, out]), { x: 10, y: 10, width: 540, height: 100 })
   assert.equal(colorName('6'), 'violet')
   assert.equal(colorCode('green'), '4')
+})
+
+test('the middle of an edge, and overlapping boxes', () => {
+  const m = edgeMid({ x: 0, y: 0 }, 'right', { x: 200, y: 0 }, 'left')
+  assert.equal(m.x, 100)
+  assert.equal(m.y, 0)
+  assert.ok(overlaps({ x: 0, y: 0, width: 10, height: 10 }, { x: 5, y: 5, width: 10, height: 10 }))
+  assert.ok(!overlaps({ x: 0, y: 0, width: 10, height: 10 }, { x: 20, y: 0, width: 10, height: 10 }))
 })

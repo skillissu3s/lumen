@@ -103,3 +103,18 @@ export function bounds(nodes) {
   const y = Math.min(...nodes.map((n) => n.y))
   return { x, y, width: Math.max(...nodes.map((n) => n.x + n.width)) - x, height: Math.max(...nodes.map((n) => n.y + n.height)) - y }
 }
+
+/** The middle of an edge's curve (where its label sits) */
+export function edgeMid(from, fromSide, to, toSide) {
+  const pull = Math.max(40, Math.hypot(to.x - from.x, to.y - from.y) * 0.35)
+  const out = { top: [0, -1], bottom: [0, 1], left: [-1, 0], right: [1, 0] }
+  const [fx, fy] = out[fromSide] || [1, 0]
+  const [tx, ty] = out[toSide] || [-1, 0]
+  const c1 = { x: from.x + fx * pull, y: from.y + fy * pull }
+  const c2 = { x: to.x + tx * pull, y: to.y + ty * pull }
+  // a cubic bezier at t = 1/2
+  return { x: (from.x + 3 * c1.x + 3 * c2.x + to.x) / 8, y: (from.y + 3 * c1.y + 3 * c2.y + to.y) / 8 }
+}
+
+/** Do two boxes overlap? */
+export const overlaps = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height
