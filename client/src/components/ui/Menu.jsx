@@ -23,7 +23,7 @@ function shortcutKeys(shortcut) {
     .filter(Boolean)
 }
 
-function MenuPopup({ anchor, align = 'start', items = [], onClose }) {
+export function MenuPopup({ anchor, align = 'start', items = [], onClose }) {
   const { popupRef, style } = usePopoverPosition(anchor, `bottom-${align}`, true)
   const itemRefs = useRef([])
   const search = useRef({ text: '', at: 0 })

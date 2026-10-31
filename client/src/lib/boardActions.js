@@ -3,7 +3,7 @@
 import { useWorkspace } from '../store/workspace.js'
 import { useUI } from '../store/ui.js'
 import { addItem, isOpen, moveItem, parseItems, removeItem, insertBlock, updateItem as editItem, newId } from '../../../shared/items.js'
-import { addColumn as addCol, boardOf, moveColumn as moveCol, removeColumn as removeCol, renameColumn as renameCol, setBoardSettings, columnize, DEFAULT_COLUMNS } from '../../../shared/board.js'
+import { addColumn as addCol, archiveCard as archiveIn, archivedOf, boardOf, moveColumn as moveCol, nameLooseColumn, removeColumn as removeCol, renameColumn as renameCol, setBoardSettings, columnize, DEFAULT_COLUMNS } from '../../../shared/board.js'
 import { withFrontMatter } from '../../../shared/frontmatter.js'
 import { parseQuickAdd } from '../../../shared/quickadd.js'
 import { todayIso } from '../../../shared/dates.js'
@@ -128,3 +128,94 @@ export const deleteIdeaBoard = (path) => ws().removeFile(path)
 
 /** Gives a plain list the usual three columns */
 export const setUpColumns = (path) => edit(path, (text) => columnize(text))
+
+/** Names the cards above the first heading (the board's unnamed list) */
+export const nameLooseList = (path, name) => edit(path, (text) => nameLooseColumn(text, name))
+
+// ---------- the archive ----------
+
+/** Puts a card away; Undo brings it back where it was */
+export function archiveCard(path, id) {
+  const before = ws().files[path]?.text
+  edit(path, (text) => archiveIn(text, id))
+  toast('Card archived', { action: { label: 'Undo', run: () => before != null && ws().setText(path, before) }, timeout: 7000 })
+}
+
+/** Takes an archived card back to `column` (null: the board's first list) */
+export function restoreCard(path, id, column) {
+  edit(path, (text) => {
+    const { text: rest, block } = removeItem(text, id)
+    const to = column ?? boardOf(parseItems(rest), rest).columns.find((c) => c.name)?.name ?? null
+    return insertBlock(rest, block, placeIn(rest, to))
+  })
+}
+
+export const archivedCards = (list, text) => archivedOf(list, text)
+
+/** Deletes a card; Undo puts it back */
+export function deleteCard(path, id) {
+  const before = ws().files[path]?.text
+  edit(path, (text) => removeItem(text, id).text)
+  toast('Card deleted', { action: { label: 'Undo', run: () => before != null && ws().setText(path, before) }, timeout: 7000 })
+}
+
+// ---------- a list's menu ----------
+
+const SORTS = {
+  due: (a, b) => (a.date || '9999').localeCompare(b.date || '9999'),
+  priority: (a, b) => rank(b.priority) - rank(a.priority),
+  name: (a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }),
+}
+const rank = (p) => ['lowest', 'low', undefined, 'medium', 'high', 'highest'].indexOf(p ?? undefined)
+
+/** Sorts a list's cards by due date, priority or name */
+export function sortColumn(path, column, by) {
+  edit(path, (text) => {
+    const cards = boardOf(parseItems(text), text).columns.find((c) => c.name === column)?.items || []
+    const order = [...cards].sort(SORTS[by])
+    let t = text
+    // each to the top, last first: the first ends up on top
+    for (let i = order.length - 1; i >= 0; i--) {
+      const first = boardOf(parseItems(t), t).columns.find((c) => c.name === column).items[0]
+      if (first.id !== order[i].id) t = moveItem(t, order[i].id, { before: first.id })
+    }
+    return t
+  })
+}
+
+/** Moves every card of one list to the end of another */
+export function moveAllCards(path, from, to) {
+  edit(path, (text) => {
+    let t = text
+    const cards = boardOf(parseItems(t), t).columns.find((c) => c.name === from)?.items || []
+    for (const c of cards) {
+      t = moveItem(t, c.id, placeIn(removeItem(t, c.id).text, to))
+      const status = statusFor(t, c, to)
+      if (status) t = editItem(t, c.id, { status }).text
+    }
+    return t
+  })
+}
+
+/** Archives every card in a list */
+export function archiveColumn(path, column) {
+  const before = ws().files[path]?.text
+  edit(path, (text) => {
+    let t = text
+    for (const c of boardOf(parseItems(t), t).columns.find((x) => x.name === column)?.items || []) t = archiveIn(t, c.id)
+    return t
+  })
+  toast('List archived', { action: { label: 'Undo', run: () => before != null && ws().setText(path, before) }, timeout: 7000 })
+}
+
+/** Deletes a list and its cards; Undo brings both back */
+export function deleteColumn(path, column) {
+  const before = ws().files[path]?.text
+  edit(path, (text) => {
+    let t = text
+    for (const c of boardOf(parseItems(t), t).columns.find((x) => x.name === column)?.items || []) t = removeItem(t, c.id).text
+    return removeCol(t, column)
+  })
+  toast(`List “${column}” deleted`, { action: { label: 'Undo', run: () => before != null && ws().setText(path, before) }, timeout: 8000 })
+}
+

@@ -18,7 +18,7 @@
 //   ```
 //   %%
 
-import { addSection, isOpen, moveItem, parseItems, renameSection } from './items.js'
+import { addSection, isOpen, moveItem, parseItems, removeItem, renameSection } from './items.js'
 
 export const BOARD_COLORS = ['gray', 'red', 'orange', 'amber', 'green', 'teal', 'blue', 'indigo', 'violet', 'pink']
 export const DEFAULT_COLUMNS = ['To do', 'Doing', 'Done']
@@ -124,10 +124,54 @@ const NL = String.fromCharCode(10)
 // a new column goes at the end, before the settings block (which stays last)
 export function addColumn(text, name) {
   const lines = String(text ?? '').split(NL)
-  const r = settingsRange(lines)
-  if (!r) return addSection(text, name)
-  const body = addSection(lines.slice(0, r[0]).join(NL), name)
-  return body + NL + lines.slice(r[0]).join(NL).trimEnd() + NL
+  const end = boardEnd(lines)
+  if (end === lines.length) return addSection(text, name)
+  const body = addSection(lines.slice(0, end).join(NL), name)
+  return body + NL + lines.slice(end).join(NL).trimEnd() + NL
+}
+
+const RULE = /^\*\*\*\s*$/
+const ruleAt = (lines) => lines.findIndex((l) => RULE.test(l.replace(/\r$/, '')))
+
+// where the board's columns end: at the archive's rule, else the settings block, else the file's end
+function boardEnd(lines) {
+  const rule = ruleAt(lines)
+  if (rule >= 0) return rule
+  return settingsRange(lines)?.[0] ?? lines.length
+}
+
+/** Archived cards: the ones under the heading after the `***` line (Obsidian Kanban's archive) */
+export function archivedOf(list, text) {
+  const rule = ruleAt(String(text ?? '').split(NL))
+  return rule < 0 ? [] : list.items.filter((i) => i.kind === 'task' && i.line > rule)
+}
+
+/** Puts a card away in the archive, making the archive if there is none */
+export function archiveCard(text, id) {
+  const lines = String(text ?? '').split(NL)
+  if (ruleAt(lines) < 0) {
+    const at = settingsRange(lines)?.[0] ?? lines.length
+    let end = at
+    while (end > 0 && !/\S/.test(lines[end - 1])) end--
+    lines.splice(end, at - end, '', '***', '', '## Archive', '')
+  }
+  const rule = ruleAt(lines)
+  if (!parseItems(lines.join(NL)).sections.some((s) => s.line > rule)) lines.splice(rule + 1, 0, '', '## Archive', '')
+  // the newest goes first, straight under the archive's heading (found by place, not by name)
+  const { text: without, block } = removeItem(lines.join(NL), id)
+  const rest = without.split(NL)
+  const heading = parseItems(without).sections.find((s) => s.line > ruleAt(rest))
+  rest.splice(heading.line + 1, 0, ...block)
+  return rest.join(NL)
+}
+
+/** Gives the cards above the first heading a column of their own, called `name` */
+export function nameLooseColumn(text, name) {
+  const first = parseItems(text).items.find((i) => !i.section)
+  if (!first) return text
+  const lines = String(text).split(NL)
+  lines.splice(first.line, 0, `## ${name}`, '')
+  return lines.join(NL)
 }
 
 /** A plain list (no headings) as a board: open cards under "To do", finished ones under "Done" */
@@ -135,13 +179,7 @@ export function columnize(text) {
   const parsed = parseItems(text)
   if (parsed.sections.length) return text
   const [todo, doing, done] = DEFAULT_COLUMNS
-  let t
-  const first = parsed.items[0]
-  if (first) {
-    const lines = String(text).split(NL)
-    lines.splice(first.line, 0, `## ${todo}`, '')
-    t = lines.join(NL)
-  } else t = addColumn(text, todo)
+  let t = parsed.items.length ? nameLooseColumn(text, todo) : addColumn(text, todo)
   t = addColumn(addColumn(t, doing), done)
   for (const item of parseItems(t).items) if (!isOpen(item.status) && item.section === todo) t = moveItem(t, item.id, { section: done })
   return setBoardSettings(t, { done, columns: { [doing]: 'blue', [done]: 'green' } })
@@ -175,14 +213,13 @@ export function moveColumn(text, name, before = null) {
   const { sections } = parseItems(text)
   const i = sections.findIndex((s) => s.name === name)
   if (i < 0 || name === before) return text
-  const settings = settingsRange(lines)
-  const endOf = (k) => (k + 1 < sections.length ? sections[k + 1].line : settings ? settings[0] : lines.length)
+  const endOf = (k) => (k + 1 < sections.length && sections[k + 1].line < boardEnd(lines) ? sections[k + 1].line : boardEnd(lines))
   const block = lines.slice(sections[i].line, endOf(i))
   while (block.length > 1 && !/\S/.test(block[block.length - 1])) block.pop()
   lines.splice(sections[i].line, endOf(i) - sections[i].line)
   const rest = parseItems(lines.join('\n')).sections
   const target = before ? rest.find((s) => s.name === before) : null
-  let at = target ? target.line : (settingsRange(lines)?.[0] ?? lines.length)
+  let at = target ? target.line : boardEnd(lines)
   if (!target) {
     while (at > 0 && !/\S/.test(lines[at - 1])) at--
     lines.splice(at, 0, '', ...block)

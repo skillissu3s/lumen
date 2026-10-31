@@ -8,7 +8,7 @@ import { isOpen, itemDay } from '../../../../shared/items.js'
 import { deleteItem, moveItemToFile, toggleTask, updateItem } from '../../lib/actions.js'
 import { progressOf } from './taskQueries.js'
 import { colorFor, splitTitle } from '../../lib/colors.js'
-import { Label } from '../boards/CardDialog.jsx'
+import { Label } from '../boards/Card.jsx'
 import './tasks.css'
 
 const PRIORITY_COLOR = { highest: 'red', high: 'orange', medium: 'blue' }

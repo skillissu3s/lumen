@@ -22,7 +22,7 @@ import { fromIcs, toIcs } from '../../../shared/ics.js'
 import { uniquePath, slugify } from './slug.js'
 
 const ws = () => useWorkspace.getState()
-const toast = (message, action) => useUI.getState().toast(message, action ? { action } : undefined)
+const toast = (message, action, tone) => useUI.getState().toast(message, { ...(action ? { action } : {}), ...(tone ? { tone } : {}) })
 
 export function addTask(listPath, typedOrFields, where = {}) {
   const fields = typeof typedOrFields === 'string' ? parseQuickAdd(typedOrFields, { today: todayIso() }) : { ...typedOrFields }
@@ -64,7 +64,7 @@ export function toggleTask(path, id) {
           if (nextId) t = removeItem(t, nextId, { events }).text
           return t
         }),
-    })
+    }, 'success')
   }
 }
 

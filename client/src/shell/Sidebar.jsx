@@ -1,13 +1,13 @@
 // The left column: workspace, search, the main places, your boards, plugins,
 // and at the bottom whether everything is saved.
 import { useMemo, useRef, useState } from 'react'
-import { CalendarDays, ChevronDown, CircleAlert, CloudOff, FileText, Kanban, Keyboard, Lightbulb, LogOut, MessagesSquare, Plus, Search, Settings, Sun } from 'lucide-react'
+import { CalendarDays, ChevronDown, CircleAlert, CloudOff, FileText, Kanban, Keyboard, Lightbulb, LogOut, MessagesSquare, PanelLeftClose, PanelLeftOpen, Plus, Search, Settings, Sun } from 'lucide-react'
 import { Avatar, Button, ContextMenu, Dialog, IconBadge, Menu, Spinner, Tooltip } from '../components/ui/index.js'
 import { useSession } from '../store/session.js'
 import { useWorkspace } from '../store/workspace.js'
 import { useUI } from '../store/ui.js'
 import { useConfig, useLists, usePlugins } from '../store/hooks.js'
-import { usePrefs } from '../store/prefs.js'
+import { usePrefs, setPrefs } from '../store/prefs.js'
 import { deleteList, updateListMeta } from '../lib/actions.js'
 import { createBoard, moveCard } from '../lib/boardActions.js'
 import { navigate } from '../lib/router.js'
@@ -21,6 +21,7 @@ const countOpen = (list) => list.items.filter((i) => i.kind === 'task' && isOpen
 
 function NavItem({ href, icon: Icon, tint, label, count, active, children, onDrop, ...props }) {
   const [over, setOver] = useState(false)
+  const rail = !!usePrefs().sidebar?.collapsed
   const dropProps = onDrop
     ? {
         onDragOver: (e) => {
@@ -37,7 +38,7 @@ function NavItem({ href, icon: Icon, tint, label, count, active, children, onDro
       }
     : {}
   return (
-    <a href={href} className={`nav-item${active ? ' is-active' : ''}${over ? ' is-drop' : ''}`} style={tint ? { '--tint': `var(--c-${tint})` } : undefined} aria-current={active ? 'page' : undefined} {...dropProps} {...props}>
+    <a href={href} className={`nav-item${active ? ' is-active' : ''}${over ? ' is-drop' : ''}`} style={tint ? { '--tint': `var(--c-${tint})` } : undefined} aria-current={active ? 'page' : undefined} title={rail ? label : undefined} {...dropProps} {...props}>
       <span className="nav-icon">{Icon ? <Icon size={16} strokeWidth={1.9} /> : children}</span>
       <span className="nav-label">{label}</span>
       {count ? <span className="nav-count">{count}</span> : null}
@@ -76,6 +77,7 @@ export function Sidebar({ route, onNavigate }) {
   const lists = useLists()
   const plugins = usePlugins()
   const prefs = usePrefs()
+  const collapsed = !!prefs.sidebar?.collapsed
   const openPalette = useUI((s) => s.openPalette)
   const pluginBadges = useUI((s) => s.pluginBadges)
   const pluginStatus = useUI((s) => s.pluginStatus)
@@ -101,6 +103,7 @@ export function Sidebar({ route, onNavigate }) {
   return (
     <nav className="sidebar" aria-label="Main">
       <div className="sidebar-top">
+        <div className="sidebar-head">
         <Menu
           trigger={
             <button type="button" className="workspace-button">
@@ -121,7 +124,13 @@ export function Sidebar({ route, onNavigate }) {
                 : null,
           ].filter(Boolean)}
         />
-        <button type="button" className="search-button" onClick={openPalette}>
+        <Tooltip label={collapsed ? 'Expand the sidebar  Ctrl+\\' : 'Collapse the sidebar  Ctrl+\\'} side="right">
+          <button type="button" className="sidebar-collapse" aria-label={collapsed ? 'Expand the sidebar' : 'Collapse the sidebar'} onClick={() => setPrefs({ sidebar: { collapsed: !collapsed } })}>
+            {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+          </button>
+        </Tooltip>
+        </div>
+        <button type="button" className="search-button" onClick={openPalette} title={collapsed ? 'Search' : undefined}>
           <Search size={14} />
           <span>Search</span>
           <kbd>{/Mac/.test(navigator.platform) ? '⌘K' : 'Ctrl K'}</kbd>
@@ -152,7 +161,7 @@ export function Sidebar({ route, onNavigate }) {
               </NavItem>
             </ContextMenu>
           ))}
-          <button type="button" className="nav-hint" onClick={() => setEditor({ anchor: addRef.current })}>
+          <button type="button" className="nav-hint" title={collapsed ? 'New board' : undefined} onClick={() => setEditor({ anchor: addRef.current })}>
             <Plus size={14} /> New board
           </button>
         </div>
@@ -181,7 +190,7 @@ export function Sidebar({ route, onNavigate }) {
           </div>
         )}
         <div className="sidebar-footer">
-          <a href="#/settings" className="me" aria-label="Settings">
+          <a href="#/settings" className="me" aria-label="Settings" title={collapsed ? 'Settings' : undefined}>
             <Avatar name={user?.name || user?.handle} size={22} />
             <span className="me-name">{user?.name || user?.handle}</span>
           </a>

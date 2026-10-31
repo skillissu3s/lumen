@@ -129,12 +129,78 @@
   grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
   height: 100%;
   overflow: hidden;
+  transition: grid-template-columns 220ms cubic-bezier(0.3, 0.8, 0.3, 1);
 }
+/* collapsed: a slim rail of icons, so the places stay one click away */
 .app.is-collapsed {
-  grid-template-columns: 0 minmax(0, 1fr);
+  grid-template-columns: 52px minmax(0, 1fr);
+}
+.sidebar-head {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.sidebar-head > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+.sidebar-collapse {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  color: var(--text-faint);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.sidebar-collapse:hover {
+  background: var(--bg-hover);
+  color: var(--text);
 }
 .app.is-collapsed .sidebar {
-  visibility: hidden;
+  overflow: hidden;
+}
+.app.is-collapsed .sidebar-top {
+  padding: 10px 8px 8px;
+}
+.app.is-collapsed .sidebar-head {
+  flex-direction: column-reverse;
+  gap: 6px;
+}
+.app.is-collapsed .workspace-button {
+  justify-content: center;
+  padding: 0;
+}
+.app.is-collapsed :is(.workspace-name, .workspace-chevron, .search-button span, .search-button kbd, .nav-label, .nav-count, .nav-section-head, .me-name, .sync-text, .plugin-status, .update-note) {
+  display: none;
+}
+.app.is-collapsed .search-button {
+  justify-content: center;
+  padding: 0;
+}
+.app.is-collapsed .sidebar-scroll {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+.app.is-collapsed .nav-item,
+.app.is-collapsed .nav-hint {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+.app.is-collapsed .nav-hint {
+  font-size: 0;
+  gap: 0;
+}
+.app.is-collapsed .nav-section {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.app.is-collapsed .sidebar-footer {
+  flex-direction: column;
+  gap: 8px;
 }
 .main {
   position: relative;

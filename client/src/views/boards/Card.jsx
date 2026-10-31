@@ -1,113 +1,191 @@
-// A card's front: cover, labels, title and a row of small badges.
-import { memo, useState } from 'react'
-import { AlignLeft, CalendarDays, Clock, Flag, ListChecks, Repeat } from 'lucide-react'
-import { TaskCheckbox } from '../../components/ui/index.js'
+// A card's front, the way obi (and Trello) draws one: an optional cover, labels
+// as thin bars of colour (a click shows their names), the title with a tick that
+// appears where it starts, and a row of small badges.
+import { memo, useCallback, useEffect, useState } from 'react'
+import { AlignLeft, CalendarDays, Circle, CircleCheckBig, CircleDashed, Clock, Flag, ListChecks, Repeat } from 'lucide-react'
 import { toggleTask } from '../../lib/actions.js'
+import { useSettle } from '../../lib/celebrate.js'
 import { colorFor, splitTitle } from '../../lib/colors.js'
-import { formatTime, relativeDay, todayIso, addDays } from '../../../../shared/dates.js'
+import { addDays, formatTime, relativeDay, todayIso } from '../../../../shared/dates.js'
 import { isOpen, itemDay } from '../../../../shared/items.js'
 import { progressOf } from '../tasks/taskQueries.js'
-import { Label } from './CardDialog.jsx'
+import './boards.css'
 
 export const PRIORITY_COLOR = { highest: 'red', high: 'orange', medium: 'blue', low: 'gray', lowest: 'gray' }
-const PRIORITY_NAME = { highest: 'Urgent', high: 'High', medium: 'Medium', low: 'Low', lowest: 'Lowest' }
+export const PRIORITY_NAME = { highest: 'Urgent', high: 'High', medium: 'Medium', low: 'Low', lowest: 'Lowest' }
 
+/** How a due date reads: done, overdue, today, soon (tomorrow), or plain ('') */
 export function dueTone(day, status, today) {
-  if (!day || !isOpen(status)) return ''
-  if (day < today) return 'late'
+  if (!day) return ''
+  if (!isOpen(status)) return 'done'
+  if (day < today) return 'overdue'
   if (day === today) return 'today'
   return day === addDays(today, 1) ? 'soon' : ''
 }
 
-export const Card = memo(function Card({ item, labelColors = {}, cover, showBoard, h12, onOpen, dragging, dropAt }) {
+/** The round check: open, in progress (dashed) or done */
+export function StatusIcon({ status }) {
+  if (!isOpen(status)) return <CircleCheckBig />
+  return status === '/' ? <CircleDashed /> : <Circle />
+}
+
+/** A #tag as a label, in the colour the board gave it (else the one its name gives it) */
+export function Label({ tag, color, onRemove, onClick }) {
+  return (
+    <span className={`pb-label${onClick ? ' pickable' : ''}`} style={{ '--label': `var(--c-${color || colorFor(tag)})` }} title={`#${tag}`} onClick={onClick}>
+      {tag}
+      {onRemove && (
+        <button
+          type="button"
+          aria-label={`Remove ${tag}`}
+          onClick={(e) => {
+            e.stopPropagation()
+            onRemove()
+          }}
+        >
+          ×
+        </button>
+      )}
+    </span>
+  )
+}
+
+// labels as thin bars or with their names: one choice, remembered for every board
+const NAMES_KEY = 'lumen.labelNames'
+let namesShown = (() => {
+  try {
+    return localStorage.getItem(NAMES_KEY) === '1'
+  } catch {
+    return false
+  }
+})()
+const namesListeners = new Set()
+export function useLabelNames() {
+  const [on, setOn] = useState(namesShown)
+  const toggle = useCallback(() => {
+    namesShown = !namesShown
+    try {
+      localStorage.setItem(NAMES_KEY, namesShown ? '1' : '0')
+    } catch {
+      /* fine */
+    }
+    for (const fn of namesListeners) fn(namesShown)
+  }, [])
+  useEffect(() => {
+    namesListeners.add(setOn)
+    return () => namesListeners.delete(setOn)
+  }, [])
+  return [on, toggle]
+}
+
+/**
+ * `onPress` (pointer drag on a board) or, without it, the browser's drag and
+ * drop (All tasks, onto the calendar or the sidebar). `hidden`: being dragged.
+ */
+export const Card = memo(function Card({ item, labelColors = {}, cover, showBoard, h12, onOpen, onPress, onMenu, hidden, quiet }) {
   const today = todayIso()
   const { text, tags } = splitTitle(item.title)
   const day = itemDay(item)
+  const done = !isOpen(item.status)
   const tone = dueTone(day, item.status, today)
   const prog = progressOf(item)
-  const done = !isOpen(item.status)
-  const [settling, setSettling] = useState(false)
-  // a moment to see the tick before the card moves or dims
-  const toggle = () => {
-    if (done) return toggleTask(item.path, item.id)
-    setSettling(true)
-    setTimeout(() => {
-      setSettling(false)
-      toggleTask(item.path, item.id)
-    }, 220)
-  }
+  const [names, toggleNames] = useLabelNames()
+  const [settling, settle] = useSettle(() => toggleTask(item.path, item.id))
+  const toggle = (el) => (done ? toggleTask(item.path, item.id) : settle(el))
+  const native = !onPress
   return (
     <article
-      className={`card${done || settling ? ' is-done' : ''}${item.status === '/' ? ' is-doing' : ''}${dragging ? ' is-dragging' : ''}${dropAt ? ` drop-${dropAt}` : ''}`}
-      tabIndex={0}
-      draggable
+      className={`pb-card${done ? ' done' : ''}${item.status === '/' ? ' doing' : ''}${settling ? ' settling' : ''}${hidden ? ' is-dragging' : ''}`}
       data-card={item.id}
+      tabIndex={0}
+      draggable={native || undefined}
       aria-label={`${text}${day ? `, due ${relativeDay(day, today)}` : ''}${done ? ', done' : ''}`}
-      onDragStart={(e) => {
-        e.dataTransfer.effectAllowed = 'move'
-        e.dataTransfer.setData('application/x-lumen-item', JSON.stringify({ path: item.path, id: item.id }))
-        e.dataTransfer.setData('text/plain', text)
+      onPointerDown={onPress}
+      onDragStart={
+        native
+          ? (e) => {
+              e.dataTransfer.effectAllowed = 'move'
+              e.dataTransfer.setData('application/x-lumen-item', JSON.stringify({ path: item.path, id: item.id }))
+              e.dataTransfer.setData('text/plain', text)
+            }
+          : undefined
+      }
+      onClick={(e) => {
+        if (quiet?.()) return // (the click that ends a drag)
+        if (!e.target.closest('button')) onOpen(item)
       }}
-      onClick={(e) => !e.target.closest('button') && onOpen(item)}
       onKeyDown={(e) => {
         if (e.target !== e.currentTarget) return
-        if (e.key === 'Enter') onOpen(item)
-        else if (e.key === ' ') {
+        if (e.key === 'Enter') {
           e.preventDefault()
-          toggle()
+          onOpen(item)
+        } else if (e.key === ' ') {
+          e.preventDefault()
+          toggle(e.currentTarget.querySelector('.pb-check'))
         }
       }}
+      onContextMenu={onMenu}
     >
-      {cover && <div className="card-cover" style={{ '--cv': `var(--c-${cover})` }} />}
+      {cover && <div className="pb-cover" style={{ '--lc': `var(--c-${cover})` }} />}
       {tags.length > 0 && (
-        <div className="card-labels">
+        <div
+          className={`pb-labels${names ? '' : ' thin'}`}
+          title={names ? undefined : tags.map((t) => `#${t}`).join('  ')}
+          onClick={(e) => {
+            e.stopPropagation()
+            toggleNames()
+          }}
+        >
           {tags.map((t) => (
-            <Label key={t} tag={t} color={labelColors[t] || colorFor(t)} />
+            <Label key={t} tag={t} color={labelColors[t]} />
           ))}
         </div>
       )}
-      <div className="card-title">
-        <TaskCheckbox status={settling ? 'x' : item.status} color={PRIORITY_COLOR[item.priority] && item.priority !== 'low' ? PRIORITY_COLOR[item.priority] : undefined} label={done ? 'Mark as open' : 'Complete'} onToggle={toggle} tabIndex={-1} />
-        <span className="card-text">{text || 'Untitled card'}</span>
+      <div className="pb-card-title">
+        <button type="button" className={`pb-check${done ? ' on' : ''}`} aria-label={done ? 'Mark not done' : 'Mark done'} title={done ? 'Mark not done' : item.status === '/' ? 'In progress — mark done' : 'Mark done'} onClick={(e) => toggle(e.currentTarget)}>
+          <StatusIcon status={settling ? 'x' : item.status} />
+        </button>
+        <span className="pb-words">
+          <span className="pb-strike">{text || 'Untitled card'}</span>
+        </span>
       </div>
-      {(day || item.time || item.priority || item.recurrence || item.notes || prog.total > 0 || showBoard) && (
-        <div className="card-badges">
+      {(day || item.time || item.priority || item.recurrence || item.notes || prog.total > 0 || (showBoard && item.source)) && (
+        <div className="pb-badges">
           {day && (
-            <span className={`badge badge-due${tone ? ` is-${tone}` : ''}`} title={`Due ${day}`}>
-              <CalendarDays size={12} />
+            <span className={`pb-badge due ${tone}`} title={`Due ${day}`}>
+              <CalendarDays />
               {relativeDay(day, today)}
             </span>
           )}
           {item.time && (
-            <span className="badge">
-              <Clock size={12} />
+            <span className="pb-badge" title="Time">
+              <Clock />
               {formatTime(item.time, h12)}
             </span>
           )}
-          {item.priority && item.priority !== 'low' && item.priority !== 'lowest' && (
-            <span className="badge badge-pri" style={{ '--pc': `var(--c-${PRIORITY_COLOR[item.priority]})` }} title={`${PRIORITY_NAME[item.priority]} priority`}>
-              <Flag size={12} />
-              {PRIORITY_NAME[item.priority]}
+          {item.priority && (
+            <span className={`pb-badge task-pri pri-${item.priority}`} title={`${PRIORITY_NAME[item.priority]} priority`}>
+              <Flag />
             </span>
           )}
           {item.recurrence && (
-            <span className="badge" title={`Repeats ${item.recurrence}`}>
-              <Repeat size={12} />
+            <span className="pb-badge" title={`Repeats ${item.recurrence}`}>
+              <Repeat />
             </span>
           )}
           {item.notes && (
-            <span className="badge" title="Has a description">
-              <AlignLeft size={12} />
+            <span className="pb-badge" title="This card has a description">
+              <AlignLeft />
             </span>
           )}
           {prog.total > 0 && (
-            <span className={`badge${prog.done === prog.total ? ' is-full' : ''}`} title={`${prog.done} of ${prog.total} checklist items`}>
-              <ListChecks size={12} />
+            <span className={`pb-badge${prog.done === prog.total ? ' full' : ''}`} title={`${prog.done} of ${prog.total} checklist items done`}>
+              <ListChecks />
               {prog.done}/{prog.total}
             </span>
           )}
           {showBoard && item.source && (
-            <span className="badge badge-board" style={{ '--bc': `var(--c-${item.source.color || 'gray'})` }}>
+            <span className="pb-badge pb-board" style={{ '--bc': `var(--c-${item.source.color || 'gray'})` }}>
               <i />
               {item.source.name}
             </span>

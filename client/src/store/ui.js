@@ -4,6 +4,7 @@
 import { create } from 'zustand'
 
 let nextToast = 1
+const timers = new Map()
 
 export const useUI = create((set, get) => ({
   toasts: [],
@@ -16,15 +17,29 @@ export const useUI = create((set, get) => ({
   shortcutsOpen: false,
 
   toast(message, opts = {}) {
+    const timeout = opts.timeout ?? 5000
+    const tone = opts.tone || 'default'
+    // the same note again (completing three cards in a row) counts up instead of stacking
+    const same = get().toasts.find((t) => t.message === message && t.tone === tone && !t.leaving)
+    if (same) {
+      clearTimeout(timers.get(same.id))
+      timers.set(same.id, setTimeout(() => get().dismiss(same.id), timeout))
+      set((s) => ({ toasts: s.toasts.map((t) => (t.id === same.id ? { ...t, count: t.count + 1, action: opts.action || t.action } : t)) }))
+      return same.id
+    }
     const id = nextToast++
-    const toast = { id, message, tone: opts.tone || 'default', action: opts.action }
-    set((s) => ({ toasts: [...s.toasts.slice(-2), toast] }))
-    setTimeout(() => get().dismiss(id), opts.timeout ?? 5000)
+    const toast = { id, message, tone, action: opts.action, timeout, count: 1 }
+    set((s) => ({ toasts: [...s.toasts.slice(-3), toast] }))
+    timers.set(id, setTimeout(() => get().dismiss(id), timeout))
     return id
   },
 
   dismiss(id) {
-    set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }))
+    clearTimeout(timers.get(id))
+    timers.delete(id)
+    // a moment to slide out, then gone
+    set((s) => ({ toasts: s.toasts.map((t) => (t.id === id ? { ...t, leaving: true } : t)) }))
+    setTimeout(() => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })), 160)
   },
 
   openPalette() {

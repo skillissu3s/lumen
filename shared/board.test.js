@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { parseItems, addItem, moveItem } from './items.js'
-import { boardOf, boardSettings, setBoardSettings, renameColumn, removeColumn, moveColumn, addColumn, boardProgress, columnize } from './board.js'
+import { boardOf, boardSettings, setBoardSettings, renameColumn, removeColumn, moveColumn, addColumn, boardProgress, columnize, archiveCard, archivedOf, nameLooseColumn } from './board.js'
 
 const TEXT = `---
 name: Launch
@@ -85,4 +85,25 @@ test('a new column goes in before the settings block', () => {
   const t = addColumn(setBoardSettings('## A\n', { done: 'A' }), 'B')
   assert.ok(t.indexOf('## B') < t.indexOf('%% kanban:settings'))
   assert.equal(boardSettings(t).done, 'A')
+})
+
+test('archiving puts a card under ***, before the settings, and the board leaves it out', () => {
+  let t = setBoardSettings('## To do\n\n- [ ] One 🆔 a1\n- [ ] Two 🆔 b2\n\n## Done\n', { done: 'Done' })
+  t = archiveCard(t, 'a1')
+  assert.ok(t.indexOf('***') < t.indexOf('%% kanban:settings'))
+  const board = boardOf(parseItems(t), t)
+  assert.deepEqual(board.columns.map((c) => c.name), ['To do', 'Done'])
+  assert.deepEqual(board.columns[0].items.map((i) => i.id), ['b2'])
+  assert.deepEqual(archivedOf(parseItems(t), t).map((i) => i.id), ['a1'])
+  t = archiveCard(t, 'b2')
+  assert.deepEqual(archivedOf(parseItems(t), t).map((i) => i.id), ['b2', 'a1'])
+  // a new column still goes in before the archive
+  t = addColumn(t, 'Later')
+  assert.deepEqual(boardOf(parseItems(t), t).columns.map((c) => c.name), ['To do', 'Done', 'Later'])
+  assert.equal(boardSettings(t).done, 'Done')
+})
+
+test('the loose cards get a column of their own', () => {
+  const t = nameLooseColumn('---\nname: X\n---\n- [ ] A 🆔 a1\n\n## Done\n', 'Inbox')
+  assert.deepEqual(boardOf(parseItems(t), t).columns.map((c) => [c.name, c.items.length]), [['Inbox', 1], ['Done', 0]])
 })
