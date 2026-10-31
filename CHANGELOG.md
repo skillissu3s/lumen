@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.1 — quick pickers on cards, a calmer calendar
 
 - **Set a card's due date, priority and labels right on the card.** Every open
   card shows faint controls for them; a due date or priority already set is
