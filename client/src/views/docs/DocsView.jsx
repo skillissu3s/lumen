@@ -1,8 +1,8 @@
 // Docs: pages you write the way you would in Notion, kept as markdown files.
 // A tree on the left, the page on the right. Front matter stays out of sight.
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { ChevronRight, Download, FileText, FolderClosed, MoreHorizontal, Plus, Search, Trash2 } from 'lucide-react'
-import { Button, Dialog, EmptyState, Input, Menu, Spinner, Tooltip } from '../../components/ui/index.js'
+import { ChevronRight, Download, FileText, FolderClosed, Image as ImageIcon, MoreHorizontal, MoveHorizontal, Plus, Search, Smile, Trash2 } from 'lucide-react'
+import { Button, Dialog, EmptyState, IconBadge, IconPicker, Input, Menu, Popover, Spinner, Tooltip } from '../../components/ui/index.js'
 import { useDocs } from '../../store/hooks.js'
 import { useWorkspace } from '../../store/workspace.js'
 import { useSession } from '../../store/session.js'
@@ -11,6 +11,7 @@ import { navigate } from '../../lib/router.js'
 import { createDoc, deleteDoc, renameDoc, saveDoc } from '../../lib/actions.js'
 import { setFrontMatter, splitFrontMatter } from '../../../../shared/frontmatter.js'
 import { ShareField } from '../../shell/ListEditor.jsx'
+import { BOARD_COLORS } from '../../../../shared/board.js'
 import { RichEditor } from './RichEditor.jsx'
 import './docs.css'
 
@@ -61,7 +62,7 @@ function Tree({ docs, current, filter }) {
               .map((d) => (
                 <li key={d.path} role="treeitem" aria-selected={d.path === current}>
                   <a className={`doc-link${d.path === current ? ' is-active' : ''}`} href={`#/${d.path}`}>
-                    <FileText size={14} />
+                    {d.icon ? <IconBadge name={d.icon} color={d.color || 'gray'} size={18} fallback={FileText} /> : <FileText size={14} />}
                     <span>{d.title}</span>
                   </a>
                 </li>
@@ -106,6 +107,8 @@ function Editor({ path }) {
   const pending = useRef(null)
   const editorRef = useRef(null)
   const titleRef = useRef(null)
+  const [picking, setPicking] = useState(null) // { kind: 'icon' | 'cover', anchor }
+  const setMeta = (patch) => useWorkspace.getState().edit(path, (t) => setFrontMatter(t, patch))
 
   useEffect(() => {
     let alive = true
@@ -177,6 +180,7 @@ function Editor({ path }) {
                   a.click()
                 },
               },
+              { label: 'Full width', icon: MoveHorizontal, checked: meta.width === 'full', onSelect: () => setMeta({ width: meta.width === 'full' ? null : 'full' }) },
               'separator',
               { label: 'Delete doc…', icon: Trash2, danger: true, onSelect: () => setConfirm(true) },
             ]}
@@ -189,7 +193,36 @@ function Editor({ path }) {
         </div>
       </header>
       <div className="doc-scroll">
-        <article className="doc-page">
+        {meta.cover && (
+          <div className={`doc-cover is-${meta.cover}`} style={{ '--cv': `var(--c-${meta.cover})` }}>
+            <div className="doc-cover-tools">
+              <button type="button" onClick={(e) => setPicking({ kind: 'cover', anchor: { current: e.currentTarget } })}>
+                Change cover
+              </button>
+              <button type="button" onClick={() => setMeta({ cover: null })}>
+                Remove
+              </button>
+            </div>
+          </div>
+        )}
+        <article className={`doc-page${meta.width === 'full' ? ' is-full' : ''}${meta.cover ? ' has-cover' : ''}${meta.icon ? ' has-icon' : ''}`}>
+          {meta.icon && (
+            <button type="button" className="doc-icon" aria-label="Change the icon" onClick={(e) => setPicking({ kind: 'icon', anchor: { current: e.currentTarget } })}>
+              <IconBadge name={meta.icon} color={meta.color || 'gray'} size={72} fallback={FileText} />
+            </button>
+          )}
+          <div className="doc-page-tools">
+            {!meta.icon && (
+              <button type="button" onClick={(e) => setPicking({ kind: 'icon', anchor: { current: e.currentTarget } })}>
+                <Smile size={15} /> Add icon
+              </button>
+            )}
+            {!meta.cover && (
+              <button type="button" onClick={() => setMeta({ cover: BOARD_COLORS[(path.length * 7) % BOARD_COLORS.length] })}>
+                <ImageIcon size={15} /> Add cover
+              </button>
+            )}
+          </div>
           <textarea
             ref={titleRef}
             key={`title:${title}`}
@@ -217,6 +250,30 @@ function Editor({ path }) {
           <RichEditor markdown={p.body} onChange={onChange} onBlur={flush} editorRef={editorRef} />
         </article>
       </div>
+      <Popover open={!!picking} onOpenChange={(o) => !o && setPicking(null)} anchor={picking?.anchor} placement="bottom-start" className={picking?.kind === 'icon' ? 'doc-icon-pop' : 'doc-cover-pop'}>
+        {picking?.kind === 'icon' && (
+          <div className="doc-icon-picker">
+            <IconPicker value={meta.icon} color={meta.color || 'gray'} onChange={(icon) => (setMeta({ icon }), setPicking(null))} />
+            <div className="doc-icon-colors">
+              {BOARD_COLORS.map((c) => (
+                <button key={c} type="button" className={`doc-swatch${(meta.color || 'gray') === c ? ' on' : ''}`} style={{ '--sw': `var(--c-${c})` }} aria-label={c} onClick={() => setMeta({ color: c === 'gray' ? null : c })} />
+              ))}
+            </div>
+            {meta.icon && (
+              <button type="button" className="doc-pop-remove" onClick={() => (setMeta({ icon: null, color: null }), setPicking(null))}>
+                Remove icon
+              </button>
+            )}
+          </div>
+        )}
+        {picking?.kind === 'cover' && (
+          <div className="doc-cover-grid">
+            {BOARD_COLORS.map((c) => (
+              <button key={c} type="button" className={`doc-cover-choice is-${c}${meta.cover === c ? ' on' : ''}`} style={{ '--cv': `var(--c-${c})` }} aria-label={`${c} cover`} onClick={() => (setMeta({ cover: c }), setPicking(null))} />
+            ))}
+          </div>
+        )}
+      </Popover>
       <Dialog
         open={confirm}
         onClose={() => setConfirm(false)}

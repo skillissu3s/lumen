@@ -10,6 +10,7 @@
 // for a card's or a list header's pointerdown, and `justDragged()` for the click
 // that follows a drop. `onDrop(item, drop)` makes the move.
 import { useLayoutEffect, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 
 const START = 5 // px the pointer moves before a press becomes a drag
 const LONG_PRESS = 260 // ms a finger rests on a card to pick it up
@@ -200,17 +201,22 @@ export function useBoardDrag({ lanesRef, onDrop, startDrop }) {
       setTimeout(() => {
         const where = dropRef.current
         try {
-          if (commit && where && !sameDrop(where, g.first)) cbs.current.onDrop(g.item, where)
+          // the move and the end of the drag are drawn together, before the floating
+          // copy goes: else there is a frame with an empty gap where the card lands
+          flushSync(() => {
+            try {
+              if (commit && where && !sameDrop(where, g.first)) cbs.current.onDrop(g.item, where)
+            } finally {
+              dropRef.current = null
+              setDragState(null)
+              setDropState(null)
+            }
+          })
         } finally {
           // whatever the move did, the drag is over: nothing stays hidden or held open
-          dropRef.current = null
-          setDragState(null)
-          setDropState(null)
           quietUntil.current = Date.now() + 250
-          requestAnimationFrame(() => {
-            g.ghost.remove()
-            document.documentElement.classList.remove('pb-dragging')
-          })
+          g.ghost.remove()
+          document.documentElement.classList.remove('pb-dragging')
           live.current = null
         }
       }, SETTLE)

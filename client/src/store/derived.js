@@ -114,9 +114,16 @@ export function selectDocs(state) {
     const fileName = parts.pop()
     const folder = parts.join('/') || ''
     let title = fileName
+    let icon = null
+    let color = null
     const f = state.files[path]
-    if (f) title = splitFrontMatter(f.text).meta.title || fileName
-    out.push({ path, title, folder })
+    if (f) {
+      const { meta } = splitFrontMatter(f.text)
+      title = meta.title || fileName
+      icon = meta.icon || null
+      color = meta.color || null
+    }
+    out.push({ path, title, folder, icon, color })
   }
   return out.sort((a, b) => a.path.localeCompare(b.path))
 }

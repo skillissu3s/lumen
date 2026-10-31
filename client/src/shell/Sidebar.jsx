@@ -1,8 +1,8 @@
 // The left column: workspace, search, the main places, your boards, plugins,
 // and at the bottom whether everything is saved.
 import { useMemo, useRef, useState } from 'react'
-import { CalendarDays, ChevronDown, CircleAlert, CloudOff, FileText, Kanban, Keyboard, Lightbulb, LogOut, MessagesSquare, PanelLeftClose, PanelLeftOpen, Plus, Search, Settings, Sun } from 'lucide-react'
-import { Avatar, Button, ContextMenu, Dialog, IconBadge, Menu, Spinner, Tooltip } from '../components/ui/index.js'
+import { CalendarDays, CircleAlert, CloudOff, FileText, Kanban, Lightbulb, MessagesSquare, PanelLeftClose, PanelLeftOpen, Plus, Search, Sun } from 'lucide-react'
+import { Avatar, Button, ContextMenu, Dialog, IconBadge, Spinner, Tooltip } from '../components/ui/index.js'
 import { useSession } from '../store/session.js'
 import { useWorkspace } from '../store/workspace.js'
 import { useUI } from '../store/ui.js'
@@ -16,6 +16,7 @@ import { todayIso } from '../../../shared/dates.js'
 import { ListEditor } from './ListEditor.jsx'
 import { iconByName } from './icons.js'
 import { UpdateNotice } from './UpdateNotice.jsx'
+import { AccountMenu } from './AccountMenu.jsx'
 
 const countOpen = (list) => list.items.filter((i) => i.kind === 'task' && isOpen(i.status)).length
 
@@ -71,8 +72,6 @@ function SyncStatus() {
 export function Sidebar({ route, onNavigate }) {
   const user = useSession((s) => s.user)
   const mode = useSession((s) => s.mode)
-  const logout = useSession((s) => s.logout)
-  const disconnect = useSession((s) => s.disconnectGitHub)
   const config = useConfig()
   const lists = useLists()
   const plugins = usePlugins()
@@ -104,26 +103,7 @@ export function Sidebar({ route, onNavigate }) {
     <nav className="sidebar" aria-label="Main">
       <div className="sidebar-top">
         <div className="sidebar-head">
-        <Menu
-          trigger={
-            <button type="button" className="workspace-button">
-              <span className="workspace-mark">{(config.name || 'L').trim()[0]?.toUpperCase()}</span>
-              <span className="workspace-name">{config.name}</span>
-              <ChevronDown size={14} className="workspace-chevron" />
-            </button>
-          }
-          items={[
-            { section: user?.email || `@${user?.handle}` },
-            { label: 'Settings', icon: Settings, onSelect: () => navigate('/settings') },
-            { label: 'Keyboard shortcuts', icon: Keyboard, shortcut: '?', onSelect: () => useUI.setState({ shortcutsOpen: true }) },
-            'separator',
-            mode === 'github'
-              ? { label: 'Disconnect GitHub', icon: LogOut, onSelect: () => disconnect() }
-              : mode === 'server'
-                ? { label: 'Sign out', icon: LogOut, onSelect: () => logout().then(() => navigate('/signin')) }
-                : null,
-          ].filter(Boolean)}
-        />
+        <AccountMenu workspace={config.name} />
         <Tooltip label={collapsed ? 'Expand the sidebar  Ctrl+\\' : 'Collapse the sidebar  Ctrl+\\'} side="right">
           <button type="button" className="sidebar-collapse" aria-label={collapsed ? 'Expand the sidebar' : 'Collapse the sidebar'} onClick={() => setPrefs({ sidebar: { collapsed: !collapsed } })}>
             {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}

@@ -620,3 +620,133 @@ input.idea-edge-label {
     animation: none;
   }
 }
+
+/* ---- sticky notes: a square of paper in its colour ---- */
+.idea.is-sticky {
+  border: 0;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--nc) 28%, var(--surface));
+  box-shadow: 0 1px 1px rgb(0 0 0 / 0.06), 0 8px 18px -10px rgb(0 0 0 / 0.35);
+}
+.idea.is-sticky .idea-body {
+  padding: 14px 16px;
+  font-size: 15px;
+}
+.idea.is-sticky.is-selected {
+  box-shadow: 0 0 0 2px var(--accent), 0 8px 18px -10px rgb(0 0 0 / 0.35);
+}
+/* ---- text on the board: no box, just words ---- */
+.idea.is-label {
+  border-color: transparent;
+  background: none;
+  box-shadow: none;
+}
+.idea.is-label .idea-body,
+.idea.is-label .idea-edit {
+  padding: 4px 6px;
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+.idea.is-label.has-color .idea-body {
+  color: var(--nc);
+}
+.idea.is-label:hover {
+  border-color: var(--border);
+}
+.idea.is-label.is-selected {
+  border-color: var(--accent);
+  box-shadow: none;
+}
+/* ---- images ---- */
+.idea-image {
+  overflow: visible;
+  padding: 0;
+  background: var(--bg-muted);
+}
+.idea-image img {
+  width: 100%;
+  height: 100%;
+  border-radius: 9px;
+  object-fit: cover;
+  pointer-events: none;
+}
+/* ---- ticking a checklist inside a card ---- */
+.idea-body input[type='checkbox'] {
+  margin: 0 6px 0 0;
+  vertical-align: -2px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.idea-body li.task-item {
+  list-style: none;
+  margin-left: -18px;
+}
+/* ---- found by Find ---- */
+.idea.is-found {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--warning) 70%, transparent), var(--shadow-sm);
+}
+.idea-find {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 340px;
+  padding: 4px 4px 4px 12px;
+  transform: translateX(-50%);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--border), var(--shadow);
+  color: var(--text-muted);
+  animation: idea-bar-in 140ms var(--ease);
+}
+.idea-find input {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+}
+.idea-find .faint {
+  font-size: var(--fs-xs);
+}
+/* ---- the minimap ---- */
+.idea-minimap {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 4;
+  padding: 6px;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--border), var(--shadow);
+  cursor: pointer;
+}
+.idea-minimap svg {
+  display: block;
+}
+.mm-card {
+  fill: var(--border-strong);
+}
+.mm-group {
+  fill: none;
+  stroke: var(--border-strong);
+  stroke-dasharray: 3 2;
+}
+.mm-view {
+  fill: color-mix(in srgb, var(--accent) 10%, transparent);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+@media (max-width: 720px) {
+  .idea-minimap {
+    display: none;
+  }
+}

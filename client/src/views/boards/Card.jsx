@@ -2,7 +2,7 @@
 // as thin bars of colour (a click shows their names), the title with a tick that
 // appears where it starts, and a row of small badges.
 import { memo, useCallback, useEffect, useState } from 'react'
-import { AlignLeft, CalendarDays, CalendarPlus, Circle, CircleCheckBig, CircleDashed, Clock, Flag, ListChecks, Repeat, Tag } from 'lucide-react'
+import { AlignLeft, Calendar, CalendarPlus, Circle, CircleCheckBig, CircleDashed, Clock, Flag, ListChecks, Repeat, Tag } from 'lucide-react'
 import { Popover } from '../../components/ui/index.js'
 import { toggleTask } from '../../lib/actions.js'
 import { useSettle } from '../../lib/celebrate.js'
@@ -161,12 +161,12 @@ export const Card = memo(function Card({ item, labelColors = {}, labels, cover, 
       <div className="pb-badges">
         {day ? (
           <button type="button" className={`pb-badge pb-pick due ${tone}`} title={`Due ${day} — change`} onClick={pick('due')}>
-            <CalendarDays />
+            <Calendar />
             {relativeDay(day, today)}
           </button>
         ) : (
           !done && (
-            <button type="button" className="pb-badge pb-pick pb-ghost" title="Set a due date" aria-label="Set a due date" onClick={pick('due')}>
+            <button type="button" className="pb-badge pb-pick pb-unset" title="Set a due date" aria-label="Set a due date" onClick={pick('due')}>
               <CalendarPlus />
             </button>
           )
@@ -183,13 +183,13 @@ export const Card = memo(function Card({ item, labelColors = {}, labels, cover, 
           </button>
         ) : (
           !done && (
-            <button type="button" className="pb-badge pb-pick pb-ghost" title="Set a priority" aria-label="Set a priority" onClick={pick('priority')}>
+            <button type="button" className="pb-badge pb-pick pb-unset" title="Set a priority" aria-label="Set a priority" onClick={pick('priority')}>
               <Flag />
             </button>
           )
         )}
         {!done && labels && (
-          <button type="button" className="pb-badge pb-pick pb-ghost" title="Labels" aria-label="Labels" onClick={pick('labels')}>
+          <button type="button" className="pb-badge pb-pick pb-unset" title="Labels" aria-label="Labels" onClick={pick('labels')}>
             <Tag />
           </button>
         )}

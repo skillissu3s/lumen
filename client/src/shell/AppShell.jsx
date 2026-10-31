@@ -123,6 +123,7 @@ export function AppShell({ route }) {
   useShortcut('mod+k', () => useUI.getState().openPalette(), { description: 'Search and commands', allowInInput: true })
   useShortcut('mod+\\', () => setPrefs({ sidebar: { collapsed: !collapsed } }), { description: 'Show or hide the sidebar', allowInInput: true })
   useShortcut('?', () => useUI.setState({ shortcutsOpen: true }), { description: 'Keyboard shortcuts' })
+  useShortcut('mod+,', () => navigate('/settings/appearance'), { description: 'Settings', allowInInput: true })
   useShortcut('mod+z', () => undoLast(), { description: 'Undo the last change' })
   useShortcut('g t', () => navigate('/today'), { description: 'Go to Today', group: 'Go to' })
   useShortcut('g a', () => navigate('/tasks'), { description: 'Go to All tasks', group: 'Go to' })

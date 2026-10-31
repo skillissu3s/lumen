@@ -563,3 +563,202 @@
     font-size: 30px;
   }
 }
+
+/* ---------- a page the way Notion lays one out ---------- */
+.doc-page.is-full {
+  max-width: none;
+  padding-left: 96px;
+  padding-right: 96px;
+}
+/* a cover across the top: the page's colour, softly */
+.doc-cover {
+  position: relative;
+  height: 200px;
+  background:
+    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--cv) 55%, var(--surface)) 0%, transparent 60%),
+    linear-gradient(135deg, color-mix(in srgb, var(--cv) 30%, var(--surface)), color-mix(in srgb, var(--cv) 60%, var(--surface)));
+}
+.doc-cover-tools {
+  position: absolute;
+  right: 24px;
+  bottom: 12px;
+  display: flex;
+  gap: 1px;
+  overflow: hidden;
+  border-radius: 6px;
+  opacity: 0;
+  transition: opacity 140ms var(--ease);
+}
+.doc-cover:hover .doc-cover-tools {
+  opacity: 1;
+}
+.doc-cover-tools button {
+  padding: 4px 10px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+.doc-cover-tools button:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+.doc-page.has-cover {
+  padding-top: 28px;
+}
+.doc-page.has-cover.has-icon {
+  padding-top: 0;
+}
+.doc-page.has-cover .doc-icon {
+  margin-top: -40px;
+}
+.doc-icon {
+  position: relative;
+  z-index: 1;
+  display: inline-grid;
+  margin-bottom: 10px;
+  border-radius: 14px;
+  transition: background 140ms var(--ease);
+}
+.doc-icon:hover {
+  background: var(--bg-hover);
+}
+.doc-icon .icon-badge {
+  border-radius: 14px;
+  box-shadow: 0 0 0 4px var(--bg);
+}
+/* "Add icon", "Add cover": there when the pointer is over the page's head */
+.doc-page-tools {
+  display: flex;
+  gap: 4px;
+  height: 28px;
+  margin: 0 0 4px -6px;
+  opacity: 0;
+  transition: opacity 140ms var(--ease);
+}
+.doc-page:hover .doc-page-tools,
+.doc-page-tools:focus-within {
+  opacity: 1;
+}
+.doc-page-tools button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  border-radius: 6px;
+  color: var(--text-faint);
+  font-size: var(--fs-sm);
+  transition: background 140ms var(--ease), color 140ms var(--ease);
+}
+.doc-page-tools button:hover {
+  background: var(--bg-hover);
+  color: var(--text-muted);
+}
+.doc-icon-pop {
+  width: 320px;
+}
+.doc-icon-colors {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.doc-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--sw);
+}
+.doc-swatch.on {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--sw);
+}
+.doc-pop-remove {
+  width: 100%;
+  margin-top: 10px;
+  height: 30px;
+  border-radius: 6px;
+  background: var(--bg-muted);
+  font-size: var(--fs-sm);
+}
+.doc-cover-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 52px);
+  gap: 8px;
+}
+.doc-cover-choice {
+  height: 34px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--cv) 30%, var(--surface)), color-mix(in srgb, var(--cv) 60%, var(--surface)));
+  transition: transform 120ms var(--ease);
+}
+.doc-cover-choice:hover {
+  transform: translateY(-1px);
+}
+.doc-cover-choice.on {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
+}
+
+/* the handle beside a block: + adds one below, the grip moves it */
+.doc-handle {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  margin-right: 6px;
+  transition: opacity 120ms var(--ease);
+}
+.doc-handle-btn {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 24px;
+  border-radius: 4px;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+.doc-handle-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-muted);
+}
+.doc-handle-btn.is-grip {
+  cursor: grab;
+}
+.ProseMirror-selectednode,
+.doc-prose .ProseMirror-selectednode {
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+/* Notion's measure: body text a little larger, blocks close together, headings
+   with room above them */
+.doc-editor {
+  font-size: 16px;
+  line-height: 1.6;
+}
+.doc-prose > * + * {
+  margin-top: 4px;
+}
+.doc-prose h1 {
+  margin-top: 1.8em;
+  font-size: 1.875em;
+}
+.doc-prose h2 {
+  margin-top: 1.4em;
+  font-size: 1.5em;
+}
+.doc-prose h3 {
+  margin-top: 1.1em;
+  font-size: 1.25em;
+}
+.doc-prose blockquote {
+  border-left-width: 3px;
+  font-size: 1.05em;
+}
+@media (max-width: 760px) {
+  .doc-cover {
+    height: 140px;
+  }
+  .doc-page.is-full {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+}

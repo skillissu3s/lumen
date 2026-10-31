@@ -165,7 +165,7 @@
   padding: 10px 8px 8px;
 }
 .app.is-collapsed .sidebar-head {
-  flex-direction: column-reverse;
+  flex-direction: column;
   gap: 6px;
 }
 .app.is-collapsed .workspace-button {
@@ -689,7 +689,6 @@
     transform: translateY(4px);
   }
 }
-.nav-item:active,
 .ui-button:active:not(:disabled),
 .pb-btn:active,
 .cd-act:active {
@@ -800,20 +799,35 @@
   }
 }
 
-/* the desktop app on Windows draws its own title bar */
+/* the desktop app on Windows draws its own title bar: a strip across the top,
+   in the sidebar's colour, that holds the window's buttons and drags the window;
+   every page starts below it */
 .is-desktop-titlebar .sidebar-top {
-  padding-top: 34px;
+  padding-top: 40px;
   -webkit-app-region: drag;
 }
 .is-desktop-titlebar .sidebar-top > * {
   -webkit-app-region: no-drag;
 }
-.is-desktop-titlebar :is(.view-header, .pb-bar) {
-  -webkit-app-region: drag;
-  padding-right: 150px;
+.is-desktop-titlebar .main {
+  padding-top: 34px;
+  background: var(--bg-subtle);
 }
-.is-desktop-titlebar :is(.view-header, .pb-bar) > * {
-  -webkit-app-region: no-drag;
+.is-desktop-titlebar .main > * {
+  background: var(--bg);
+}
+.is-desktop-titlebar .main::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 34px;
+  border-bottom: 1px solid var(--border);
+  -webkit-app-region: drag;
+}
+.is-desktop-titlebar .app {
+  background: var(--bg-subtle);
 }
 
 .view-error {
@@ -899,4 +913,97 @@
   justify-self: center;
   margin-left: 0;
   font-size: var(--fs-sm);
+}
+
+/* ---------- the account menu (the workspace button) ---------- */
+.workspace-button.is-open {
+  background: var(--bg-active);
+}
+.ui-popover.acct {
+  width: 300px;
+  padding: 6px;
+}
+.acct-who {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 10px;
+}
+.acct-who-text {
+  display: grid;
+  min-width: 0;
+}
+.acct-who-text b {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.acct-who-text span {
+  color: var(--text-faint);
+  font-size: var(--fs-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.acct-theme {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  margin: 0 4px 6px;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--bg-muted);
+}
+.acct-theme button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 28px;
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.acct-theme button:hover {
+  color: var(--text);
+}
+.acct-theme button.on {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08), 0 0 0 1px var(--border);
+}
+.acct-items {
+  display: grid;
+  gap: 1px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+.acct-out {
+  margin-top: 4px;
+}
+.acct-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 6px;
+  color: var(--text);
+  font-size: var(--fs);
+  text-align: left;
+  transition: background var(--dur) var(--ease);
+}
+.acct-item:hover,
+.acct-item:focus-visible {
+  background: var(--bg-hover);
+}
+.acct-item > svg {
+  color: var(--text-muted);
+}
+.acct-item > span {
+  flex: 1;
+  white-space: nowrap;
 }

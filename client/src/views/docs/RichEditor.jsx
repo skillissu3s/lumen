@@ -5,11 +5,12 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { EditorContent, useEditor } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
+import { DragHandle } from '@tiptap/extension-drag-handle-react'
 import StarterKit from '@tiptap/starter-kit'
 import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { Placeholder } from '@tiptap/extensions'
 import { Markdown } from '@tiptap/markdown'
-import { Bold, Code, CodeSquare, Heading1, Heading2, Heading3, Italic, Link2, List, ListChecks, ListOrdered, Minus, Pilcrow, Quote, Strikethrough } from 'lucide-react'
+import { Bold, Code, CodeSquare, GripVertical, Heading1, Heading2, Heading3, Italic, Link2, List, ListChecks, ListOrdered, Minus, Pilcrow, Plus, Quote, Strikethrough } from 'lucide-react'
 
 // the blocks "/" offers
 const BLOCKS = [
@@ -144,12 +145,13 @@ function LinkField({ editor, onDone }) {
 export function RichEditor({ markdown, onChange, onBlur, editorRef }) {
   const [linking, setLinking] = useState(false)
   const latest = useRef(markdown)
+  const hovered = useRef(null) // the block the handle sits beside: { node, pos }
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ heading: { levels: [1, 2, 3] }, link: { openOnClick: false, autolink: true } }),
       TaskList,
       TaskItem.configure({ nested: true }),
-      Placeholder.configure({ placeholder: ({ node }) => (node.type.name === 'heading' ? 'Heading' : 'Write something, or press / for blocks…') }),
+      Placeholder.configure({ placeholder: ({ node }) => (node.type.name === 'heading' ? `Heading ${node.attrs.level}` : 'Type ‘/’ for commands') }),
       Markdown,
     ],
     content: markdown,
@@ -207,6 +209,29 @@ export function RichEditor({ markdown, onChange, onBlur, editorRef }) {
           </>
         )}
       </BubbleMenu>
+      <DragHandle editor={editor} onNodeChange={({ node, pos }) => (hovered.current = node ? { node, pos } : null)}>
+        <div className="doc-handle">
+          <button
+            type="button"
+            className="doc-handle-btn"
+            aria-label="Add a block below"
+            title="Add a block below"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              const h = hovered.current
+              if (!h) return
+              // a new line under this block, already asking which kind
+              const at = h.pos + h.node.nodeSize
+              editor.chain().focus().insertContentAt(at, { type: 'paragraph', content: [{ type: 'text', text: '/' }] }).setTextSelection(at + 2).run()
+            }}
+          >
+            <Plus size={16} />
+          </button>
+          <span className="doc-handle-btn is-grip" title="Drag to move" aria-hidden="true">
+            <GripVertical size={16} />
+          </span>
+        </div>
+      </DragHandle>
       <EditorContent
         editor={editor}
         className="doc-editor"

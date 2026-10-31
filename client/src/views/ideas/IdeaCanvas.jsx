@@ -3,7 +3,7 @@
 // button) to pan, scroll to move, Ctrl + scroll to zoom. Saved as JSON Canvas a
 // moment after each change; Ctrl+Z steps back.
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { BoxSelect, CircleSlash, Copy, ExternalLink, Globe, Link2, ListPlus, Maximize, Minus, MousePointer2, Pencil, Plus, Redo2, StickyNote, Trash2, Undo2 } from 'lucide-react'
+import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceAround, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceAround, BoxSelect, CircleSlash, Copy, ExternalLink, Globe, Image as ImageIcon, LayoutGrid, Link2, ListPlus, Maximize, Minus, MousePointer2, Pencil, Plus, Redo2, Search, SquareDashed, StickyNote, Trash2, Type, Undo2, X } from 'lucide-react'
 import { MenuPopup, Tooltip } from '../../components/ui/index.js'
 import { useWorkspace } from '../../store/workspace.js'
 import { useUI } from '../../store/ui.js'
@@ -12,7 +12,7 @@ import { useConfig, useLists, inboxPath } from '../../store/hooks.js'
 import { addCard } from '../../lib/boardActions.js'
 import { newId } from '../../../../shared/items.js'
 import { anchor, bounds, colorCode, colorName, edgeMid, edgePath, facingSide, insideGroup, overlaps, parseCanvas, serializeCanvas } from '../../../../shared/canvas.js'
-import { renderMarkdown } from '../docs/markdown.js'
+import { renderMarkdown, toggleTaskInBody } from '../docs/markdown.js'
 
 const COLORS = ['red', 'orange', 'amber', 'green', 'teal', 'violet']
 const SIDES = ['top', 'right', 'bottom', 'left']
@@ -20,6 +20,7 @@ const GRID = 12
 const clampZoom = (z) => Math.max(0.2, Math.min(2.5, z))
 const snap = (v, on) => (on ? Math.round(v / GRID) * GRID : Math.round(v))
 const URL_RE = /^https?:\/\/\S+$/i
+const IMAGE_RE = /\.(png|jpe?g|gif|webp|avif|svg)(\?\S*)?$/i
 const host = (url) => {
   try {
     return new URL(url).hostname.replace(/^www\./, '')
@@ -28,8 +29,8 @@ const host = (url) => {
   }
 }
 
-function NodeView({ node, selected, editing, fresh, onPointerDown, onDoubleClick, onContextMenu, onResize, onConnect, onEditDone }) {
-  const color = colorName(node.color)
+function NodeView({ node, selected, editing, fresh, found, onPointerDown, onDoubleClick, onContextMenu, onResize, onConnect, onEditDone, onTick }) {
+  const color = colorName(node.color) || (node.style === 'sticky' ? 'amber' : null)
   const style = { left: node.x, top: node.y, width: node.width, height: node.height }
   if (color) Object.assign(style, { '--nc': `var(--c-${color})`, '--nc-bg': `var(--c-${color}-bg)` })
   const handles = SIDES.map((side) => <span key={side} className={`idea-handle is-${side}`} onPointerDown={(e) => onConnect?.(e, side)} aria-hidden="true" title="Drag to connect" />)
@@ -60,6 +61,14 @@ function NodeView({ node, selected, editing, fresh, onPointerDown, onDoubleClick
         {selected && <span className="idea-resize" onPointerDown={onResize} aria-hidden="true" />}
       </div>
     )
+  if (node.type === 'link' && IMAGE_RE.test(node.url || '') && !editing)
+    return (
+      <div className={`idea idea-image${selected ? ' is-selected' : ''}${fresh ? ' is-fresh' : ''}`} style={style} tabIndex={-1} role="img" aria-label={`Image from ${host(node.url)}`} {...common}>
+        <img src={node.url} alt="" draggable={false} />
+        {handles}
+        {selected && <span className="idea-resize" onPointerDown={onResize} aria-hidden="true" />}
+      </div>
+    )
   if (node.type === 'link')
     return (
       <div className={`idea idea-link${selected ? ' is-selected' : ''}${color ? ' has-color' : ''}${fresh ? ' is-fresh' : ''}`} style={style} tabIndex={-1} role="group" aria-label={`Link to ${node.url}`} {...common}>
@@ -68,7 +77,7 @@ function NodeView({ node, selected, editing, fresh, onPointerDown, onDoubleClick
             className="idea-link-edit"
             defaultValue={node.url || ''}
             autoFocus
-            placeholder="https://…"
+            placeholder={node.image ? 'Paste an image link…' : 'https://…'}
             aria-label="Link"
             {...finish}
             onKeyDown={(e) => {
@@ -92,14 +101,14 @@ function NodeView({ node, selected, editing, fresh, onPointerDown, onDoubleClick
       </div>
     )
   return (
-    <div className={`idea${selected ? ' is-selected' : ''}${color ? ' has-color' : ''}${editing ? ' is-editing' : ''}${fresh ? ' is-fresh' : ''}`} style={style} tabIndex={-1} role="group" aria-label={(node.text || 'Empty idea').slice(0, 80)} {...common}>
+    <div className={`idea${node.style ? ` is-${node.style}` : ''}${selected ? ' is-selected' : ''}${color ? ' has-color' : ''}${editing ? ' is-editing' : ''}${fresh ? ' is-fresh' : ''}${found ? ' is-found' : ''}`} style={style} tabIndex={-1} role="group" aria-label={(node.text || 'Empty idea').slice(0, 80)} {...common}>
       {editing ? (
         <textarea
           className="idea-edit"
           defaultValue={node.text || ''}
           autoFocus
           aria-label="Idea"
-          placeholder="Write an idea…"
+          placeholder={node.style === 'label' ? 'Text' : 'Write an idea…'}
           {...finish}
           onKeyDown={(e) => {
             if (e.key === 'Escape' || (e.key === 'Enter' && (e.ctrlKey || e.metaKey))) e.currentTarget.blur()
@@ -107,12 +116,50 @@ function NodeView({ node, selected, editing, fresh, onPointerDown, onDoubleClick
           }}
         />
       ) : node.text ? (
-        <div className="idea-body md" dangerouslySetInnerHTML={{ __html: renderMarkdown(node.text) }} />
+        <div
+          className="idea-body md"
+          onClick={(e) => {
+            const box = e.target.closest('input[data-task]')
+            if (box) onTick?.(+box.dataset.task)
+          }}
+          dangerouslySetInnerHTML={{ __html: renderMarkdown(node.text) }}
+        />
       ) : (
-        <div className="idea-body idea-placeholder">Double-click to write</div>
+        <div className="idea-body idea-placeholder">{node.style === 'label' ? 'Text' : 'Double-click to write'}</div>
       )}
       {!editing && handles}
       {selected && !editing && <span className="idea-resize" onPointerDown={onResize} aria-hidden="true" />}
+    </div>
+  )
+}
+
+// the whole board, small, with the part in view outlined; a click goes there
+function Minimap({ nodes, view, size, onJump }) {
+  const b = bounds(nodes)
+  if (!b || !size.w) return null
+  const W = 168
+  const H = 108
+  const pad = 40
+  const k = Math.min(W / (b.width + pad * 2), H / (b.height + pad * 2))
+  const ox = b.x - pad
+  const oy = b.y - pad
+  const vx = (-view.x / view.z - ox) * k
+  const vy = (-view.y / view.z - oy) * k
+  return (
+    <div
+      className="idea-minimap"
+      aria-label="Map of the board"
+      onPointerDown={(e) => {
+        const r = e.currentTarget.getBoundingClientRect()
+        onJump((e.clientX - r.left) / k + ox, (e.clientY - r.top) / k + oy)
+      }}
+    >
+      <svg width={W} height={H}>
+        {nodes.map((n) => (
+          <rect key={n.id} x={(n.x - ox) * k} y={(n.y - oy) * k} width={Math.max(2, n.width * k)} height={Math.max(2, n.height * k)} rx="2" className={n.type === 'group' ? 'mm-group' : 'mm-card'} style={colorName(n.color) ? { fill: `var(--c-${colorName(n.color)})` } : undefined} />
+        ))}
+        <rect x={vx} y={vy} width={(size.w / view.z) * k} height={(size.h / view.z) * k} className="mm-view" />
+      </svg>
     </div>
   )
 }
@@ -134,6 +181,8 @@ export function IdeaCanvas({ path }) {
   const [panning, setPanning] = useState(false)
   const [spaceDown, setSpaceDown] = useState(false)
   const [fresh, setFresh] = useState(null) // a card just added (it pops in)
+  const [finding, setFinding] = useState(null) // { q, at } while looking for words on the board
+  const [size, setSize] = useState({ w: 0, h: 0 }) // the surface, for the minimap
   const surface = useRef(null)
   const drag = useRef(null)
   const saved = useRef(file?.text)
@@ -144,6 +193,14 @@ export function IdeaCanvas({ path }) {
   const history = useRef({ past: [], future: [] })
   const pointer = useRef(null) // the last place the pointer was, in world units
   const clip = useRef(null)
+  useLayoutEffect(() => {
+    const el = surface.current
+    const measure = () => setSize({ w: el.clientWidth, h: el.clientHeight })
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
   // take changes made elsewhere, unless we're in the middle of something
   useEffect(() => {
@@ -231,6 +288,18 @@ export function IdeaCanvas({ path }) {
     const c = at(p)
     addNode({ id: newId(16), type: 'text', text, x: snap(c.x - 120, true), y: snap(c.y - 60, true), width: 240, height: 120 }, !text)
   }
+  const newSticky = (p) => {
+    const c = at(p)
+    addNode({ id: newId(16), type: 'text', style: 'sticky', text: '', x: snap(c.x - 100, true), y: snap(c.y - 100, true), width: 200, height: 200 })
+  }
+  const newLabel = (p) => {
+    const c = at(p)
+    addNode({ id: newId(16), type: 'text', style: 'label', text: '', x: snap(c.x - 120, true), y: snap(c.y - 24, true), width: 240, height: 48 })
+  }
+  const newImage = (p, url = '') => {
+    const c = at(p)
+    addNode({ id: newId(16), type: 'link', url, image: !url || undefined, x: snap(c.x - 160, true), y: snap(c.y - 110, true), width: 320, height: 220 }, !url)
+  }
   const newLink = (p, url = '') => {
     const c = at(p)
     addNode({ id: newId(16), type: 'link', url, x: snap(c.x - 140, true), y: snap(c.y - 36, true), width: 280, height: 72 }, !url)
@@ -278,6 +347,58 @@ export function IdeaCanvas({ path }) {
     const rest = model.nodes.filter((n) => !ids.includes(n.id))
     commit({ ...model, nodes: front ? [...rest, ...moving] : [...moving, ...rest] })
   }
+  // line up, space out or tidy what is selected (groups stay where they are)
+  const arrange = (how) => {
+    const items = model.nodes.filter((n) => selected.has(n.id) && n.type !== 'group')
+    if (items.length < 2) return
+    const b = bounds(items)
+    const place = new Map()
+    if (how === 'left') for (const n of items) place.set(n.id, { x: b.x })
+    if (how === 'center') for (const n of items) place.set(n.id, { x: Math.round(b.x + b.width / 2 - n.width / 2) })
+    if (how === 'right') for (const n of items) place.set(n.id, { x: b.x + b.width - n.width })
+    if (how === 'top') for (const n of items) place.set(n.id, { y: b.y })
+    if (how === 'middle') for (const n of items) place.set(n.id, { y: Math.round(b.y + b.height / 2 - n.height / 2) })
+    if (how === 'bottom') for (const n of items) place.set(n.id, { y: b.y + b.height - n.height })
+    if (how === 'across' || how === 'down') {
+      const key = how === 'across' ? 'x' : 'y'
+      const len = how === 'across' ? 'width' : 'height'
+      const order = [...items].sort((a, c) => a[key] - c[key])
+      const gap = (b[len] - order.reduce((t, n) => t + n[len], 0)) / (order.length - 1)
+      let pos = b[key]
+      for (const n of order) {
+        place.set(n.id, { [key]: Math.round(pos) })
+        pos += n[len] + gap
+      }
+    }
+    if (how === 'tidy') {
+      // a grid, in reading order, a little apart
+      const order = [...items].sort((a, c) => a.y - c.y || a.x - c.x)
+      const cols = Math.ceil(Math.sqrt(order.length))
+      const w = Math.max(...order.map((n) => n.width)) + 24
+      const h = Math.max(...order.map((n) => n.height)) + 24
+      order.forEach((n, i) => place.set(n.id, { x: b.x + (i % cols) * w, y: b.y + Math.floor(i / cols) * h }))
+    }
+    commit({ ...model, nodes: model.nodes.map((n) => (place.has(n.id) ? { ...n, ...place.get(n.id) } : n)) })
+  }
+  const arrangeMenu = (e) =>
+    setMenu({
+      anchor: { current: e.currentTarget },
+      items: [
+        { section: 'Line up' },
+        { label: 'Left edges', icon: AlignStartVertical, onSelect: () => arrange('left') },
+        { label: 'Centres', icon: AlignCenterVertical, onSelect: () => arrange('center') },
+        { label: 'Right edges', icon: AlignEndVertical, onSelect: () => arrange('right') },
+        { label: 'Tops', icon: AlignStartHorizontal, onSelect: () => arrange('top') },
+        { label: 'Middles', icon: AlignCenterHorizontal, onSelect: () => arrange('middle') },
+        { label: 'Bottoms', icon: AlignEndHorizontal, onSelect: () => arrange('bottom') },
+        { section: 'Space out' },
+        { label: 'Evenly across', icon: AlignHorizontalSpaceAround, onSelect: () => arrange('across') },
+        { label: 'Evenly down', icon: AlignVerticalSpaceAround, onSelect: () => arrange('down') },
+        'separator',
+        { label: 'Tidy into a grid', icon: LayoutGrid, onSelect: () => arrange('tidy') },
+      ],
+    })
+  const tick = (n, index) => commit({ ...model, nodes: model.nodes.map((x) => (x.id === n.id ? { ...x, text: toggleTaskInBody(x.text || '', index) } : x)) })
   const setEdgeEnds = (id, ends) => commit({ ...model, edges: model.edges.map((e) => (e.id === id ? { ...e, ...ends } : e)) })
   const makeTask = (node) => {
     const [first, ...rest] = String(node.text || node.url || '').trim().split('\n')
@@ -420,6 +541,19 @@ export function IdeaCanvas({ path }) {
     el.addEventListener('wheel', fn, { passive: false })
     return () => el.removeEventListener('wheel', fn)
   }, [])
+  const matches = useMemo(() => {
+    const q = finding?.q.trim().toLowerCase()
+    if (!q) return []
+    return model.nodes.filter((n) => [n.text, n.label, n.url].some((t) => (t || '').toLowerCase().includes(q))).sort((a, b) => a.y - b.y || a.x - b.x)
+  }, [finding?.q, model.nodes])
+  const showMatch = (i) => {
+    const n = matches[(i + matches.length) % matches.length]
+    if (!n) return
+    const el = surface.current
+    setFinding((f) => ({ ...f, at: (i + matches.length) % matches.length }))
+    setSelected(new Set([n.id]))
+    setView((v) => ({ ...v, x: el.clientWidth / 2 - (n.x + n.width / 2) * v.z, y: el.clientHeight / 2 - (n.y + n.height / 2) * v.z }))
+  }
   const zoomBy = (f) => {
     const el = surface.current
     const px = el.clientWidth / 2
@@ -494,6 +628,15 @@ export function IdeaCanvas({ path }) {
     } else if (!mod && key === 'l') {
       e.preventDefault()
       newLink(center())
+    } else if (!mod && key === 's') {
+      e.preventDefault()
+      newSticky(center())
+    } else if (!mod && key === 't') {
+      e.preventDefault()
+      newLabel(center())
+    } else if (mod && key === 'f') {
+      e.preventDefault()
+      setFinding({ q: '', at: 0 })
     } else if (!mod && key === 'f') fit(ids.length ? model.nodes.filter((n) => selected.has(n.id)) : undefined)
     else if (e.key === 'Tab' && model.nodes.length) {
       // walk the cards in reading order
@@ -524,7 +667,7 @@ export function IdeaCanvas({ path }) {
       commit({ ...model, nodes: [...model.nodes, ...c.nodes], edges: [...model.edges, ...c.edges] })
       setSelected(new Set(c.nodes.map((n) => n.id)))
       clip.current = { ...clip.current, nodes: c.nodes, edges: c.edges }
-    } else if (URL_RE.test(text.trim())) newLink(null, text.trim())
+    } else if (URL_RE.test(text.trim())) (IMAGE_RE.test(text.trim()) ? newImage : newLink)(null, text.trim())
     else if (text.trim()) newIdea(null, text.trim())
   }
 
@@ -580,7 +723,10 @@ export function IdeaCanvas({ path }) {
       anchor: { x: e.clientX, y: e.clientY },
       items: [
         { label: 'Add an idea here', icon: StickyNote, shortcut: 'N', onSelect: () => newIdea(p) },
+        { label: 'Add a sticky note here', icon: SquareDashed, shortcut: 'S', onSelect: () => newSticky(p) },
+        { label: 'Add text here', icon: Type, shortcut: 'T', onSelect: () => newLabel(p) },
         { label: 'Add a link here', icon: Link2, shortcut: 'L', onSelect: () => newLink(p) },
+        { label: 'Add an image here', icon: ImageIcon, onSelect: () => newImage(p) },
         { label: 'Add a group here', icon: BoxSelect, onSelect: () => newGroup(p) },
         'separator',
         { label: 'Select everything', shortcut: 'Ctrl A', onSelect: () => setSelected(new Set(model.nodes.map((n) => n.id))) },
@@ -609,7 +755,7 @@ export function IdeaCanvas({ path }) {
     let v = n.type === 'group' ? value.trim() || 'Group' : value
     if (n.type === 'link' && v.trim() && !/^[a-z]+:/i.test(v.trim())) v = `https://${v.trim()}`
     if ((m.nodes.find((x) => x.id === n.id) || {})[key] === v) return
-    commit({ ...m, nodes: m.nodes.map((x) => (x.id === n.id ? { ...x, [key]: v } : x)) })
+    commit({ ...m, nodes: m.nodes.map((x) => (x.id === n.id ? { ...x, [key]: v, image: undefined } : x)) })
   }
   const geometry = (ed) => {
     const a = byId.get(ed.fromNode)
@@ -733,6 +879,8 @@ export function IdeaCanvas({ path }) {
               selected={selected.has(n.id)}
               editing={editing === n.id}
               fresh={fresh === n.id}
+              found={finding && matches.some((x) => x.id === n.id)}
+              onTick={(i) => tick(n, i)}
               onPointerDown={onNodeDown(n)}
               onContextMenu={nodeMenu(n)}
               onDoubleClick={(e) => {
@@ -770,6 +918,13 @@ export function IdeaCanvas({ path }) {
               <Tooltip label="Make it a task">
                 <button type="button" className="idea-bar-btn" aria-label="Make it a task" onClick={() => makeTask(one)}>
                   <ListPlus size={15} />
+                </button>
+              </Tooltip>
+            )}
+            {chosen.filter((n) => n.type !== 'group').length > 1 && (
+              <Tooltip label="Line up and space out">
+                <button type="button" className="idea-bar-btn" aria-label="Arrange" onClick={arrangeMenu}>
+                  <AlignStartVertical size={14} />
                 </button>
               </Tooltip>
             )}
@@ -814,9 +969,24 @@ export function IdeaCanvas({ path }) {
             <StickyNote size={15} /> Idea
           </button>
         </Tooltip>
+        <Tooltip label="Add a sticky note (S)">
+          <button type="button" className="idea-tool" aria-label="Sticky note" onClick={() => newSticky(center())}>
+            <SquareDashed size={15} />
+          </button>
+        </Tooltip>
+        <Tooltip label="Add text (T)">
+          <button type="button" className="idea-tool" aria-label="Text" onClick={() => newLabel(center())}>
+            <Type size={15} />
+          </button>
+        </Tooltip>
         <Tooltip label="Add a link (L)">
-          <button type="button" className="idea-tool" onClick={() => newLink(center())}>
-            <Link2 size={15} /> Link
+          <button type="button" className="idea-tool" aria-label="Link" onClick={() => newLink(center())}>
+            <Link2 size={15} />
+          </button>
+        </Tooltip>
+        <Tooltip label="Add an image from a link">
+          <button type="button" className="idea-tool" aria-label="Image" onClick={() => newImage(center())}>
+            <ImageIcon size={15} />
           </button>
         </Tooltip>
         <Tooltip label={selected.size > 1 ? 'Group the selection (Ctrl G)' : 'Add a group'}>
@@ -836,7 +1006,38 @@ export function IdeaCanvas({ path }) {
           </button>
         </Tooltip>
       </div>
+      {finding && (
+        <div className="idea-find" role="search">
+          <Search size={14} />
+          <input
+            autoFocus
+            value={finding.q}
+            placeholder="Find on this board"
+            aria-label="Find on this board"
+            onChange={(e) => setFinding({ q: e.target.value, at: 0 })}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                showMatch(finding.at + (e.shiftKey ? -1 : matches.length && finding.q ? 1 : 0))
+              } else if (e.key === 'Escape') {
+                setFinding(null)
+                surface.current?.focus()
+              }
+            }}
+          />
+          <span className="faint tabular">{finding.q.trim() ? (matches.length ? `${finding.at + 1}/${matches.length}` : 'None') : ''}</span>
+          <button type="button" className="idea-bar-btn" aria-label="Close" onClick={() => setFinding(null)}>
+            <X size={14} />
+          </button>
+        </div>
+      )}
+      <Minimap nodes={model.nodes} view={view} size={size} onJump={(x, y) => setView((v) => ({ ...v, x: size.w / 2 - x * v.z, y: size.h / 2 - y * v.z }))} />
       <div className="idea-zoom" role="toolbar" aria-label="Zoom">
+        <Tooltip label="Find (Ctrl F)">
+          <button type="button" className="idea-tool" aria-label="Find on this board" onClick={() => setFinding({ q: '', at: 0 })}>
+            <Search size={14} />
+          </button>
+        </Tooltip>
         <button type="button" className="idea-tool" aria-label="Zoom out" onClick={() => zoomBy(1 / 1.2)}>
           <Minus size={14} />
         </button>

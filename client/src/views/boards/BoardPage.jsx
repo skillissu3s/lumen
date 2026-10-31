@@ -404,7 +404,15 @@ export default function BoardPage({ route }) {
                   aria-label={`${lane.name || 'No list'}, ${visible.length} ${visible.length === 1 ? 'card' : 'cards'}`}
                 >
                   <header className="pb-list-head" onPointerDown={!lane.name || renaming === lane.key ? undefined : (e) => press(e, { kind: 'list', id: lane.key, el: e.currentTarget.closest('.pb-list') })}>
-                    {lane.color && renaming !== lane.key && <i className="pb-list-dot" aria-hidden="true" />}
+                    {renaming !== lane.key && (
+                      <button
+                        type="button"
+                        className={`pb-list-dot${lane.color ? '' : ' is-plain'}`}
+                        aria-label={lane.name ? `${lane.name}: colour` : 'Name this list'}
+                        title={lane.name ? 'List colour' : 'Name this list'}
+                        onClick={(e) => (lane.name ? setColorAt({ anchor: e.currentTarget, column: lane.name }) : setRenaming(lane.key))}
+                      />
+                    )}
                     {renaming === lane.key ? (
                       <input
                         className="pop-input pb-rename"
