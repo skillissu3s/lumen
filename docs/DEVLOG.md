@@ -158,3 +158,25 @@ professional". From here on OpenCode only gets non-UI work.
 - Release workflow dry run: Windows .exe, macOS .dmg, Linux AppImage + .deb all
   built on GitHub Actions. Package author/homepage added (Linux packages need them).
 - Pages workflow made manual until GitHub Pages is enabled.
+
+### 0.1.1 — direct downloads and automatic updates
+- The source repo stays private; installers are published to the **public**
+  `skillissu3s/lumen-releases` (the owner chose this over making the source
+  public). The release workflow publishes there directly (not as a draft) with
+  a `RELEASES_TOKEN` secret (fine-grained token, Contents: read and write on
+  lumen-releases only).
+- `desktop/updates.js` now uses **electron-updater**: Windows and the Linux
+  AppImage download new versions in the background and install on restart or
+  quit; macOS (unsigned, can't self-replace) and .deb get a notice with a
+  direct link. Checks 10 s after start and every 4 h.
+- Fixed: the quit handler used `app.exit()`, which skips the `quit` event that
+  install-on-quit relies on; it now cleans up (save, sync, stop the server) and
+  quits normally. "Restart to update" runs the same clean-up first.
+- UI: an update note at the bottom of the sidebar (downloading → ready →
+  Restart), and update status + Check now in Settings → About.
+- Stable file names (`Lumen-Setup.exe`, `Lumen.dmg`, `Lumen.AppImage`,
+  `lumen.deb`) so `…/releases/latest/download/<name>` always means the newest
+  version; the landing page has a Download section with one button per platform.
+- Verified locally: the packaged 0.1.1 reads its update feed from
+  lumen-releases (`app-update.yml`) and reaches GitHub ("no published versions"
+  until the first release there).

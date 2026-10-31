@@ -1,6 +1,10 @@
 # Push a tag like vX.Y.Z that matches the version in package.json. The workflow
-# builds installers on Windows, macOS and Linux and creates a draft GitHub
-# release. Publish that draft on GitHub to make it the "latest" release.
+# builds installers on Windows, macOS and Linux and publishes them as a release
+# of the PUBLIC repository skillissu3s/lumen-releases (the source stays private).
+# Installed apps check that repository and update themselves.
+#
+# Needs the secret RELEASES_TOKEN: a fine-grained token with access to only
+# skillissu3s/lumen-releases and the permission Contents: Read and write.
 name: Release
 
 on:
@@ -26,6 +30,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx vite build
+      - name: Check the release token
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then echo "::error::Add the RELEASES_TOKEN secret (see the top of this file)"; exit 1; fi
       - run: npx electron-builder --publish always
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}

@@ -177,8 +177,12 @@ async function boot() {
   tracker.start()
 
   updates = createUpdates({
-    getVersion: () => app.getVersion(),
     openExternal: (url) => shell.openExternal(url),
+    // the installer replaces the app: save and stop everything first
+    beforeInstall: async () => {
+      quitting = true
+      await cleanUp()
+    },
   })
   updates.onChange((state) => win?.webContents.send('lumen:updates-changed', state))
   updates.start()
@@ -198,22 +202,24 @@ app.on('second-instance', () => {
 })
 
 let quitting = false
+async function cleanUp() {
+  try {
+    tracker?.dispose()
+  } catch {}
+  try {
+    updates?.dispose()
+  } catch {}
+  try {
+    if (server) await Promise.race([server.stopServer(), sleep(10000)])
+  } catch {}
+}
+// finish saving and syncing, then quit for real — a normal quit (not app.exit),
+// so a downloaded update installs on the way out
 app.on('before-quit', (event) => {
   if (quitting) return
   event.preventDefault()
   quitting = true
-  ;(async () => {
-    try {
-      tracker?.dispose()
-    } catch {}
-    try {
-      updates?.dispose()
-    } catch {}
-    try {
-      if (server) await Promise.race([server.stopServer(), sleep(10000)])
-    } catch {}
-    app.exit(0)
-  })()
+  cleanUp().finally(() => app.quit())
 })
 
 if (!gotLock) {

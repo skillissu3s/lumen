@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.1 — downloads and automatic updates
+
+- **Lumen updates itself.** On Windows and the Linux AppImage, new versions
+  download in the background; a note in the sidebar says when one is ready and
+  *Restart* installs it (or it installs the next time you quit). On macOS and
+  with the .deb, Lumen tells you a new version is out and links straight to it.
+- **Direct downloads** from the website and from
+  [lumen-releases](https://github.com/skillissu3s/lumen-releases), with file
+  names that always point at the newest version (`Lumen-Setup.exe`, `Lumen.dmg`,
+  `Lumen.AppImage`, `lumen.deb`).
+- Settings → About shows the update status and has *Check now*.
+- Quitting Lumen now always finishes saving and syncing before an update installs.
+
 ## 0.1.0 — first release
 
 The first version of Lumen: a personal productivity app whose data is plain

@@ -55,7 +55,7 @@ Everything lives in the `lumen-data` volume (`/data`).
 
 ### Desktop app
 
-Download the installer from [Releases](https://github.com/skillissu3s/lumen/releases/latest),
+Download the installer from [lumen-releases](https://github.com/skillissu3s/lumen-releases/releases/latest) (it updates itself),
 or build it yourself:
 
 ```bash

@@ -1,9 +1,16 @@
-// Lightweight update check against the GitHub releases API (electron-updater is
-// not installed). On start (+10 s) and every 6 h it fetches the latest release
-// tag; if it is newer than the running version, state becomes
-// { available, version, url }. install() opens the release page.
-const API = 'https://api.github.com/repos/skillissu3s/lumen/releases/latest'
-const SIX_HOURS = 6 * 3600000
+// Keeping the desktop app up to date. New versions are published to the public
+// skillissu3s/lumen-releases repository (see package.json → build.publish).
+//
+// Windows and the Linux AppImage update themselves: the new version downloads
+// in the background and installs when Lumen restarts (or quits). macOS can't
+// replace an app that isn't code-signed, and a .deb belongs to the system's
+// package manager, so there Lumen only says a new version is out and links to it.
+import { app } from 'electron'
+import pkg from 'electron-updater'
+
+const { autoUpdater } = pkg
+export const DOWNLOAD_PAGE = 'https://github.com/skillissu3s/lumen-releases/releases/latest'
+const EVERY = 4 * 3600000
 
 export function isNewer(a, b) {
   const pa = String(a || '').split('.').map((n) => parseInt(n, 10) || 0)
@@ -16,68 +23,64 @@ export function isNewer(a, b) {
   return false
 }
 
-export function createUpdates({ getVersion, openExternal, log = console }) {
-  let current = { available: false, version: null, url: null }
+/** Can this build install updates by itself? */
+export const selfUpdating = () => process.platform === 'win32' || (process.platform === 'linux' && !!process.env.APPIMAGE)
+
+/**
+ * state: { status: 'idle'|'checking'|'downloading'|'ready'|'available'|'error'|'off',
+ *          version, progress (0–100), selfUpdating, current, error }
+ * 'ready' = downloaded, installs on restart; 'available' = download it yourself.
+ */
+export function createUpdates({ openExternal, beforeInstall = async () => {}, log = console }) {
+  const auto = selfUpdating()
+  let current = { status: app.isPackaged ? 'idle' : 'off', version: null, progress: 0, selfUpdating: auto, current: app.getVersion(), error: null }
   const listeners = new Set()
   let timer = null
-  let disposed = false
 
-  const emit = () => {
-    const snapshot = { ...current }
-    for (const fn of listeners) fn(snapshot)
+  const set = (patch) => {
+    current = { ...current, ...patch }
+    for (const fn of listeners) fn({ ...current })
   }
 
+  autoUpdater.autoDownload = auto
+  autoUpdater.autoInstallOnAppQuit = auto
+  autoUpdater.logger = { info: () => {}, warn: (m) => log.warn?.('[updates]', m), error: (m) => log.error?.('[updates]', m), debug: () => {} }
+  autoUpdater.on('checking-for-update', () => set({ status: 'checking', error: null }))
+  autoUpdater.on('update-not-available', () => set({ status: 'idle', version: null }))
+  autoUpdater.on('update-available', (info) => set({ status: auto ? 'downloading' : 'available', version: info.version, progress: 0 }))
+  autoUpdater.on('download-progress', (p) => set({ status: 'downloading', progress: Math.round(p.percent || 0) }))
+  autoUpdater.on('update-downloaded', (info) => set({ status: 'ready', version: info.version, progress: 100 }))
+  autoUpdater.on('error', (err) => set({ status: 'error', error: String(err?.message || err).split('\n')[0] }))
+
   async function check() {
+    if (!app.isPackaged) return { ...current }
     try {
-      const res = await fetch(API, {
-        headers: { 'user-agent': 'lumen-desktop', accept: 'application/vnd.github+json' },
-      })
-      if (res.ok) {
-        const release = await res.json()
-        const tag = String(release.tag_name || '').replace(/^v/, '')
-        const url = String(release.html_url || '')
-        current = isNewer(tag, getVersion())
-          ? { available: true, version: tag, url }
-          : { available: false, version: null, url: null }
-      }
+      await autoUpdater.checkForUpdates()
     } catch (err) {
-      log('[updates] check failed:', err && err.message ? err.message : err)
+      set({ status: 'error', error: String(err?.message || err).split('\n')[0] })
     }
-    emit()
     return { ...current }
   }
 
-  function install() {
-    if (current.available && current.url) openExternal(current.url)
+  /** Restart into the downloaded version, or open the download page */
+  async function install() {
+    if (current.status === 'ready') {
+      await beforeInstall()
+      autoUpdater.quitAndInstall(false, true)
+      return
+    }
+    openExternal(DOWNLOAD_PAGE)
   }
 
   function start() {
-    const schedule = () => {
-      if (disposed) return
-      timer = setTimeout(async () => {
-        await check()
-        schedule()
-      }, SIX_HOURS)
-    }
-    timer = setTimeout(async () => {
-      await check()
-      schedule()
-    }, 10000)
+    if (!app.isPackaged) return
+    setTimeout(check, 10000)
+    timer = setInterval(check, EVERY)
   }
 
   function dispose() {
-    disposed = true
-    if (timer) clearTimeout(timer)
+    if (timer) clearInterval(timer)
   }
 
-  function state() {
-    return { ...current }
-  }
-
-  function onChange(fn) {
-    listeners.add(fn)
-    return () => listeners.delete(fn)
-  }
-
-  return { state, check, install, start, dispose, onChange }
+  return { state: () => ({ ...current }), check, install, start, dispose, onChange: (fn) => (listeners.add(fn), () => listeners.delete(fn)) }
 }

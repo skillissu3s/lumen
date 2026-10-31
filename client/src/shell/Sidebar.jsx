@@ -14,6 +14,7 @@ import { flatItems, isOpen, itemDay } from '../../../shared/items.js'
 import { todayIso } from '../../../shared/dates.js'
 import { ListEditor } from './ListEditor.jsx'
 import { iconByName } from './icons.js'
+import { UpdateNotice } from './UpdateNotice.jsx'
 
 const countOpen = (list) => flatItems(list).filter((i) => !i.parent && isOpen(i.status)).length
 
@@ -179,6 +180,7 @@ export function Sidebar({ route, onNavigate }) {
       </div>
 
       <div className="sidebar-bottom">
+        <UpdateNotice />
         {statuses.length > 0 && (
           <div className="plugin-status">
             {statuses.map(([id, text]) => (

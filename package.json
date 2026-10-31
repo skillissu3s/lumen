@@ -1,6 +1,6 @@
 {
   "name": "lumen",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "A personal productivity app — tasks, calendar, docs and chat — stored as plain text in your own GitHub repository, with plugins for the rest.",
   "type": "module",
@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "diff-match-patch": "^1.0.5",
+    "electron-updater": "^6.8.11",
     "express": "^5.2.1",
     "ws": "^8.21.3"
   },
@@ -64,7 +65,8 @@
     "win": {
       "target": [
         "nsis"
-      ]
+      ],
+      "artifactName": "Lumen-Setup.${ext}"
     },
     "nsis": {
       "oneClick": false,
@@ -82,7 +84,8 @@
       ],
       "identity": "-",
       "hardenedRuntime": false,
-      "category": "public.app-category.productivity"
+      "category": "public.app-category.productivity",
+      "artifactName": "Lumen.${ext}"
     },
     "linux": {
       "target": [
@@ -90,16 +93,20 @@
         "deb"
       ],
       "category": "Office",
-      "maintainer": "skillissu3s <skillissu3s@users.noreply.github.com>"
+      "maintainer": "skillissu3s <skillissu3s@users.noreply.github.com>",
+      "artifactName": "Lumen.${ext}"
     },
     "publish": [
       {
         "provider": "github",
         "owner": "skillissu3s",
-        "repo": "lumen"
+        "repo": "lumen-releases",
+        "releaseType": "release"
       }
     ],
-    "artifactName": "${productName}-Setup-${version}.${ext}"
+    "deb": {
+      "artifactName": "lumen.${ext}"
+    }
   },
   "homepage": "https://github.com/skillissu3s/lumen"
 }

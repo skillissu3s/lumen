@@ -12,6 +12,7 @@ import { navigate } from '../../lib/router.js'
 import { relativeDay, isoOf, timeOf } from '../../../../shared/dates.js'
 import { shortcutList, comboKeys } from '../../shell/shortcuts.js'
 import { Customize } from '../calendar/CalendarView.jsx'
+import { useUpdateState } from '../../shell/UpdateNotice.jsx'
 import './settings.css'
 
 const PluginSettings = lazy(() => import('./PluginSettings.jsx'))
@@ -561,13 +562,24 @@ function Shortcuts() {
   )
 }
 
+const DOWNLOADS = 'https://github.com/skillissu3s/lumen-releases/releases/latest'
+
+function updateText(u) {
+  if (!u || u.status === 'off') return 'Updates are checked in the installed app'
+  return {
+    idle: 'Up to date',
+    checking: 'Checking…',
+    downloading: `Downloading ${u.version}… ${u.progress || 0}%`,
+    ready: `Version ${u.version} is ready — restart to update`,
+    available: `Version ${u.version} is available`,
+    error: `Couldn’t check for updates (${u.error})`,
+  }[u.status]
+}
+
 function About() {
   const info = useSession((s) => s.info)
   const mode = useSession((s) => s.mode)
-  const [update, setUpdate] = useState(null)
-  useEffect(() => {
-    window.lumenDesktop?.updates?.state().then(setUpdate)
-  }, [])
+  const [update, updates] = useUpdateState()
   return (
     <Section title="About Lumen">
       <Row label="Version">
@@ -577,15 +589,23 @@ function About() {
         <span className="set-value">{{ github: 'Web app with GitHub', server: 'Web app on a Lumen server', desktop: 'Desktop app' }[mode]}</span>
       </Row>
       {mode === 'desktop' ? (
-        <Row label="Updates">
+        <Row label="Updates" hint={update?.selfUpdating ? 'New versions download by themselves and install when Lumen restarts.' : 'Lumen tells you when a new version is out.'}>
           <div className="set-inline">
-            <span className="set-value">{update?.available ? `Version ${update.version} is available` : 'Up to date'}</span>
-            <Button onClick={() => (update?.available ? window.lumenDesktop.updates.install() : window.lumenDesktop.updates.check().then(setUpdate))}>{update?.available ? 'Get it' : 'Check now'}</Button>
+            <span className="set-value">{updateText(update)}</span>
+            {update?.status === 'ready' || update?.status === 'available' ? (
+              <Button variant="primary" onClick={() => updates.install()}>
+                {update.status === 'ready' ? 'Restart now' : 'Download'}
+              </Button>
+            ) : (
+              <Button onClick={() => updates?.check()} disabled={update?.status === 'checking' || update?.status === 'downloading'}>
+                Check now
+              </Button>
+            )}
           </div>
         </Row>
       ) : (
         <Row label="Desktop app" hint="Works offline with a folder on your computer.">
-          <a className="ui-button ui-button--secondary" href="https://github.com/skillissu3s/lumen/releases/latest" target="_blank" rel="noopener noreferrer">
+          <a className="ui-button ui-button--secondary" href={DOWNLOADS} target="_blank" rel="noopener noreferrer">
             Download
           </a>
         </Row>
