@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.3 — steadier and smoother
 
 - Idea boards no longer have sticky notes.
 - Pressing on a card no longer shrinks it, so clicking its due date or flag
