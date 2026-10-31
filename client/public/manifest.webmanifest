@@ -1,0 +1,18 @@
+{
+  "name": "Lumen",
+  "short_name": "Lumen",
+  "description": "A personal productivity app — tasks, calendar, docs and chat.",
+  "start_url": "./app.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "icons": [
+    {
+      "src": "./favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
