@@ -49,3 +49,33 @@ bottom of each day.
   COUNT/UNTIL/EXDATE, overridden occurrences).
 - `frontmatter.js`, `merge.js` (diff-match-patch rebase, git blob sha).
 - 23 tests (`npm test`), all passing.
+
+### Step 2 — server foundation (written directly)
+- `server/config.js` (env, secret key, AES-GCM token encryption), `server/db.js`
+  (SQLite: users, sessions, invites, settings, chat read markers), `server/auth.js`
+  (scrypt passwords, cookie sessions, invite-only accounts, login rate limit),
+  `server/access.js` (per-file access rules), `server/files.js` (workspace file
+  store with git-blob shas, optimistic concurrency, change events, folder watch).
+- `shared/seed.js`: the starter files of a new workspace (used by server and GitHub mode).
+- `client/src/styles/tokens.css`: the design tokens (light/dark, 8 accents,
+  10 item colours, density) every UI piece uses.
+- Specs: `docs/API.md` (HTTP + WebSocket contract), `docs/PLUGINS.md` (plugin
+  format, sandbox, SDK, permissions). `plugins/_dev/mock-lumen.js` lets a plugin
+  run in a plain browser tab during development.
+
+### How the rest is being built — delegated to OpenCode
+To keep costs down, implementation is handed to the OpenCode CLI with written
+briefs, and every result is reviewed, tested and committed by Claude:
+
+- **DeepSeek V4 Pro** for heavy pieces: server (01), client core (03a), app
+  shell (03c), tasks (04a), calendar (04b), plugin host (07), desktop app (08).
+- **Big Pickle** (free) for smaller pieces: landing page (02), UI kit (03b),
+  docs (04c), chat (04d), settings (04e), the starter plugins (05, 06), Docker/CI (09).
+- Where it helps, cheap models build **competing variants** and the best one is
+  kept: landing page (2 variants), Focus Forest (2), calendar (DeepSeek vs Big Pickle).
+- Briefs live in `.briefs/` (see `AGENTS.md` for the rules every agent follows).
+
+### Landing page
+- Two variants built. **B kept** (product-first: headline beside a CSS-built app
+  window; features as a two-column list) — it shows the product above the fold.
+  A (editorial, centred) was set aside.

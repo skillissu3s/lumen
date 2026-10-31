@@ -1,0 +1,12 @@
+services:
+  lumen:
+    build: .
+    ports:
+      - '3000:3000'
+    env_file: .env
+    volumes:
+      - lumen-data:/data
+    restart: unless-stopped
+
+volumes:
+  lumen-data:

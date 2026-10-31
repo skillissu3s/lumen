@@ -1,0 +1,11 @@
+node_modules
+dist
+release
+data
+.git
+.github
+.briefs
+.env
+*.log
+.DS_Store
+.vite

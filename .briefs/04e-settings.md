@@ -1,0 +1,19 @@
+# Brief 04e — Settings and admin
+
+Read `AGENTS.md`, `docs/API.md` (admin, me, desktop routes), and the client code you use — real exports only: `client/src/store/{session,workspace,derived,prefs,ui}.js`, `client/src/lib/{api,actions,router}.js`, `client/src/components/ui/`, `client/src/plugins/PluginSettings.jsx` (default export, renders the whole Plugins tab — just mount it). Create ONLY `client/src/views/settings/**` (+ `settings.css`) and replace the stub `client/src/views/SettingsView.jsx` (default export, `{ route }`, routes `/settings` and `/settings/<tab>`).
+
+Layout: a left tab list (vertical, `role="tablist"`, arrow keys) and the panel; under 760 px the tab list becomes a select. Each setting saves immediately (no Save button) except passwords/forms that need one. Short descriptions under each control, in plain words.
+
+Tabs (show only those that apply to the mode):
+- **Account** — server: name (PATCH /api/me), email (read-only), change password (current/new/confirm). GitHub mode: signed in as `@login`, repository `owner/repo@branch`, "Disconnect" (asks to confirm; clears the token from this browser). Desktop: "This computer" — local user name.
+- **Appearance** — Theme (System/Light/Dark segmented), Accent (8 swatches: indigo blue teal green orange rose violet graphite), Density (Compact/Default/Comfortable), Time format (12 h/24 h), Week starts on (Sunday/Monday). Live preview via `applyTheme`.
+- **Calendar** — every `prefs.calendar.*` option (same set as the calendar's Customize popover: default view, day start/end, working hours + highlight, hour height, snap, default duration, colour by, show weekends/week numbers/completed/tasks/free-time gaps, default calendar).
+- **Tasks** — default list for new tasks, show completed, default view (list/board).
+- **Plugins** — `<PluginSettings />`.
+- **Members** (server mode, admin only) — table of users (avatar, name, @handle, email, role select, Disable/Enable, Remove with confirm; you can't change yourself); **Invite** form (email optional, role, note) → shows the invite link once with a Copy button and the text "Send this link to them — it works once and expires in 7 days"; pending invites list with Revoke. Non-admins don't see this tab.
+- **Sync** — server mode (admin): GitHub repository URL, branch, token (password field, "leave empty to keep the current one"), commit author name/email, pull interval, enabled switch, Save (PUT /api/admin/sync — show its error text if the test fails), status line (state, last sync time, last error) and "Sync now". Desktop mode: workspace folder (shows path, "Change…" → `window.lumenDesktop.pickFolder()` then `PUT /api/desktop/workspace`, then reload the page), "Show in folder" (`reveal`), and the same GitHub sync form against `/api/desktop/sync`. GitHub mode: explains the repo is the storage, shows the save state, "Check for changes now" (calls the backend's refresh — add a small `refresh()` to the workspace store if missing).
+- **Workspace** — workspace name (`lumen.json` `name`, admin only in server mode), "Export everything" (downloads a `.zip`? — no zip lib: instead download a single JSON bundle `{ path: text }` of every readable file, named `lumen-export-<date>.json`), and a short "Where is my data?" explanation per mode with the actual location (folder path / repo / server).
+- **Shortcuts** — the list from the shell's shortcut registry (read-only).
+- **About** — version (`info.version` or package version), mode, links (GitHub repo, docs), desktop: "Check for updates" via `window.lumenDesktop.updates`, browser: "Get the desktop app" link to `https://github.com/skillissu3s/lumen/releases/latest`.
+
+Accessible forms (labels, errors announced), keyboard-friendly. Done when `npx vite build` and `npm test` pass; describe how you checked each tab's API calls (run the dev server and exercise the endpoints).
