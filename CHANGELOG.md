@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — boards as obi has them, Notion-style docs
+## 0.3.0 — boards as obi has them, Notion-style docs
 
 - **Boards feel like obi's.** Cards lift and tilt as you drag them and the
   others slide out of the way; lists drag the same way. Each list has a menu

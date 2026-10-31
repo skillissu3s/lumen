@@ -1,6 +1,6 @@
 {
   "name": "lumen",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "A personal productivity app — tasks, calendar, docs and chat — stored as plain text in your own GitHub repository, with plugins for the rest.",
   "type": "module",
