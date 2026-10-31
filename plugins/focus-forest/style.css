@@ -7,6 +7,12 @@ body {
   height: 100%;
 }
 
+/* room for a scrollbar always, so moving between Focus and Forest (one scrolls,
+   the other may not) doesn't shift the page sideways */
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   margin: 0;
   background: var(--bg);

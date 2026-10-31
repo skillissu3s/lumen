@@ -21,6 +21,11 @@
           theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
         }
         document.documentElement.dataset.theme = theme
+        try {
+          document.documentElement.dataset.palette = localStorage.getItem('lumen.palette') || 'default'
+        } catch (e) {
+          /* storage unavailable */
+        }
       })()
     </script>
   </head>

@@ -116,7 +116,8 @@ export function Popover({
     if (!open) return undefined
     const node = popupRef.current
     previousFocus.current = document.activeElement
-    const first = node?.querySelector(FOCUSABLE)
+    // the field marked data-autofocus, else the first thing that takes focus
+    const first = node?.querySelector('[data-autofocus]') || node?.querySelector(FOCUSABLE)
     ;(first || node)?.focus()
     return () => {
       const active = document.activeElement

@@ -1,7 +1,7 @@
 // The left column: workspace, search, the main places, your boards, plugins,
 // and at the bottom whether everything is saved.
 import { useMemo, useRef, useState } from 'react'
-import { CalendarDays, CircleAlert, CloudOff, FileText, Kanban, Lightbulb, MessagesSquare, PanelLeftClose, PanelLeftOpen, Plus, Search, Sun } from 'lucide-react'
+import { CalendarDays, CircleAlert, CloudOff, FileText, Kanban, Lightbulb, MessagesSquare, PanelLeftClose, Plus, Search, Sun } from 'lucide-react'
 import { Avatar, Button, ContextMenu, Dialog, IconBadge, Spinner, Tooltip } from '../components/ui/index.js'
 import { useSession } from '../store/session.js'
 import { useWorkspace } from '../store/workspace.js'
@@ -22,7 +22,6 @@ const countOpen = (list) => list.items.filter((i) => i.kind === 'task' && isOpen
 
 function NavItem({ href, icon: Icon, tint, label, count, active, children, onDrop, ...props }) {
   const [over, setOver] = useState(false)
-  const rail = !!usePrefs().sidebar?.collapsed
   const dropProps = onDrop
     ? {
         onDragOver: (e) => {
@@ -39,7 +38,7 @@ function NavItem({ href, icon: Icon, tint, label, count, active, children, onDro
       }
     : {}
   return (
-    <a href={href} className={`nav-item${active ? ' is-active' : ''}${over ? ' is-drop' : ''}`} style={tint ? { '--tint': `var(--c-${tint})` } : undefined} aria-current={active ? 'page' : undefined} title={rail ? label : undefined} {...dropProps} {...props}>
+    <a href={href} className={`nav-item${active ? ' is-active' : ''}${over ? ' is-drop' : ''}`} style={tint ? { '--tint': `var(--c-${tint})` } : undefined} aria-current={active ? 'page' : undefined} {...dropProps} {...props}>
       <span className="nav-icon">{Icon ? <Icon size={16} strokeWidth={1.9} /> : children}</span>
       <span className="nav-label">{label}</span>
       {count ? <span className="nav-count">{count}</span> : null}
@@ -47,7 +46,7 @@ function NavItem({ href, icon: Icon, tint, label, count, active, children, onDro
   )
 }
 
-function SyncStatus() {
+export function SyncStatus() {
   const saving = useWorkspace((s) => s.saving)
   const mode = useSession((s) => s.mode)
   const github = useSession((s) => s.github)
@@ -69,14 +68,13 @@ function SyncStatus() {
   )
 }
 
-export function Sidebar({ route, onNavigate }) {
+export function Sidebar({ route, onNavigate, closed }) {
   const user = useSession((s) => s.user)
   const mode = useSession((s) => s.mode)
   const config = useConfig()
   const lists = useLists()
   const plugins = usePlugins()
   const prefs = usePrefs()
-  const collapsed = !!prefs.sidebar?.collapsed
   const openPalette = useUI((s) => s.openPalette)
   const pluginBadges = useUI((s) => s.pluginBadges)
   const pluginStatus = useUI((s) => s.pluginStatus)
@@ -100,17 +98,17 @@ export function Sidebar({ route, onNavigate }) {
   ]
 
   return (
-    <nav className="sidebar" aria-label="Main">
+    <nav className={`sidebar${closed ? ' is-closed' : ''}`} aria-label="Main" inert={closed || undefined}>
       <div className="sidebar-top">
         <div className="sidebar-head">
-        <AccountMenu workspace={config.name} />
-        <Tooltip label={collapsed ? 'Expand the sidebar  Ctrl+\\' : 'Collapse the sidebar  Ctrl+\\'} side="right">
-          <button type="button" className="sidebar-collapse" aria-label={collapsed ? 'Expand the sidebar' : 'Collapse the sidebar'} onClick={() => setPrefs({ sidebar: { collapsed: !collapsed } })}>
-            {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
-          </button>
-        </Tooltip>
+          <AccountMenu workspace={config.name} />
+          <Tooltip label="Collapse the sidebar  Ctrl+\" side="right">
+            <button type="button" className="sidebar-collapse" aria-label="Collapse the sidebar" onClick={() => setPrefs({ sidebar: { collapsed: true } })}>
+              <PanelLeftClose size={16} />
+            </button>
+          </Tooltip>
         </div>
-        <button type="button" className="search-button" onClick={openPalette} title={collapsed ? 'Search' : undefined}>
+        <button type="button" className="search-button" onClick={openPalette}>
           <Search size={14} />
           <span>Search</span>
           <kbd>{/Mac/.test(navigator.platform) ? '⌘K' : 'Ctrl K'}</kbd>
@@ -141,7 +139,7 @@ export function Sidebar({ route, onNavigate }) {
               </NavItem>
             </ContextMenu>
           ))}
-          <button type="button" className="nav-hint" title={collapsed ? 'New board' : undefined} onClick={() => setEditor({ anchor: addRef.current })}>
+          <button type="button" className="nav-hint" onClick={() => setEditor({ anchor: addRef.current })}>
             <Plus size={14} /> New board
           </button>
         </div>
@@ -170,7 +168,7 @@ export function Sidebar({ route, onNavigate }) {
           </div>
         )}
         <div className="sidebar-footer">
-          <a href="#/settings" className="me" aria-label="Settings" title={collapsed ? 'Settings' : undefined}>
+          <a href="#/settings" className="me" aria-label="Settings">
             <Avatar name={user?.name || user?.handle} size={22} />
             <span className="me-name">{user?.name || user?.handle}</span>
           </a>

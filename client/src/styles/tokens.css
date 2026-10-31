@@ -128,6 +128,202 @@
   --c-pink: #e35fb1;   --c-pink-bg: #3a1530;   --c-pink-fg: #f4a1d4;
 }
 
+/* Themes (Settings → Appearance): each recolours the neutrals, in light and in
+   dark, and leaves the accent and item colours alone. A preview tile carries
+   its theme's variables itself ([data-palette-preview]), so it shows that
+   theme whatever the page is using. Lumen's own neutrals are above; the
+   "default" preview repeats them so a tile can show them under another theme. */
+[data-palette-preview='default'] {
+  --bg: #ffffff;
+  --bg-subtle: #f9f9f8;
+  --bg-muted: #f3f3f1;
+  --bg-hover: rgba(28, 28, 26, 0.045);
+  --bg-active: rgba(28, 28, 26, 0.075);
+  --surface: #ffffff;
+  --border: #ebebe8;
+  --border-strong: #dcdcd8;
+  --text: #1c1c1a;
+  --text-muted: #6b6a65;
+  --text-faint: #a3a29d;
+  --ink: #1c1c1a;
+  --ink-text: #ffffff;
+}
+:root[data-theme='dark'] [data-palette-preview='default'] {
+  --bg: #161615;
+  --bg-subtle: #1b1b1a;
+  --bg-muted: #222221;
+  --bg-hover: rgba(255, 255, 250, 0.05);
+  --bg-active: rgba(255, 255, 250, 0.085);
+  --surface: #1e1e1d;
+  --border: #2a2a28;
+  --border-strong: #383836;
+  --text: #ecebe8;
+  --text-muted: #9c9b96;
+  --text-faint: #686763;
+  --ink: #ecebe8;
+  --ink-text: #161615;
+}
+:root[data-palette='paper'],
+[data-palette-preview='paper'] {
+  --bg: #fdfbf7;
+  --bg-subtle: #f7f3ea;
+  --bg-muted: #efe9dc;
+  --bg-hover: rgba(60, 45, 20, 0.05);
+  --bg-active: rgba(60, 45, 20, 0.085);
+  --surface: #fffdf9;
+  --border: #e9e2d3;
+  --border-strong: #dcd3c0;
+  --text: #2b2620;
+  --text-muted: #75695a;
+  --text-faint: #ab9f8e;
+  --ink: #2b2620;
+  --ink-text: #fdfbf7;
+}
+:root[data-theme='dark'][data-palette='paper'],
+:root[data-theme='dark'] [data-palette-preview='paper'] {
+  --bg: #1d1a16;
+  --bg-subtle: #221e19;
+  --bg-muted: #2a251f;
+  --bg-hover: rgba(255, 240, 215, 0.05);
+  --bg-active: rgba(255, 240, 215, 0.085);
+  --surface: #25211b;
+  --border: #332d25;
+  --border-strong: #433b31;
+  --text: #ede4d6;
+  --text-muted: #a99c89;
+  --text-faint: #6f6557;
+  --ink: #ede4d6;
+  --ink-text: #1d1a16;
+}
+:root[data-palette='slate'],
+[data-palette-preview='slate'] {
+  --bg: #ffffff;
+  --bg-subtle: #f6f8fa;
+  --bg-muted: #eef1f5;
+  --bg-hover: rgba(15, 30, 60, 0.045);
+  --bg-active: rgba(15, 30, 60, 0.08);
+  --surface: #ffffff;
+  --border: #e3e7ee;
+  --border-strong: #d0d6e0;
+  --text: #1a2230;
+  --text-muted: #5d6879;
+  --text-faint: #98a2b3;
+  --ink: #1a2230;
+  --ink-text: #ffffff;
+}
+:root[data-theme='dark'][data-palette='slate'],
+:root[data-theme='dark'] [data-palette-preview='slate'] {
+  --bg: #0f141b;
+  --bg-subtle: #131a23;
+  --bg-muted: #19212c;
+  --bg-hover: rgba(200, 220, 255, 0.05);
+  --bg-active: rgba(200, 220, 255, 0.085);
+  --surface: #161d27;
+  --border: #232d3a;
+  --border-strong: #2f3b4b;
+  --text: #e3e9f2;
+  --text-muted: #94a0b2;
+  --text-faint: #5d6a7c;
+  --ink: #e3e9f2;
+  --ink-text: #0f141b;
+}
+:root[data-palette='sage'],
+[data-palette-preview='sage'] {
+  --bg: #fcfdfb;
+  --bg-subtle: #f4f7f2;
+  --bg-muted: #eaefe6;
+  --bg-hover: rgba(30, 50, 25, 0.05);
+  --bg-active: rgba(30, 50, 25, 0.085);
+  --surface: #ffffff;
+  --border: #e2e8dd;
+  --border-strong: #d0d9c9;
+  --text: #1e261c;
+  --text-muted: #627060;
+  --text-faint: #9daa99;
+  --ink: #1e261c;
+  --ink-text: #fcfdfb;
+}
+:root[data-theme='dark'][data-palette='sage'],
+:root[data-theme='dark'] [data-palette-preview='sage'] {
+  --bg: #131813;
+  --bg-subtle: #171d17;
+  --bg-muted: #1d241d;
+  --bg-hover: rgba(220, 255, 220, 0.05);
+  --bg-active: rgba(220, 255, 220, 0.085);
+  --surface: #1a201a;
+  --border: #273027;
+  --border-strong: #333e33;
+  --text: #e4ebe2;
+  --text-muted: #98a596;
+  --text-faint: #627061;
+  --ink: #e4ebe2;
+  --ink-text: #131813;
+}
+:root[data-palette='dusk'],
+[data-palette-preview='dusk'] {
+  --bg: #fdfcff;
+  --bg-subtle: #f7f5fc;
+  --bg-muted: #efecf8;
+  --bg-hover: rgba(40, 25, 80, 0.045);
+  --bg-active: rgba(40, 25, 80, 0.08);
+  --surface: #ffffff;
+  --border: #e7e3f3;
+  --border-strong: #d7d1ea;
+  --text: #211d2e;
+  --text-muted: #6a6480;
+  --text-faint: #a39db8;
+  --ink: #211d2e;
+  --ink-text: #fdfcff;
+}
+:root[data-theme='dark'][data-palette='dusk'],
+:root[data-theme='dark'] [data-palette-preview='dusk'] {
+  --bg: #15131c;
+  --bg-subtle: #1a1722;
+  --bg-muted: #211d2b;
+  --bg-hover: rgba(225, 215, 255, 0.05);
+  --bg-active: rgba(225, 215, 255, 0.085);
+  --surface: #1c1925;
+  --border: #2b2638;
+  --border-strong: #383247;
+  --text: #e9e5f4;
+  --text-muted: #a19bb5;
+  --text-faint: #686279;
+  --ink: #e9e5f4;
+  --ink-text: #15131c;
+}
+:root[data-palette='contrast'],
+[data-palette-preview='contrast'] {
+  --bg: #ffffff;
+  --bg-subtle: #ffffff;
+  --bg-muted: #f0f0f0;
+  --bg-hover: rgba(0, 0, 0, 0.06);
+  --bg-active: rgba(0, 0, 0, 0.1);
+  --surface: #ffffff;
+  --border: #bdbdbd;
+  --border-strong: #8f8f8f;
+  --text: #000000;
+  --text-muted: #2e2e2e;
+  --text-faint: #5e5e5e;
+  --ink: #000000;
+  --ink-text: #ffffff;
+}
+:root[data-theme='dark'][data-palette='contrast'],
+:root[data-theme='dark'] [data-palette-preview='contrast'] {
+  --bg: #000000;
+  --bg-subtle: #0a0a0a;
+  --bg-muted: #161616;
+  --bg-hover: rgba(255, 255, 255, 0.08);
+  --bg-active: rgba(255, 255, 255, 0.12);
+  --surface: #0d0d0d;
+  --border: #424242;
+  --border-strong: #666666;
+  --text: #ffffff;
+  --text-muted: #d4d4d4;
+  --text-faint: #9e9e9e;
+  --ink: #ffffff;
+  --ink-text: #000000;
+}
+
 /* accents — the person picks one in Settings → Appearance */
 :root[data-accent='blue'] { --accent: #0b6bcb; --accent-hover: #0a5cad; --accent-soft: #e8f2fd; --accent-fg: #0a5cad; }
 :root[data-accent='teal'] { --accent: #0d7f72; --accent-hover: #0a6a5f; --accent-soft: #e3f5f2; --accent-fg: #0a6a5f; }

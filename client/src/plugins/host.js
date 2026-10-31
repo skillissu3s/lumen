@@ -384,7 +384,7 @@ function broadcast(event, data) {
 
 function bindGlobalEvents() {
   themeObserver = new MutationObserver(() => broadcast('theme', currentTheme()))
-  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'data-accent', 'data-density'] })
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'data-palette', 'data-accent', 'data-density'] })
   window.addEventListener('focus', () => broadcast('app-focus', { focused: true }))
   window.addEventListener('blur', () => broadcast('app-focus', { focused: false }))
   window.addEventListener('scroll', () => {

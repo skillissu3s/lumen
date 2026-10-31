@@ -1,16 +1,18 @@
-// An idea board: cards of text and links on an open surface, grouped in frames
-// and joined by arrows. Drag empty space to select, hold Space (or the middle
-// button) to pan, scroll to move, Ctrl + scroll to zoom. Saved as JSON Canvas a
-// moment after each change; Ctrl+Z steps back.
+// An idea board: cards of text and links, shapes, drawings and cards for your
+// docs and boards, on an open surface, grouped in frames and joined by arrows.
+// Drag empty space to select, hold Space (or the middle button) to pan, scroll
+// to move, Ctrl + scroll to zoom. Saved as JSON Canvas a moment after each
+// change; Ctrl+Z steps back.
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceAround, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceAround, BoxSelect, CircleSlash, Copy, ExternalLink, Globe, Image as ImageIcon, LayoutGrid, Link2, ListPlus, Maximize, Minus, MousePointer2, Pencil, Plus, Redo2, Search, StickyNote, Trash2, Type, Undo2, X } from 'lucide-react'
+import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceAround, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceAround, BoxSelect, Circle, CircleSlash, Columns3, Copy, Diamond, ExternalLink, FileText, Globe, Grid2x2, Image as ImageIcon, Kanban, LayoutGrid, LayoutTemplate, Link2, ListPlus, ListTodo, Map as MapIcon, Maximize, Minus, MousePointer2, Network, Pencil, PenLine, Plus, Redo2, Repeat, Scale, Search, Shapes, Square, StickyNote, Trash2, Type, Undo2, Workflow, X } from 'lucide-react'
 import { MenuPopup, Tooltip } from '../../components/ui/index.js'
 import { useWorkspace } from '../../store/workspace.js'
 import { useUI } from '../../store/ui.js'
-import { usePrefs } from '../../store/prefs.js'
-import { useConfig, useLists, inboxPath } from '../../store/hooks.js'
+import { setPrefs, usePrefs } from '../../store/prefs.js'
+import { useConfig, useDocs, useLists, inboxPath } from '../../store/hooks.js'
 import { addCard } from '../../lib/boardActions.js'
-import { newId } from '../../../../shared/items.js'
+import { isOpen, newId } from '../../../../shared/items.js'
+import { navigate } from '../../lib/router.js'
 import { anchor, bounds, colorCode, colorName, edgeMid, edgePath, facingSide, insideGroup, overlaps, parseCanvas, serializeCanvas } from '../../../../shared/canvas.js'
 import { renderMarkdown, toggleTaskInBody } from '../docs/markdown.js'
 
@@ -21,6 +23,59 @@ const clampZoom = (z) => Math.max(0.2, Math.min(2.5, z))
 const snap = (v, on) => (on ? Math.round(v / GRID) * GRID : Math.round(v))
 const URL_RE = /^https?:\/\/\S+$/i
 const IMAGE_RE = /\.(png|jpe?g|gif|webp|avif|svg)(\?\S*)?$/i
+const SHAPES = {
+  rect: { label: 'Rectangle', icon: Square, width: 200, height: 110 },
+  ellipse: { label: 'Ellipse', icon: Circle, width: 180, height: 120 },
+  diamond: { label: 'Diamond', icon: Diamond, width: 180, height: 140 },
+}
+const TEMPLATES = [
+  { id: 'mind', label: 'Mind map', icon: Network },
+  { id: 'flow', label: 'Flowchart', icon: Workflow },
+  { id: 'pros', label: 'Pros and cons', icon: Scale },
+  { id: 'kanban', label: 'To do, doing, done', icon: Columns3 },
+  { id: 'swot', label: 'Strengths and weaknesses', icon: Grid2x2 },
+  { id: 'retro', label: 'Retrospective', icon: Repeat },
+]
+
+// a template's cards, groups and arrows, laid out from (0, 0)
+function buildTemplate(kind) {
+  const card = (x, y, text = '', extra = {}) => ({ id: newId(16), type: 'text', text, x, y, width: 220, height: 100, ...extra })
+  const group = (x, y, width, height, label, color) => ({ id: newId(16), type: 'group', label, x, y, width, height, ...(color ? { color: colorCode(color) } : {}) })
+  const arrow = (a, b, fromSide, toSide) => ({ id: newId(16), fromNode: a.id, fromSide, toNode: b.id, toSide, toEnd: 'arrow' })
+  const columns = (names, w, h) => {
+    const groups = names.map(([label, color], i) => group(i * (w + 40), 0, w, h, label, color))
+    return { nodes: [...groups, card(36, 64, '', { width: w - 72 })], edges: [] }
+  }
+  if (kind === 'mind') {
+    const mid = card(300, 170, 'Main idea', { shape: 'ellipse', width: 220, height: 110 })
+    const around = [card(0, 0, 'A thought'), card(600, 0, 'A thought'), card(0, 360, 'A thought'), card(600, 360, 'A thought')]
+    return { nodes: [mid, ...around], edges: around.map((n, i) => arrow(mid, n, i % 2 ? 'right' : 'left', i % 2 ? 'left' : 'right')) }
+  }
+  if (kind === 'flow') {
+    const steps = [card(0, 30, 'Start', { shape: 'ellipse', width: 160, height: 80 }), card(220, 20, 'A step', { shape: 'rect', width: 180, height: 100 }), card(460, 0, 'A question?', { shape: 'diamond', width: 180, height: 140 }), card(700, 30, 'End', { shape: 'ellipse', width: 160, height: 80 })]
+    return { nodes: steps, edges: steps.slice(1).map((n, i) => arrow(steps[i], n, 'right', 'left')) }
+  }
+  if (kind === 'pros') return columns([['Pros', 'green'], ['Cons', 'red']], 320, 380)
+  if (kind === 'kanban') return columns([['To do'], ['Doing', 'amber'], ['Done', 'green']], 300, 420)
+  if (kind === 'retro') return columns([['Went well', 'green'], ['To improve', 'amber'], ['Actions', 'violet']], 300, 400)
+  // swot
+  const quads = [['Strengths', 'green'], ['Weaknesses', 'red'], ['Opportunities', 'teal'], ['Threats', 'orange']]
+  return { nodes: quads.map(([label, color], i) => group((i % 2) * 380, Math.floor(i / 2) * 300, 340, 260, label, color)), edges: [] }
+}
+
+// a line through the pointer's points, smoothed through their midpoints
+function inkPath(pts) {
+  if (pts.length < 2) return ''
+  let d = `M${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`
+  for (let i = 1; i < pts.length - 1; i++) {
+    const mx = (pts[i].x + pts[i + 1].x) / 2
+    const my = (pts[i].y + pts[i + 1].y) / 2
+    d += ` Q${pts[i].x.toFixed(1)} ${pts[i].y.toFixed(1)} ${mx.toFixed(1)} ${my.toFixed(1)}`
+  }
+  const last = pts[pts.length - 1]
+  return `${d} L${last.x.toFixed(1)} ${last.y.toFixed(1)}`
+}
+
 const host = (url) => {
   try {
     return new URL(url).hostname.replace(/^www\./, '')
@@ -29,7 +84,7 @@ const host = (url) => {
   }
 }
 
-function NodeView({ node, selected, editing, fresh, found, onPointerDown, onDoubleClick, onContextMenu, onResize, onConnect, onEditDone, onTick }) {
+function NodeView({ node, page, selected, editing, fresh, found, onPointerDown, onDoubleClick, onContextMenu, onResize, onConnect, onEditDone, onTick }) {
   const color = colorName(node.color)
   const style = { left: node.x, top: node.y, width: node.width, height: node.height }
   if (color) Object.assign(style, { '--nc': `var(--c-${color})`, '--nc-bg': `var(--c-${color}-bg)` })
@@ -58,6 +113,31 @@ function NodeView({ node, selected, editing, fresh, found, onPointerDown, onDoub
         ) : (
           <span className="idea-group-label">{node.label || 'Group'}</span>
         )}
+        {selected && <span className="idea-resize" onPointerDown={onResize} aria-hidden="true" />}
+      </div>
+    )
+  if (node.ink)
+    return (
+      <div className={`idea idea-ink${selected ? ' is-selected' : ''}${color ? ' has-color' : ''}${fresh ? ' is-fresh' : ''}`} style={style} tabIndex={-1} role="img" aria-label="Drawing" {...common}>
+        <svg viewBox={`0 0 ${node.inkW || node.width} ${node.inkH || node.height}`} preserveAspectRatio="none" aria-hidden="true">
+          <path d={node.ink} />
+        </svg>
+        {selected && <span className="idea-resize" onPointerDown={onResize} aria-hidden="true" />}
+      </div>
+    )
+  if (node.type === 'file')
+    return (
+      <div className={`idea idea-link idea-page${selected ? ' is-selected' : ''}${color ? ' has-color' : ''}${fresh ? ' is-fresh' : ''}${page?.missing ? ' is-missing' : ''}`} style={style} tabIndex={-1} role="group" aria-label={`${page?.kind === 'board' ? 'Board' : 'Doc'}: ${page?.title || node.file}`} {...common}>
+        <div className="idea-link-body">
+          <span className="idea-link-icon" style={page?.tint ? { color: `var(--c-${page.tint})` } : undefined}>
+            {page?.kind === 'board' ? <Kanban size={16} /> : <FileText size={16} />}
+          </span>
+          <span className="idea-link-text">
+            <b>{page?.title || node.file}</b>
+            <small>{page?.sub}</small>
+          </span>
+        </div>
+        {handles}
         {selected && <span className="idea-resize" onPointerDown={onResize} aria-hidden="true" />}
       </div>
     )
@@ -101,7 +181,12 @@ function NodeView({ node, selected, editing, fresh, found, onPointerDown, onDoub
       </div>
     )
   return (
-    <div className={`idea${node.style ? ` is-${node.style}` : ''}${selected ? ' is-selected' : ''}${color ? ' has-color' : ''}${editing ? ' is-editing' : ''}${fresh ? ' is-fresh' : ''}${found ? ' is-found' : ''}`} style={style} tabIndex={-1} role="group" aria-label={(node.text || 'Empty idea').slice(0, 80)} {...common}>
+    <div className={`idea${node.style ? ` is-${node.style}` : ''}${node.shape ? ` is-shape shape-${node.shape}` : ''}${selected ? ' is-selected' : ''}${color ? ' has-color' : ''}${editing ? ' is-editing' : ''}${fresh ? ' is-fresh' : ''}${found ? ' is-found' : ''}`} style={style} tabIndex={-1} role="group" aria-label={(node.text || 'Empty idea').slice(0, 80)} {...common}>
+      {node.shape === 'diamond' && (
+        <svg className="idea-diamond" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          <polygon points="50,1 99,50 50,99 1,50" />
+        </svg>
+      )}
       {editing ? (
         <textarea
           className="idea-edit"
@@ -124,6 +209,8 @@ function NodeView({ node, selected, editing, fresh, found, onPointerDown, onDoub
           }}
           dangerouslySetInnerHTML={{ __html: renderMarkdown(node.text) }}
         />
+      ) : node.shape ? (
+        <div className="idea-body" />
       ) : (
         <div className="idea-body idea-placeholder">{node.style === 'label' ? 'Text' : 'Double-click to write'}</div>
       )}
@@ -183,6 +270,10 @@ export function IdeaCanvas({ path }) {
   const [fresh, setFresh] = useState(null) // a card just added (it pops in)
   const [finding, setFinding] = useState(null) // { q, at } while looking for words on the board
   const [size, setSize] = useState({ w: 0, h: 0 }) // the surface, for the minimap
+  const [pen, setPen] = useState(null) // { color } while drawing
+  const [ink, setInk] = useState(null) // the line being drawn, in world points
+  const docs = useDocs()
+  const showMap = !!prefs.ideas?.minimap
   const surface = useRef(null)
   const drag = useRef(null)
   const saved = useRef(file?.text)
@@ -300,6 +391,49 @@ export function IdeaCanvas({ path }) {
     const c = at(p)
     addNode({ id: newId(16), type: 'link', url, x: snap(c.x - 140, true), y: snap(c.y - 36, true), width: 280, height: 72 }, !url)
   }
+  const newShape = (p, shape = 'rect') => {
+    const c = at(p)
+    const { width, height } = SHAPES[shape]
+    addNode({ id: newId(16), type: 'text', shape, text: '', x: snap(c.x - width / 2, true), y: snap(c.y - height / 2, true), width, height })
+  }
+  const newTodo = (p) => {
+    const c = at(p)
+    // shown ready to tick rather than as the words behind it; double-click to change them
+    addNode({ id: newId(16), type: 'text', text: '**To do**\n\n- [ ] Something to do\n- [ ] Something else', x: snap(c.x - 130, true), y: snap(c.y - 70, true), width: 260, height: 140 }, false)
+  }
+  // a card for one of your docs or boards (JSON Canvas's "file" card)
+  const newPage = (p, file) => {
+    const c = at(p)
+    addNode({ id: newId(16), type: 'file', file, x: snap(c.x - 130, true), y: snap(c.y - 36, true), width: 260, height: 72 }, false)
+  }
+  const pageOf = (n) => {
+    const f = n.file || ''
+    const doc = docs.find((d) => d.path === f)
+    if (doc) return { kind: 'doc', title: doc.title, sub: doc.folder ? `Doc in ${doc.folder}` : 'Doc', tint: doc.color, href: `/${doc.path}` }
+    const list = lists.find((l) => l.path === f)
+    if (list) {
+      const open = list.items.filter((i) => i.kind === 'task' && isOpen(i.status)).length
+      return { kind: 'board', title: list.name, sub: `Board · ${open} open`, tint: list.color, href: `/board/${list.id}` }
+    }
+    return { kind: f.startsWith('lists/') ? 'board' : 'doc', title: f.split('/').pop().replace(/\.md$/, ''), sub: 'Not found', missing: true }
+  }
+  const openPage = (n) => {
+    const page = pageOf(n)
+    if (!page.missing) navigate(page.href)
+  }
+  const insertTemplate = (p, kind) => {
+    const t = buildTemplate(kind)
+    const b = bounds(t.nodes)
+    const c = at(p)
+    const dx = snap(c.x - b.width / 2 - b.x, true)
+    const dy = snap(c.y - b.height / 2 - b.y, true)
+    const nodes = t.nodes.map((n) => ({ ...n, x: n.x + dx, y: n.y + dy }))
+    const m = modelRef.current
+    commit({ ...m, nodes: [...nodes.filter((n) => n.type === 'group'), ...m.nodes, ...nodes.filter((n) => n.type !== 'group')], edges: [...m.edges, ...t.edges] })
+    setSelected(new Set(nodes.map((n) => n.id)))
+    fit(nodes)
+  }
+  const editable = (n) => n && !n.ink && n.type !== 'file'
   const newGroup = (p) => {
     const ids = [...selected].filter((id) => model.nodes.find((n) => n.id === id)?.type !== 'group')
     let node
@@ -394,6 +528,26 @@ export function IdeaCanvas({ path }) {
         { label: 'Tidy into a grid', icon: LayoutGrid, onSelect: () => arrange('tidy') },
       ],
     })
+  const shapeMenu = (e, p) =>
+    setMenu({
+      anchor: p ? { x: e.clientX, y: e.clientY } : { current: e.currentTarget },
+      items: Object.entries(SHAPES).map(([id, sh]) => ({ label: sh.label, icon: sh.icon, shortcut: id === 'rect' ? 'S' : undefined, onSelect: () => newShape(p, id) })),
+    })
+  const pageMenu = (e, p) =>
+    setMenu({
+      anchor: p ? { x: e.clientX, y: e.clientY } : { current: e.currentTarget },
+      items: [
+        { section: 'Docs' },
+        ...(docs.length ? docs.slice(0, 40).map((d) => ({ label: d.title, icon: FileText, onSelect: () => newPage(p, d.path) })) : [{ label: 'No docs yet', disabled: true }]),
+        { section: 'Boards' },
+        ...(lists.length ? lists.map((l) => ({ label: l.name, icon: Kanban, onSelect: () => newPage(p, l.path) })) : [{ label: 'No boards yet', disabled: true }]),
+      ],
+    })
+  const templateMenu = (e, p) =>
+    setMenu({
+      anchor: p ? { x: e.clientX, y: e.clientY } : { current: e.currentTarget },
+      items: [{ section: 'Start from' }, ...TEMPLATES.map((t) => ({ label: t.label, icon: t.icon, onSelect: () => insertTemplate(p, t.id) }))],
+    })
   const tick = (n, index) => commit({ ...model, nodes: model.nodes.map((x) => (x.id === n.id ? { ...x, text: toggleTaskInBody(x.text || '', index) } : x)) })
   const setEdgeEnds = (id, ends) => commit({ ...model, edges: model.edges.map((e) => (e.id === id ? { ...e, ...ends } : e)) })
   const makeTask = (node) => {
@@ -413,7 +567,16 @@ export function IdeaCanvas({ path }) {
     setPanning(true)
     surface.current.setPointerCapture(e.pointerId)
   }
+  const startInk = (e) => {
+    e.preventDefault()
+    const p = toWorld(e.clientX, e.clientY)
+    drag.current = { kind: 'ink', pts: [p] }
+    setInk([p])
+    setSelected(new Set())
+    surface.current.setPointerCapture(e.pointerId)
+  }
   const onSurfaceDown = (e) => {
+    if (pen && e.button === 0 && !spaceDown) return startInk(e)
     if (e.target !== surface.current && !e.target.classList.contains('idea-world')) return
     setMenu(null)
     if (e.button === 1 || (e.button === 0 && (spaceDown || e.pointerType === 'touch'))) return startPan(e)
@@ -426,6 +589,7 @@ export function IdeaCanvas({ path }) {
     surface.current.setPointerCapture(e.pointerId)
   }
   const onNodeDown = (node) => (e) => {
+    if (pen && e.button === 0 && !spaceDown) return // (the surface draws, over cards too)
     if (e.button === 1 || (e.button === 0 && spaceDown)) {
       e.stopPropagation()
       return startPan(e)
@@ -469,6 +633,12 @@ export function IdeaCanvas({ path }) {
     if (d.kind === 'pan') return setView((v) => ({ ...v, x: d.vx + e.clientX - d.sx, y: d.vy + e.clientY - d.sy }))
     const p = toWorld(e.clientX, e.clientY)
     if (d.kind === 'link') return setLinking((l) => ({ ...l, x: p.x, y: p.y }))
+    if (d.kind === 'ink') {
+      const last = d.pts[d.pts.length - 1]
+      if (Math.hypot(p.x - last.x, p.y - last.y) * view.z < 2) return
+      d.pts.push(p)
+      return setInk([...d.pts])
+    }
     if (d.kind === 'box') {
       const r = { x: Math.min(d.x0, p.x), y: Math.min(d.y0, p.y), width: Math.abs(p.x - d.x0), height: Math.abs(p.y - d.y0) }
       setBox(r)
@@ -479,8 +649,10 @@ export function IdeaCanvas({ path }) {
     }
     const grid = !e.altKey
     if (d.kind === 'resize') {
-      const w = Math.max(120, snap(d.w + p.x - d.start.x, grid))
-      const h = Math.max(60, snap(d.h + p.y - d.start.y, grid))
+      // (a drawing may be as small as a tick; a card stays big enough to read)
+      const small = modelRef.current.nodes.find((n) => n.id === d.id)?.ink
+      const w = Math.max(small ? 16 : 120, snap(d.w + p.x - d.start.x, grid))
+      const h = Math.max(small ? 16 : 60, snap(d.h + p.y - d.start.y, grid))
       return setModel((m) => ({ ...m, nodes: m.nodes.map((n) => (n.id === d.id ? { ...n, width: w, height: h } : n)) }))
     }
     // move: the card under the pointer lands on the grid, the rest keep their places relative to it
@@ -496,6 +668,19 @@ export function IdeaCanvas({ path }) {
     setPanning(false)
     if (!d) return
     if (d.kind === 'box') return setBox(null)
+    if (d.kind === 'ink') {
+      setInk(null)
+      if (d.pts.length < 2) return
+      // one stroke, one drawing: a box around it, with the line inside it
+      const pad = 6
+      const x0 = Math.min(...d.pts.map((q) => q.x)) - pad
+      const y0 = Math.min(...d.pts.map((q) => q.y)) - pad
+      const w = Math.max(...d.pts.map((q) => q.x)) + pad - x0
+      const h = Math.max(...d.pts.map((q) => q.y)) + pad - y0
+      const node = { id: newId(16), type: 'text', text: '', ink: inkPath(d.pts.map((q) => ({ x: q.x - x0, y: q.y - y0 }))), inkW: Math.round(w), inkH: Math.round(h), x: x0, y: y0, width: w, height: h, ...(pen?.color ? { color: colorCode(pen.color) } : {}) }
+      commit({ ...modelRef.current, nodes: [...modelRef.current.nodes, node] })
+      return
+    }
     if (d.kind === 'link') {
       setLinking(null)
       const target = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-node]')?.dataset.node
@@ -613,8 +798,11 @@ export function IdeaCanvas({ path }) {
       newGroup()
     } else if (e.key === 'Enter' && ids.length === 1) {
       e.preventDefault()
-      setEditing(ids[0])
+      const n = model.nodes.find((x) => x.id === ids[0])
+      if (n?.type === 'file') openPage(n)
+      else if (editable(n)) setEditing(ids[0])
     } else if (e.key === 'Escape') {
+      setPen(null)
       setSelected(new Set())
       setEdge(null)
       setMenu(null)
@@ -627,6 +815,15 @@ export function IdeaCanvas({ path }) {
     } else if (!mod && key === 't') {
       e.preventDefault()
       newLabel(center())
+    } else if (!mod && key === 's') {
+      e.preventDefault()
+      newShape(center())
+    } else if (!mod && key === 'p') {
+      e.preventDefault()
+      setPen(pen ? null : { color: null })
+    } else if (!mod && key === 'v') setPen(null)
+    else if (!mod && key === 'm') {
+      setPrefs({ ideas: { minimap: !showMap } })
     } else if (mod && key === 'f') {
       e.preventDefault()
       setFinding({ q: '', at: 0 })
@@ -673,9 +870,10 @@ export function IdeaCanvas({ path }) {
     setMenu({
       anchor: { x: e.clientX, y: e.clientY },
       items: [
-        { label: node.type === 'group' ? 'Rename' : node.type === 'link' ? 'Edit link' : 'Edit', icon: Pencil, shortcut: 'Enter', onSelect: () => setEditing(node.id) },
+        ...(editable(node) ? [{ label: node.type === 'group' ? 'Rename' : node.type === 'link' ? 'Edit link' : 'Edit', icon: Pencil, shortcut: 'Enter', onSelect: () => setEditing(node.id) }] : []),
+        ...(node.type === 'file' ? [{ label: 'Open', icon: ExternalLink, shortcut: 'Enter', onSelect: () => openPage(node) }] : []),
         ...(node.type === 'link' && node.url ? [{ label: 'Open link', icon: ExternalLink, onSelect: () => window.open(node.url, '_blank', 'noopener') }] : []),
-        ...(node.type !== 'group' ? [{ label: 'Make it a task', icon: ListPlus, onSelect: () => makeTask(node) }] : []),
+        ...(node.type !== 'group' && editable(node) ? [{ label: 'Make it a task', icon: ListPlus, onSelect: () => makeTask(node) }] : []),
         { section: 'Colour' },
         ...COLORS.map((c) => ({ label: c[0].toUpperCase() + c.slice(1), checked: colorName(node.color) === c, onSelect: () => setColor(ids, c) })),
         { label: 'No colour', checked: !node.color, onSelect: () => setColor(ids, null) },
@@ -717,9 +915,13 @@ export function IdeaCanvas({ path }) {
       items: [
         { label: 'Add an idea here', icon: StickyNote, shortcut: 'N', onSelect: () => newIdea(p) },
         { label: 'Add text here', icon: Type, shortcut: 'T', onSelect: () => newLabel(p) },
+        { label: 'Add a shape here', icon: Shapes, shortcut: 'S', onSelect: () => newShape(p) },
+        { label: 'Add a to-do list here', icon: ListTodo, onSelect: () => newTodo(p) },
         { label: 'Add a link here', icon: Link2, shortcut: 'L', onSelect: () => newLink(p) },
         { label: 'Add an image here', icon: ImageIcon, onSelect: () => newImage(p) },
+        { label: 'Add a doc or board here…', icon: FileText, onSelect: () => setTimeout(() => pageMenu(e, p)) },
         { label: 'Add a group here', icon: BoxSelect, onSelect: () => newGroup(p) },
+        { label: 'Start from a template…', icon: LayoutTemplate, onSelect: () => setTimeout(() => templateMenu(e, p)) },
         'separator',
         { label: 'Select everything', shortcut: 'Ctrl A', onSelect: () => setSelected(new Set(model.nodes.map((n) => n.id))) },
         { label: 'Fit everything in view', icon: Maximize, shortcut: 'F', onSelect: () => fit() },
@@ -735,7 +937,7 @@ export function IdeaCanvas({ path }) {
   const sel = chosen.length ? bounds(chosen) : null
   // (above a group's name, when a group is at the top of the selection)
   const lift = chosen.some((n) => n.type === 'group' && n.y === sel?.y) ? 30 : 0
-  const bar = sel && !editing && !box && !panning ? { left: sel.x * view.z + view.x, top: sel.y * view.z + view.y - 46 - lift } : null
+  const bar = sel && !editing && !box && !panning && !ink ? { left: sel.x * view.z + view.x, top: sel.y * view.z + view.y - 46 - lift } : null
   const linkFrom = linking && byId.get(linking.from)
   const editingEdge = editing && typeof editing === 'object' ? model.edges.find((x) => x.id === editing.edge) : null
   const ids = chosen.map((n) => n.id)
@@ -762,9 +964,9 @@ export function IdeaCanvas({ path }) {
     <div className="idea-canvas">
       <div
         ref={surface}
-        className={`idea-surface${spaceDown ? ' is-space' : ''}${panning ? ' is-panning' : ''}`}
+        className={`idea-surface${spaceDown ? ' is-space' : ''}${panning ? ' is-panning' : ''}${pen ? ' is-pen' : ''}`}
         tabIndex={0}
-        aria-label="Idea board. Double-click or press N to add an idea, L for a link; drag empty space to select; arrows move the selection; Delete removes it; F fits everything in view."
+        aria-label="Idea board. Double-click or press N to add an idea, T for text, S for a shape, L for a link, P to draw; drag empty space to select; arrows move the selection; Delete removes it; F fits everything in view."
         style={{ backgroundPosition: `${view.x}px ${view.y}px`, backgroundSize: `${24 * view.z}px ${24 * view.z}px` }}
         onPointerDown={onSurfaceDown}
         onPointerMove={onMove}
@@ -780,7 +982,7 @@ export function IdeaCanvas({ path }) {
         onPaste={onPaste}
         onContextMenu={surfaceMenu}
         onDoubleClick={(e) => {
-          if (e.target !== surface.current && !e.target.classList.contains('idea-world')) return
+          if (pen || (e.target !== surface.current && !e.target.classList.contains('idea-world'))) return
           newIdea(toWorld(e.clientX, e.clientY))
         }}
       >
@@ -868,6 +1070,7 @@ export function IdeaCanvas({ path }) {
             <NodeView
               key={n.id}
               node={n}
+              page={n.type === 'file' ? pageOf(n) : null}
               selected={selected.has(n.id)}
               editing={editing === n.id}
               fresh={fresh === n.id}
@@ -877,7 +1080,8 @@ export function IdeaCanvas({ path }) {
               onContextMenu={nodeMenu(n)}
               onDoubleClick={(e) => {
                 e.stopPropagation()
-                setEditing(n.id)
+                if (n.type === 'file') openPage(n)
+                else if (editable(n)) setEditing(n.id)
               }}
               onResize={onResize(n)}
               onConnect={onConnect(n)}
@@ -885,6 +1089,11 @@ export function IdeaCanvas({ path }) {
             />
           ))}
           {box && <div className="idea-box" style={{ left: box.x, top: box.y, width: box.width, height: box.height }} />}
+          {ink && (
+            <svg className={`idea-ink-draft${pen?.color ? ' has-color' : ''}`} style={pen?.color ? { '--nc': `var(--c-${pen.color})` } : undefined} aria-hidden="true">
+              <path d={inkPath(ink)} />
+            </svg>
+          )}
         </div>
 
         {bar && (
@@ -906,7 +1115,14 @@ export function IdeaCanvas({ path }) {
                 </button>
               </Tooltip>
             )}
-            {one && one.type !== 'group' && (
+            {one?.type === 'file' && (
+              <Tooltip label="Open">
+                <button type="button" className="idea-bar-btn" aria-label="Open" onClick={() => openPage(one)}>
+                  <ExternalLink size={14} />
+                </button>
+              </Tooltip>
+            )}
+            {one && one.type !== 'group' && editable(one) && (
               <Tooltip label="Make it a task">
                 <button type="button" className="idea-bar-btn" aria-label="Make it a task" onClick={() => makeTask(one)}>
                   <ListPlus size={15} />
@@ -950,10 +1166,15 @@ export function IdeaCanvas({ path }) {
       </div>
 
       <div className="idea-tools" role="toolbar" aria-label="Board tools">
-        <Tooltip label="Drag empty space to select. Hold Space to pan">
-          <span className={`idea-tool idea-mode${spaceDown ? '' : ' is-on'}`} aria-hidden="true">
+        <Tooltip label="Select (V). Hold Space to pan">
+          <button type="button" className={`idea-tool idea-mode${spaceDown || pen ? '' : ' is-on'}`} aria-label="Select" aria-pressed={!pen} onClick={() => setPen(null)}>
             <MousePointer2 size={15} />
-          </span>
+          </button>
+        </Tooltip>
+        <Tooltip label="Draw (P)">
+          <button type="button" className={`idea-tool idea-mode${pen ? ' is-on' : ''}`} aria-label="Draw" aria-pressed={!!pen} onClick={() => setPen(pen ? null : { color: null })}>
+            <PenLine size={15} />
+          </button>
         </Tooltip>
         <span className="idea-bar-sep" />
         <Tooltip label="Add an idea (N)">
@@ -966,6 +1187,16 @@ export function IdeaCanvas({ path }) {
             <Type size={15} />
           </button>
         </Tooltip>
+        <Tooltip label="Add a shape (S)">
+          <button type="button" className="idea-tool" aria-label="Shape" aria-haspopup="menu" onClick={(e) => shapeMenu(e)}>
+            <Shapes size={15} />
+          </button>
+        </Tooltip>
+        <Tooltip label="Add a to-do list">
+          <button type="button" className="idea-tool" aria-label="To-do list" onClick={() => newTodo(center())}>
+            <ListTodo size={15} />
+          </button>
+        </Tooltip>
         <Tooltip label="Add a link (L)">
           <button type="button" className="idea-tool" aria-label="Link" onClick={() => newLink(center())}>
             <Link2 size={15} />
@@ -976,9 +1207,19 @@ export function IdeaCanvas({ path }) {
             <ImageIcon size={15} />
           </button>
         </Tooltip>
+        <Tooltip label="Add one of your docs or boards">
+          <button type="button" className="idea-tool" aria-label="Doc or board" aria-haspopup="menu" onClick={(e) => pageMenu(e)}>
+            <FileText size={15} />
+          </button>
+        </Tooltip>
         <Tooltip label={selected.size > 1 ? 'Group the selection (Ctrl G)' : 'Add a group'}>
           <button type="button" className="idea-tool" onClick={() => newGroup(selected.size > 1 ? undefined : center())}>
             <BoxSelect size={15} /> Group
+          </button>
+        </Tooltip>
+        <Tooltip label="Start from a template">
+          <button type="button" className="idea-tool" aria-label="Templates" aria-haspopup="menu" onClick={(e) => templateMenu(e)}>
+            <LayoutTemplate size={15} />
           </button>
         </Tooltip>
         <span className="idea-bar-sep" />
@@ -993,6 +1234,17 @@ export function IdeaCanvas({ path }) {
           </button>
         </Tooltip>
       </div>
+      {pen && (
+        <div className="idea-pen-bar" role="toolbar" aria-label="Pen colour">
+          {[null, ...COLORS].map((c) => (
+            <button key={c || 'ink'} type="button" className={`idea-swatch${c ? '' : ' is-ink'}`} style={c ? { '--sw': `var(--c-${c})` } : undefined} aria-label={c ? `Draw in ${c}` : 'Draw in ink'} aria-pressed={pen.color === c} onClick={() => setPen({ color: c })} />
+          ))}
+          <span className="idea-bar-sep" />
+          <button type="button" className="idea-tool" onClick={() => setPen(null)}>
+            Done
+          </button>
+        </div>
+      )}
       {finding && (
         <div className="idea-find" role="search">
           <Search size={14} />
@@ -1018,7 +1270,7 @@ export function IdeaCanvas({ path }) {
           </button>
         </div>
       )}
-      <Minimap nodes={model.nodes} view={view} size={size} onJump={(x, y) => setView((v) => ({ ...v, x: size.w / 2 - x * v.z, y: size.h / 2 - y * v.z }))} />
+      {showMap && <Minimap nodes={model.nodes} view={view} size={size} onJump={(x, y) => setView((v) => ({ ...v, x: size.w / 2 - x * v.z, y: size.h / 2 - y * v.z }))} />}
       <div className="idea-zoom" role="toolbar" aria-label="Zoom">
         <Tooltip label="Find (Ctrl F)">
           <button type="button" className="idea-tool" aria-label="Find on this board" onClick={() => setFinding({ q: '', at: 0 })}>
@@ -1034,6 +1286,11 @@ export function IdeaCanvas({ path }) {
         <button type="button" className="idea-tool" aria-label="Zoom in" onClick={() => zoomBy(1.2)}>
           <Plus size={14} />
         </button>
+        <Tooltip label={showMap ? 'Hide the map (M)' : 'Show a map of the board (M)'}>
+          <button type="button" className={`idea-tool${showMap ? ' is-on' : ''}`} aria-label="Map of the board" aria-pressed={showMap} onClick={() => setPrefs({ ideas: { minimap: !showMap } })}>
+            <MapIcon size={14} />
+          </button>
+        </Tooltip>
         <Tooltip label="Fit everything (F)">
           <button type="button" className="idea-tool" aria-label="Fit everything" onClick={() => fit()}>
             <Maximize size={14} />

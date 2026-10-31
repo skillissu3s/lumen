@@ -79,7 +79,7 @@ export function ListEditor({ open, onOpenChange, anchor, initial = {}, kind = 'b
           <button type="button" className="icon-pick" aria-label="Choose an icon" aria-expanded={picking} onClick={() => setPicking(!picking)}>
             <IconBadge name={icon} color={color} size={30} />
           </button>
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={`${NOUN[kind]} name`} aria-label="Name" autoFocus />
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={`${NOUN[kind]} name`} aria-label="Name" autoFocus data-autofocus />
         </div>
         {picking && (
           <IconPicker

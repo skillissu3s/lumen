@@ -126,6 +126,18 @@ board's own details under `lumen`:
 Card colours are the canvas codes `1`–`6` (red, orange, amber, green, teal,
 violet). `owner` and `share` work as in front matter.
 
+Beyond the standard keys (JSON Canvas keeps unknown ones), a text card may
+carry:
+
+| Key | Meaning |
+| --- | --- |
+| `style` | `"label"`: text on the board, with no box |
+| `shape` | `"rect"`, `"ellipse"` or `"diamond"`: a shape with its words centred |
+| `ink`, `inkW`, `inkH` | a drawing: an SVG path, and the size it was drawn at (it scales with the card) |
+
+A card for one of your docs or boards is a standard `file` card:
+`{"type":"file","file":"docs/plans.md",...}` or `"file":"lists/inbox.md"`.
+
 ## Items: tasks and events
 
 Lists and calendars hold **items**, one per markdown list line, in the
@@ -213,6 +225,9 @@ ever grows and git can always merge it.
 
 `users/<handle>/settings.json` holds one person's settings (theme, accent,
 calendar options, enabled plugins). It is plain JSON; unknown keys are kept.
+`theme` is the mode (`system`, `light`, `dark`); `palette` is the theme
+(`default`, `paper`, `slate`, `sage`, `dusk`, `contrast`); `sidebar.collapsed`
+and `ideas.minimap` remember the sidebar and the idea board's map.
 
 ## Plugin data
 

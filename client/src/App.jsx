@@ -37,7 +37,7 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, mode, user?.handle])
 
-  useEffect(() => applyTheme(prefs), [prefs.theme, prefs.accent, prefs.density]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => applyTheme(prefs), [prefs.theme, prefs.palette, prefs.accent, prefs.density]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // the desktop window's title bar follows the theme
   useEffect(() => {
@@ -45,7 +45,7 @@ export default function App() {
     if (!d?.setTitleBarColors) return
     const css = getComputedStyle(document.documentElement)
     d.setTitleBarColors({ color: css.getPropertyValue('--bg-subtle').trim(), symbolColor: css.getPropertyValue('--text-muted').trim() })
-  }, [prefs.theme, status])
+  }, [prefs.theme, prefs.palette, status])
 
   if (status === 'booting') return <BootScreen />
   if (status === 'error') return <BootError message={error} onRetry={() => useSession.getState().boot()} />

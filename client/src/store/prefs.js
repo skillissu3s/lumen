@@ -10,6 +10,7 @@ const h12 = typeof navigator !== 'undefined' && /^en-US$/i.test(navigator.langua
 
 export const DEFAULT_PREFS = {
   theme: 'system',
+  palette: 'default',
   accent: 'indigo',
   density: 'default',
   weekStart: 1,
@@ -36,6 +37,7 @@ export const DEFAULT_PREFS = {
   tasks: { defaultList: null, showCompleted: false, view: 'list', groupBy: 'section', sort: 'manual' },
   plugins: { disabled: [] },
   sidebar: { collapsed: false },
+  ideas: { minimap: false },
 }
 
 function deepMerge(base, patch) {
@@ -106,7 +108,7 @@ export async function setPrefs(patch) {
   prefsStore.setState({ prefs: deepMerge(prefsStore.getState().prefs, patch) })
 }
 
-/** Put theme/accent/density on <html>, resolving "system" and following it. */
+/** Put theme/palette/accent/density on <html>, resolving "system" and following it. */
 export function applyTheme(prefs) {
   if (typeof document === 'undefined') return
   const root = document.documentElement
@@ -122,6 +124,12 @@ export function applyTheme(prefs) {
   }
   resolve()
   if (prefs.theme === 'system' && mq && mq.addEventListener) mq.addEventListener('change', resolve)
+  root.dataset.palette = prefs.palette
+  try {
+    localStorage.setItem('lumen.palette', prefs.palette)
+  } catch {
+    /* storage unavailable */
+  }
   root.dataset.accent = prefs.accent
   root.dataset.density = prefs.density
 }

@@ -736,3 +736,135 @@ input.idea-edge-label {
     display: none;
   }
 }
+/* ---- shapes: words centred in a box, an ellipse or a diamond ---- */
+.idea.is-shape .idea-body,
+.idea.is-shape .idea-edit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.idea.is-shape .idea-body.md {
+  flex-direction: column;
+}
+.idea.is-shape .idea-edit {
+  padding-top: 18px;
+}
+.idea.shape-ellipse {
+  border-radius: 50%;
+}
+.idea.shape-ellipse .idea-body {
+  padding: 10px 16%;
+}
+/* the diamond is drawn; the card around it is only its box */
+.idea.shape-diamond,
+.idea.shape-diamond.is-selected {
+  border-color: transparent;
+  background: none;
+  box-shadow: none;
+}
+.idea-diamond {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.idea-diamond polygon {
+  fill: var(--surface);
+  stroke: var(--border-strong);
+  stroke-width: 1px;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.idea.has-color .idea-diamond polygon {
+  fill: var(--nc-bg);
+  stroke: color-mix(in srgb, var(--nc) 55%, var(--border));
+}
+.idea.shape-diamond.is-selected .idea-diamond polygon {
+  stroke: var(--accent);
+  stroke-width: 2px;
+}
+.idea.shape-diamond .idea-body {
+  position: relative;
+  padding: 10px 24%;
+}
+/* ---- drawings ---- */
+.idea.idea-ink {
+  border-color: transparent;
+  background: none;
+  box-shadow: none;
+  color: var(--text);
+}
+.idea.idea-ink.has-color {
+  background: none;
+  color: var(--nc);
+}
+.idea.idea-ink.is-selected {
+  border: 1px dashed var(--accent);
+  box-shadow: none;
+}
+.idea-ink svg,
+.idea-ink-draft {
+  overflow: visible;
+}
+.idea-ink svg {
+  width: 100%;
+  height: 100%;
+}
+.idea-ink path,
+.idea-ink-draft path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.idea-ink-draft {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  color: var(--text);
+  pointer-events: none;
+}
+.idea-ink-draft.has-color {
+  color: var(--nc);
+}
+.idea-surface.is-pen,
+.idea-surface.is-pen * {
+  cursor: crosshair !important;
+}
+.idea-pen-bar {
+  position: absolute;
+  bottom: 62px;
+  left: 50%;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  transform: translateX(-50%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  animation: idea-bar-in 140ms var(--ease);
+}
+.idea-swatch.is-ink {
+  --sw: var(--text);
+}
+/* ---- a card for a doc or a board ---- */
+.idea-page {
+  cursor: pointer;
+}
+.idea-page.is-missing .idea-link-text {
+  opacity: 0.6;
+}
+.idea-tool.is-on {
+  background: var(--bg-active);
+  color: var(--text);
+}

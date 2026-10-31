@@ -344,3 +344,27 @@ settable right on a card; drop the calendar's New button.
   copy until Lumen reloaded.
 - `plugins/_dev/trees.html` previews every species at every stage.
 
+### Sliding sidebar, themes, more for idea boards
+- Sidebar: following obi (`AppShell.jsx`/`layout.css` there), the open
+  sidebar and the closed rail are separate columns, both mounted
+  (`shell/Rail.jsx`, `inert` when hidden). Each slides on `width` (190ms) with
+  `opacity` (130ms); their children keep a fixed width so nothing reflows
+  mid-slide. Under 761px there is no rail and the sidebar stays a drawer.
+  The rail's classes are `app-rail*`, since All tasks already has a `.rail`.
+- Themes are `data-palette` on `<html>`, beside `data-theme` (the mode). Each
+  palette sets only the neutral tokens, light and dark; light rules come after
+  the base dark block and dark palette rules are more specific, so every
+  combination resolves. Preview tiles set `data-palette-preview` and carry the
+  same variables. `app.html` applies the saved palette before first paint; the
+  plugin host re-sends tokens when it changes.
+- Popover focuses `[data-autofocus]` before the first focusable element (it
+  used to move focus from the list editor's name field to the icon button).
+- `.pb-cards` has 3–4px on the sides it scrolls against, so a card's ring
+  isn't clipped by the scroll container beside the reserved scrollbar gutter.
+- Idea boards: shapes and drawings are text nodes with extra keys (`shape`;
+  `ink`, `inkW`, `inkH`), doc and board cards are JSON Canvas `file` nodes.
+  The pen records pointer points in world units and smooths them through
+  midpoints (quadratic curves); each stroke becomes one node sized to it.
+  Templates are built from (0, 0) and centred where you are. The minimap is
+  `prefs.ideas.minimap`, off by default.
+

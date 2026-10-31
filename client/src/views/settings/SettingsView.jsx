@@ -18,6 +18,14 @@ import './settings.css'
 const PluginSettings = lazy(() => import('./PluginSettings.jsx'))
 
 const ACCENTS = ['indigo', 'blue', 'teal', 'green', 'orange', 'rose', 'violet', 'graphite']
+const THEMES = [
+  ['default', 'Lumen'],
+  ['paper', 'Paper'],
+  ['slate', 'Slate'],
+  ['sage', 'Sage'],
+  ['dusk', 'Dusk'],
+  ['contrast', 'High contrast'],
+]
 const ACCENT_HEX = { indigo: '#5b5bd6', blue: '#0b6bcb', teal: '#0d7f72', green: '#18794e', orange: '#c2410c', rose: '#c62a5a', violet: '#7c3aed', graphite: '#3a3a37' }
 
 // a group of settings under a small heading, the way obi lays them out
@@ -177,8 +185,30 @@ function Appearance() {
   const prefs = usePrefs()
   return (
     <Section>
-      <Row label="Theme">
-        <Segmented label="Theme" value={prefs.theme} onChange={(v) => setPrefs({ theme: v })} options={[{ value: 'system', label: 'System' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]} />
+      <Row label="Mode">
+        <Segmented label="Mode" value={prefs.theme} onChange={(v) => setPrefs({ theme: v })} options={[{ value: 'system', label: 'System' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]} />
+      </Row>
+      <Row label="Theme" hint="Each comes in light and dark." stacked>
+        <div className="themes" role="radiogroup" aria-label="Theme">
+          {THEMES.map(([id, name]) => (
+            <button key={id} type="button" role="radio" aria-checked={(prefs.palette || 'default') === id} className="theme-tile" onClick={() => setPrefs({ palette: id })}>
+              <span className="theme-art" data-palette-preview={id} aria-hidden="true">
+                <span className="theme-art-side">
+                  <i />
+                  <i />
+                  <i />
+                </span>
+                <span className="theme-art-main">
+                  <i className="is-title" />
+                  <i />
+                  <i className="is-short" />
+                  <b />
+                </span>
+              </span>
+              <span className="theme-name">{name}</span>
+            </button>
+          ))}
+        </div>
       </Row>
       <Row label="Accent" hint="Used for focus, selection and today.">
         <div className="accents" role="radiogroup" aria-label="Accent">

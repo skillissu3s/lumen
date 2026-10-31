@@ -9,6 +9,7 @@ import { onProblem } from '../store/workspace.js'
 import { navigate, parseHash } from '../lib/router.js'
 import { useConfig, inboxPath } from '../store/hooks.js'
 import { Sidebar } from './Sidebar.jsx'
+import { Rail } from './Rail.jsx'
 import { CommandPalette } from './CommandPalette.jsx'
 import PluginFrames from '../plugins/PluginFrames.jsx'
 import { useShortcut, shortcutList, comboKeys } from './shortcuts.js'
@@ -98,12 +99,27 @@ function ShortcutsDialog() {
   )
 }
 
+// a narrow window has no rail: the sidebar is a drawer instead
+function useNarrow() {
+  const query = '(max-width: 760px)'
+  const [narrow, setNarrow] = useState(() => typeof matchMedia === 'function' && matchMedia(query).matches)
+  useEffect(() => {
+    const mq = matchMedia(query)
+    const on = () => setNarrow(mq.matches)
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  return narrow
+}
+
 export function AppShell({ route }) {
   const toasts = useUI((s) => s.toasts)
   const dismiss = useUI((s) => s.dismiss)
   const toast = useUI((s) => s.toast)
   const prefs = usePrefs()
   const collapsed = prefs.sidebar?.collapsed
+  const narrow = useNarrow()
+  const closed = !!collapsed && !narrow
   const [drawer, setDrawer] = useState(false)
   // Settings open over the page you were on, as a dialog
   const settings = route.parts[0] === 'settings'
@@ -142,14 +158,15 @@ export function AppShell({ route }) {
   )
 
   return (
-    <div className={`app${collapsed ? ' is-collapsed' : ''}${drawer ? ' has-drawer' : ''}`}>
+    <div className={`app${closed ? ' is-collapsed' : ''}${drawer ? ' has-drawer' : ''}`}>
       <a className="skip-link" href="#main" onClick={(e) => {
         e.preventDefault()
         document.getElementById('main')?.focus()
       }}>
         Skip to content
       </a>
-      <Sidebar route={route} onNavigate={() => setDrawer(false)} />
+      {!narrow && <Rail route={route} closed={!closed} />}
+      <Sidebar route={route} closed={closed} onNavigate={() => setDrawer(false)} />
       <div className="drawer-scrim" onClick={() => setDrawer(false)} aria-hidden="true" />
       <main id="main" className="main" tabIndex={-1}>
         <button type="button" className="drawer-toggle" aria-label="Open menu" onClick={() => setDrawer(true)}>

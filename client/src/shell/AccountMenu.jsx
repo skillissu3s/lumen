@@ -15,7 +15,8 @@ const WHERE = {
   server: (s) => s.user?.email || 'Lumen server',
 }
 
-export function AccountMenu({ workspace }) {
+/** `compact`: just the workspace's mark, for the rail */
+export function AccountMenu({ workspace, compact = false }) {
   const session = useSession()
   const prefs = usePrefs()
   const [anchor, setAnchor] = useState(null)
@@ -34,10 +35,14 @@ export function AccountMenu({ workspace }) {
   )
   return (
     <>
-      <button type="button" className={`workspace-button${anchor ? ' is-open' : ''}`} aria-haspopup="menu" aria-expanded={!!anchor} onClick={(e) => setAnchor(anchor ? null : { current: e.currentTarget })}>
+      <button type="button" className={`workspace-button${compact ? ' is-compact' : ''}${anchor ? ' is-open' : ''}`} aria-haspopup="menu" aria-expanded={!!anchor} aria-label={compact ? workspace : undefined} onClick={(e) => setAnchor(anchor ? null : { current: e.currentTarget })}>
         <span className="workspace-mark">{(workspace || 'L').trim()[0]?.toUpperCase()}</span>
-        <span className="workspace-name">{workspace}</span>
-        <ChevronDown size={14} className="workspace-chevron" />
+        {!compact && (
+          <>
+            <span className="workspace-name">{workspace}</span>
+            <ChevronDown size={14} className="workspace-chevron" />
+          </>
+        )}
       </button>
       <Popover open={!!anchor} onOpenChange={(o) => !o && close()} anchor={anchor} placement="bottom-start" className="acct" aria-label="Account">
         <div className="acct-who">

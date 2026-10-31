@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+- **The sidebar slides** open and closed, as obi's does: the full sidebar and
+  the icon rail are two columns, and one slides shut as the other opens, with
+  nothing inside them jumping about.
+- **Themes**: Lumen, Paper, Slate, Sage, Dusk and High contrast, each in light
+  and dark (Settings → Appearance; Mode is now its own setting).
+- **Idea boards** have more to add: shapes (rectangle, ellipse, diamond, key
+  S), to-do lists you can tick, drawing with a pen in any colour (P), cards
+  for your docs and boards that open them, and templates (mind map,
+  flowchart, pros and cons, to do / doing / done, strengths and weaknesses,
+  retrospective). The map in the corner is off unless you turn it on (M).
+- **New board**: the name field is ready to type in as soon as it opens.
+- A card's highlight is no longer cut off next to a list's scrollbar.
+- Focus Forest 1.1.1: switching between Focus and Forest no longer shifts the
+  page sideways.
+
 ## 0.3.5 — a forest worth growing
 
 - **Focus Forest 1.1**, redrawn: your tree grows on a hill in a small landscape
