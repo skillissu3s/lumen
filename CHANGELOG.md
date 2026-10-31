@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.1 — downloads and automatic updates
+## 0.1.2 — downloads and automatic updates
 
 - **Lumen updates itself.** On Windows and the Linux AppImage, new versions
   download in the background; a note in the sidebar says when one is ready and
