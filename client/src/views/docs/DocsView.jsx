@@ -1,8 +1,8 @@
-// Docs: plain markdown documents beside your tasks. A tree on the left, a
-// focused editor with a preview on the right. Front matter stays out of sight.
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Bold, ChevronRight, Code, Download, FileText, FolderClosed, Heading2, Italic, Link2, List, ListChecks, MoreHorizontal, Plus, Quote, Search, Table2, Trash2 } from 'lucide-react'
-import { Button, Dialog, EmptyState, Input, Menu, Segmented, Spinner, Tooltip } from '../../components/ui/index.js'
+// Docs: pages you write the way you would in Notion, kept as markdown files.
+// A tree on the left, the page on the right. Front matter stays out of sight.
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { ChevronRight, Download, FileText, FolderClosed, MoreHorizontal, Plus, Search, Trash2 } from 'lucide-react'
+import { Button, Dialog, EmptyState, Input, Menu, Spinner, Tooltip } from '../../components/ui/index.js'
 import { useDocs } from '../../store/hooks.js'
 import { useWorkspace } from '../../store/workspace.js'
 import { useSession } from '../../store/session.js'
@@ -11,11 +11,10 @@ import { navigate } from '../../lib/router.js'
 import { createDoc, deleteDoc, renameDoc, saveDoc } from '../../lib/actions.js'
 import { setFrontMatter, splitFrontMatter } from '../../../../shared/frontmatter.js'
 import { ShareField } from '../../shell/ListEditor.jsx'
-import { renderMarkdown, toggleTaskInBody } from './markdown.js'
+import { RichEditor } from './RichEditor.jsx'
 import './docs.css'
 
 const LAST = 'lumen.docs.last'
-const MODE = 'lumen.docs.mode'
 const store = {
   get: (k, d) => {
     try {
@@ -95,39 +94,18 @@ function Tree({ docs, current, filter }) {
   )
 }
 
-// small helpers that act on the textarea's selection
-function wrapSelection(el, before, after = before, placeholder = '') {
-  const { selectionStart: a, selectionEnd: b, value } = el
-  const inner = value.slice(a, b) || placeholder
-  const next = value.slice(0, a) + before + inner + after + value.slice(b)
-  return { text: next, sel: [a + before.length, a + before.length + inner.length] }
-}
-function prefixLines(el, prefix) {
-  const { selectionStart: a, selectionEnd: b, value } = el
-  const start = value.lastIndexOf('\n', a - 1) + 1
-  const end = value.indexOf('\n', b) === -1 ? value.length : value.indexOf('\n', b)
-  const block = value
-    .slice(start, end)
-    .split('\n')
-    .map((l) => (l.startsWith(prefix) ? l.slice(prefix.length) : prefix + l))
-    .join('\n')
-  return { text: value.slice(0, start) + block + value.slice(end), sel: [start, start + block.length] }
-}
-
 function Editor({ path }) {
   const file = useWorkspace((s) => s.files[path])
   const saving = useWorkspace((s) => s.saving)
   const mode = useSession((s) => s.mode)
   const [loaded, setLoaded] = useState(!!file)
-  const [view, setView] = useState(() => store.get(MODE, 'write'))
-  const [body, setBody] = useState('')
-  const [title, setTitle] = useState('')
   const [confirm, setConfirm] = useState(false)
   const [share, setShare] = useState(false)
-  const taRef = useRef(null)
-  const focused = useRef(false)
   const timer = useRef(null)
-  const latest = useRef({ head: '', body: '' })
+  const head = useRef('')
+  const pending = useRef(null)
+  const editorRef = useRef(null)
+  const titleRef = useRef(null)
 
   useEffect(() => {
     let alive = true
@@ -136,123 +114,69 @@ function Editor({ path }) {
       alive = false
     }
   }, [path]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // take the file's text, except while typing (the store merges our edits)
   useEffect(() => {
-    if (!file) return
-    setLoaded(true)
-    const p = parts(file.text)
-    latest.current = p
-    const meta = splitFrontMatter(file.text).meta
-    if (!focused.current || document.activeElement?.dataset?.doc !== 'title') setTitle(meta.title || path.split('/').pop().replace(/\.md$/, ''))
-    if (!focused.current) setBody(p.body)
-  }, [file?.text, path]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (file) setLoaded(true)
+  }, [file])
 
-  useEffect(() => () => clearTimeout(timer.current), [path])
-  useEffect(() => store.set(MODE, view), [view])
+  const p = file ? parts(file.text) : { head: '', body: '' }
+  head.current = p.head
+  const meta = file ? splitFrontMatter(file.text).meta : {}
+  const title = meta.title || path.split('/').pop().replace(/\.md$/, '')
 
-  const schedule = (nextBody) => {
+  const flush = () => {
     clearTimeout(timer.current)
-    timer.current = setTimeout(() => saveDoc(path, latest.current.head + nextBody), 600)
+    if (pending.current != null) saveDoc(path, head.current + pending.current)
+    pending.current = null
   }
-  const change = (next, sel) => {
-    setBody(next)
-    schedule(next)
-    if (sel) requestAnimationFrame(() => taRef.current?.setSelectionRange(...sel))
+  useEffect(() => () => flush(), [path]) // eslint-disable-line react-hooks/exhaustive-deps
+  const onChange = (md) => {
+    pending.current = md
+    clearTimeout(timer.current)
+    timer.current = setTimeout(flush, 500)
   }
-  const act = (fn) => () => {
-    const el = taRef.current
+  useLayoutEffect(() => {
+    const el = titleRef.current
     if (!el) return
-    el.focus()
-    const r = fn(el)
-    change(r.text, r.sel)
-  }
-  const tools = [
-    { icon: Heading2, label: 'Heading', run: act((el) => prefixLines(el, '## ')) },
-    { icon: Bold, label: 'Bold (Ctrl B)', run: act((el) => wrapSelection(el, '**', '**', 'bold')) },
-    { icon: Italic, label: 'Italic (Ctrl I)', run: act((el) => wrapSelection(el, '_', '_', 'italic')) },
-    { icon: Link2, label: 'Link (Ctrl K)', run: act((el) => wrapSelection(el, '[', '](https://)', 'text')) },
-    { icon: List, label: 'Bulleted list', run: act((el) => prefixLines(el, '- ')) },
-    { icon: ListChecks, label: 'Checklist', run: act((el) => prefixLines(el, '- [ ] ')) },
-    { icon: Quote, label: 'Quote', run: act((el) => prefixLines(el, '> ')) },
-    { icon: Code, label: 'Code', run: act((el) => wrapSelection(el, '`', '`', 'code')) },
-    { icon: Table2, label: 'Table', run: act((el) => wrapSelection(el, '\n| Column | Column |\n| --- | --- |\n| ', ' |  |\n', 'Cell')) },
-  ]
-
-  const onKeyDown = (e) => {
-    const el = e.currentTarget
-    const mod = e.ctrlKey || e.metaKey
-    if (mod && ['b', 'i', 'k'].includes(e.key.toLowerCase())) {
-      e.preventDefault()
-      e.stopPropagation()
-      const r = e.key.toLowerCase() === 'b' ? wrapSelection(el, '**', '**', 'bold') : e.key.toLowerCase() === 'i' ? wrapSelection(el, '_', '_', 'italic') : wrapSelection(el, '[', '](https://)', 'text')
-      return change(r.text, r.sel)
-    }
-    if (e.key === 'Tab') {
-      e.preventDefault()
-      const r = wrapSelection(el, '  ', '', '')
-      return change(r.text, [r.sel[0], r.sel[0]])
-    }
-    if (e.key === 'Enter' && !e.shiftKey) {
-      // continue a list or checklist
-      const { selectionStart: a, value } = el
-      const lineStart = value.lastIndexOf('\n', a - 1) + 1
-      const line = value.slice(lineStart, a)
-      const m = /^(\s*)([-*+]|\d+[.)])(\s+\[[ xX]\])?\s+/.exec(line)
-      if (!m) return
-      e.preventDefault()
-      if (line.trim() === m[0].trim()) {
-        // an empty item ends the list
-        const next = value.slice(0, lineStart) + value.slice(a)
-        return change(next, [lineStart, lineStart])
-      }
-      const num = /^\d+/.test(m[2]) ? `${+m[2].replace(/\D/g, '') + 1}${m[2].slice(-1)}` : m[2]
-      const insert = `\n${m[1]}${num}${m[3] ? ' [ ]' : ''} `
-      const next = value.slice(0, a) + insert + value.slice(el.selectionEnd)
-      change(next, [a + insert.length, a + insert.length])
-    }
-  }
-
-  const html = useMemo(() => (view === 'write' ? '' : renderMarkdown(body)), [body, view])
-  const onPreviewClick = (e) => {
-    const box = e.target.closest('input[data-task]')
-    if (!box) return
-    change(toggleTaskInBody(body, +box.dataset.task))
-  }
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  })
 
   if (!loaded) return <div className="view-loading"><Spinner size={16} /></div>
   if (!file) return <EmptyState title="This doc doesn’t exist" action={<Button onClick={() => navigate('/docs')}>Back to Docs</Button>}>It may have been moved or deleted.</EmptyState>
 
-  const meta = splitFrontMatter(file.text).meta
   const status = saving.pending ? 'Saving…' : 'Saved'
+  const folder = path.replace(/^docs\//, '').replace(/[^/]+$/, '').replace(/\/$/, '')
   return (
     <div className="doc">
       <header className="view-header doc-header">
-        <a className="doc-crumb" href="#/docs?all=1">
-          {path.replace(/^docs\//, '').replace(/[^/]+$/, '').replace(/\/$/, '').replaceAll('/', ' / ') || 'Docs'}
-        </a>
-        <span className="doc-status faint">{status}</span>
+        <nav className="doc-crumb" aria-label="Where this doc is">
+          <a href="#/docs?all=1">Docs</a>
+          {folder &&
+            folder.split('/').map((f) => (
+              <span key={f}>
+                <ChevronRight size={12} /> {f}
+              </span>
+            ))}
+          <span>
+            <ChevronRight size={12} /> {title}
+          </span>
+        </nav>
+        <span className={`doc-status${saving.pending ? ' is-saving' : ''}`}>{status}</span>
         <div className="view-actions">
-          <Segmented
-            label="Mode"
-            value={view}
-            onChange={setView}
-            options={[
-              { value: 'write', label: 'Write' },
-              { value: 'split', label: 'Split' },
-              { value: 'preview', label: 'Preview' },
-            ]}
-          />
           <Menu
             align="end"
             items={[
               ...(mode === 'server' ? [{ label: 'Share…', onSelect: () => setShare(true) }] : []),
-              { label: 'Download .md', icon: Download, onSelect: () => {
-                const a = document.createElement('a')
-                a.href = URL.createObjectURL(new Blob([body], { type: 'text/markdown' }))
-                a.download = path.split('/').pop()
-                a.click()
-              } },
+              {
+                label: 'Download as Markdown',
+                icon: Download,
+                onSelect: () => {
+                  const a = document.createElement('a')
+                  a.href = URL.createObjectURL(new Blob([pending.current ?? p.body], { type: 'text/markdown' }))
+                  a.download = path.split('/').pop()
+                  a.click()
+                },
+              },
               'separator',
               { label: 'Delete doc…', icon: Trash2, danger: true, onSelect: () => setConfirm(true) },
             ]}
@@ -264,59 +188,41 @@ function Editor({ path }) {
           />
         </div>
       </header>
-      <div className={`doc-body is-${view}`}>
-        {view !== 'preview' && (
-          <div className="doc-write">
-            <input
-              className="doc-title"
-              data-doc="title"
-              value={title}
-              placeholder="Untitled"
-              aria-label="Title"
-              onChange={(e) => setTitle(e.target.value)}
-              onBlur={() => title.trim() && title.trim() !== meta.title && renameDoc(path, title.trim())}
-              onKeyDown={(e) => e.key === 'Enter' && taRef.current?.focus()}
-            />
-            <div className="doc-tools" role="toolbar" aria-label="Formatting">
-              {tools.map((t) => (
-                <Tooltip key={t.label} label={t.label}>
-                  <button type="button" className="doc-tool" aria-label={t.label} onMouseDown={(e) => e.preventDefault()} onClick={t.run}>
-                    <t.icon size={15} />
-                  </button>
-                </Tooltip>
-              ))}
-            </div>
-            <textarea
-              ref={taRef}
-              className="doc-textarea"
-              value={body}
-              placeholder="Start writing…"
-              aria-label="Document"
-              spellCheck
-              onFocus={() => (focused.current = true)}
-              onBlur={() => {
-                focused.current = false
-                clearTimeout(timer.current)
-                if (body !== latest.current.body) saveDoc(path, latest.current.head + body)
-              }}
-              onChange={(e) => change(e.target.value)}
-              onKeyDown={onKeyDown}
-            />
-          </div>
-        )}
-        {view !== 'write' && (
-          <article className="doc-preview md" onClick={onPreviewClick}>
-            {view === 'preview' && <h1 className="doc-preview-title">{title}</h1>}
-            <div dangerouslySetInnerHTML={{ __html: html }} />
-          </article>
-        )}
+      <div className="doc-scroll">
+        <article className="doc-page">
+          <textarea
+            ref={titleRef}
+            key={`title:${title}`}
+            className="doc-title"
+            rows={1}
+            defaultValue={title}
+            placeholder="Untitled"
+            aria-label="Title"
+            onInput={(e) => {
+              e.target.style.height = 'auto'
+              e.target.style.height = `${e.target.scrollHeight}px`
+            }}
+            onBlur={(e) => {
+              const t = e.target.value.replace(/\s+/g, ' ').trim()
+              if (t && t !== title) renameDoc(path, t)
+              else if (!t) e.target.value = title
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || (e.key === 'ArrowDown' && e.currentTarget.selectionStart === e.currentTarget.value.length)) {
+                e.preventDefault()
+                editorRef.current?.commands.focus('start')
+              }
+            }}
+          />
+          <RichEditor markdown={p.body} onChange={onChange} onBlur={flush} editorRef={editorRef} />
+        </article>
       </div>
       <Dialog
         open={confirm}
         onClose={() => setConfirm(false)}
         size="sm"
         title={`Delete “${title}”?`}
-        description="This removes the file. With GitHub sync, it stays in the history."
+        description="This removes the doc. With GitHub sync, it stays in the history."
         footer={
           <>
             <Button variant="ghost" onClick={() => setConfirm(false)}>
@@ -325,6 +231,7 @@ function Editor({ path }) {
             <Button
               variant="danger"
               onClick={() => {
+                pending.current = null
                 deleteDoc(path)
                 setConfirm(false)
                 navigate('/docs')
@@ -361,7 +268,7 @@ export default function DocsView({ route }) {
     (folder) => {
       const p = createDoc({ title: 'Untitled', folder })
       navigate(`/${p}`)
-      setTimeout(() => document.querySelector('.doc-title')?.select(), 80)
+      setTimeout(() => document.querySelector('.doc-title')?.select(), 120)
     },
     [],
   )

@@ -11,8 +11,6 @@ const WELCOME = () => `---
 title: Welcome
 owner: {{handle}}
 ---
-# Welcome to Lumen
-
 Lumen keeps your work on **boards**: columns of cards you move along as things progress. Your tasks, calendar, idea boards and docs sit side by side.
 
 - **Boards** live in \`lists/*.md\`. Each \`## heading\` is a column and each \`- [ ]\` line under it is a card — the same format as the Obsidian Kanban plugin.
