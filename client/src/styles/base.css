@@ -166,6 +166,14 @@ hr {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-faint) padding-box;
 }
+/* a scrollbar appearing shouldn't push things sideways: its room is kept from
+   the start (on both sides where the content is centred) */
+:is(.view-body, .sidebar-scroll, .pb-cards, .pb-listview, .pb-panel-body, .cal-side, .doc-tree, .month-body, .timeline, .agenda, .chat-list, .rail, .settings-nav, .tgrid-scroll) {
+  scrollbar-gutter: stable;
+}
+:is(.doc-scroll, .settings-body) {
+  scrollbar-gutter: stable both-edges;
+}
 
 @media (prefers-reduced-motion: reduce) {
   *,

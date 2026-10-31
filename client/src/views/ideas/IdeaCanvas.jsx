@@ -3,7 +3,7 @@
 // button) to pan, scroll to move, Ctrl + scroll to zoom. Saved as JSON Canvas a
 // moment after each change; Ctrl+Z steps back.
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceAround, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceAround, BoxSelect, CircleSlash, Copy, ExternalLink, Globe, Image as ImageIcon, LayoutGrid, Link2, ListPlus, Maximize, Minus, MousePointer2, Pencil, Plus, Redo2, Search, SquareDashed, StickyNote, Trash2, Type, Undo2, X } from 'lucide-react'
+import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceAround, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceAround, BoxSelect, CircleSlash, Copy, ExternalLink, Globe, Image as ImageIcon, LayoutGrid, Link2, ListPlus, Maximize, Minus, MousePointer2, Pencil, Plus, Redo2, Search, StickyNote, Trash2, Type, Undo2, X } from 'lucide-react'
 import { MenuPopup, Tooltip } from '../../components/ui/index.js'
 import { useWorkspace } from '../../store/workspace.js'
 import { useUI } from '../../store/ui.js'
@@ -30,7 +30,7 @@ const host = (url) => {
 }
 
 function NodeView({ node, selected, editing, fresh, found, onPointerDown, onDoubleClick, onContextMenu, onResize, onConnect, onEditDone, onTick }) {
-  const color = colorName(node.color) || (node.style === 'sticky' ? 'amber' : null)
+  const color = colorName(node.color)
   const style = { left: node.x, top: node.y, width: node.width, height: node.height }
   if (color) Object.assign(style, { '--nc': `var(--c-${color})`, '--nc-bg': `var(--c-${color}-bg)` })
   const handles = SIDES.map((side) => <span key={side} className={`idea-handle is-${side}`} onPointerDown={(e) => onConnect?.(e, side)} aria-hidden="true" title="Drag to connect" />)
@@ -287,10 +287,6 @@ export function IdeaCanvas({ path }) {
   const newIdea = (p, text = '') => {
     const c = at(p)
     addNode({ id: newId(16), type: 'text', text, x: snap(c.x - 120, true), y: snap(c.y - 60, true), width: 240, height: 120 }, !text)
-  }
-  const newSticky = (p) => {
-    const c = at(p)
-    addNode({ id: newId(16), type: 'text', style: 'sticky', text: '', x: snap(c.x - 100, true), y: snap(c.y - 100, true), width: 200, height: 200 })
   }
   const newLabel = (p) => {
     const c = at(p)
@@ -628,9 +624,6 @@ export function IdeaCanvas({ path }) {
     } else if (!mod && key === 'l') {
       e.preventDefault()
       newLink(center())
-    } else if (!mod && key === 's') {
-      e.preventDefault()
-      newSticky(center())
     } else if (!mod && key === 't') {
       e.preventDefault()
       newLabel(center())
@@ -723,7 +716,6 @@ export function IdeaCanvas({ path }) {
       anchor: { x: e.clientX, y: e.clientY },
       items: [
         { label: 'Add an idea here', icon: StickyNote, shortcut: 'N', onSelect: () => newIdea(p) },
-        { label: 'Add a sticky note here', icon: SquareDashed, shortcut: 'S', onSelect: () => newSticky(p) },
         { label: 'Add text here', icon: Type, shortcut: 'T', onSelect: () => newLabel(p) },
         { label: 'Add a link here', icon: Link2, shortcut: 'L', onSelect: () => newLink(p) },
         { label: 'Add an image here', icon: ImageIcon, onSelect: () => newImage(p) },
@@ -967,11 +959,6 @@ export function IdeaCanvas({ path }) {
         <Tooltip label="Add an idea (N)">
           <button type="button" className="idea-tool is-primary" onClick={() => newIdea(center())}>
             <StickyNote size={15} /> Idea
-          </button>
-        </Tooltip>
-        <Tooltip label="Add a sticky note (S)">
-          <button type="button" className="idea-tool" aria-label="Sticky note" onClick={() => newSticky(center())}>
-            <SquareDashed size={15} />
           </button>
         </Tooltip>
         <Tooltip label="Add text (T)">

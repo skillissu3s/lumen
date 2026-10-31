@@ -198,9 +198,39 @@
   padding-top: 10px;
   border-top: 1px solid var(--border);
 }
+.app.is-collapsed .sidebar-bottom {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+/* the footer keeps its height, so the avatar stays exactly where it was; the
+   save state becomes a small dot on the avatar's corner */
 .app.is-collapsed .sidebar-footer {
-  flex-direction: column;
-  gap: 8px;
+  position: relative;
+  justify-content: center;
+}
+.app.is-collapsed .me {
+  flex: none;
+  justify-content: center;
+  width: 36px;
+  padding: 0;
+}
+.app.is-collapsed .sync-status {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  height: auto;
+  padding: 0;
+  margin: 5px 0 0 5px;
+  pointer-events: none;
+}
+.app.is-collapsed .sync-status > svg {
+  width: 10px;
+  height: 10px;
+}
+.app.is-collapsed .sync-dot {
+  width: 8px;
+  height: 8px;
+  box-shadow: 0 0 0 2px var(--bg-subtle);
 }
 .main {
   position: relative;

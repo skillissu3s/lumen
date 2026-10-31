@@ -621,20 +621,6 @@ input.idea-edge-label {
   }
 }
 
-/* ---- sticky notes: a square of paper in its colour ---- */
-.idea.is-sticky {
-  border: 0;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--nc) 28%, var(--surface));
-  box-shadow: 0 1px 1px rgb(0 0 0 / 0.06), 0 8px 18px -10px rgb(0 0 0 / 0.35);
-}
-.idea.is-sticky .idea-body {
-  padding: 14px 16px;
-  font-size: 15px;
-}
-.idea.is-sticky.is-selected {
-  box-shadow: 0 0 0 2px var(--accent), 0 8px 18px -10px rgb(0 0 0 / 0.35);
-}
 /* ---- text on the board: no box, just words ---- */
 .idea.is-label {
   border-color: transparent;

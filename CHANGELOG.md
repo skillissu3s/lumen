@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- Idea boards no longer have sticky notes.
+- Pressing on a card no longer shrinks it, so clicking its due date or flag
+  doesn't nudge the layout.
+- Docs: headings sit closer to what is around them, and closer still when one
+  heading follows another.
+- A scrollbar appearing no longer shifts the page sideways: its room is kept.
+- Ticking off a card is one smooth motion: the words slide over for the tick
+  while it is struck through, with no jump at the end.
+- The sidebar's profile stays exactly in place when the sidebar collapses; the
+  save state shows as a small dot on the avatar.
+
 ## 0.3.2 — tidier cards, a desktop title bar, Notion-style pages
 
 - **Cards**: the quick controls for due date, priority and labels sit in a

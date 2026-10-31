@@ -286,7 +286,7 @@ button.pb-list-dot:hover {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 2px 8px 4px;
+  padding: 2px 0 4px 8px;
   overflow-y: auto;
   overscroll-behavior: contain;
   min-height: 6px;
@@ -327,9 +327,6 @@ button.pb-list-dot:hover {
 }
 .pb-card:hover {
   box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--accent) 55%, transparent), 0 3px 8px rgb(0 0 0 / 0.1);
-}
-.pb-card:active {
-  transform: scale(0.995);
 }
 .pb-card:focus-visible {
   box-shadow: 0 0 0 2px var(--accent);
@@ -436,21 +433,24 @@ button.pb-list-dot:hover {
   opacity: 1;
   transform: none;
 }
-.pb-card.done .pb-check,
-.pb-card.doing .pb-check {
-  position: relative;
-  top: auto;
-  left: auto;
-  flex-shrink: 0;
-  margin: -1px 5px 0 -4px;
+/* done, under way, or being ticked off: the tick stays where it is and the
+   words slide over to make room for it, so nothing jumps when it settles */
+.pb-card:is(.done, .doing, .settling) .pb-check {
   background: none;
   box-shadow: none;
   opacity: 1;
   transform: none;
 }
-.pb-card.done .pb-check:hover,
-.pb-card.doing .pb-check:hover {
+.pb-card:is(.done, .doing) .pb-check:hover {
   background: var(--bg-hover);
+}
+.pb-words,
+.pb-badges {
+  transition: padding-left 320ms var(--ease);
+}
+.pb-card:is(.done, .doing, .settling) .pb-words,
+.pb-card:is(.done, .doing, .settling) .pb-badges {
+  padding-left: 23px;
 }
 @media (hover: none) {
   .pb-card:not(.done, .doing) .pb-check {
@@ -481,10 +481,6 @@ button.pb-list-dot:hover {
   align-items: center;
   gap: 4px;
   margin-top: 8px;
-}
-.pb-card.done .pb-badges,
-.pb-card.doing .pb-badges {
-  padding-left: 23px;
 }
 .pb-badge {
   display: inline-flex;

@@ -309,3 +309,16 @@ settable right on a card; drop the calendar's New button.
 - Removed the narrow-screen `min-width` on the week grid: the all-day row did
   not scroll with it, which cut Sunday off.
 
+### Polish after 0.3.2
+- Sticky notes removed from idea boards (old `style: "sticky"` nodes now draw
+  as ordinary cards).
+- `.pb-card:active` no longer scales the card (it moved the quick controls
+  under the pointer).
+- `scrollbar-gutter: stable` on every scrolling area (`both-edges` where the
+  content is centred) so a scrollbar appearing doesn't shift anything.
+- The card's tick is always positioned the same way; done, doing and settling
+  cards pad the words and badges by 23px with a 320ms transition, so the
+  settle animation and the layout change are one movement.
+- Collapsed sidebar: the footer keeps one row; the sync state is a dot on the
+  avatar.
+
