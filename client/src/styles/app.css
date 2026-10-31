@@ -162,11 +162,18 @@
   overflow: hidden;
 }
 .app.is-collapsed .sidebar-top {
-  padding: 10px 8px 8px;
+  /* (only the sides: the top stays as it is open, so nothing moves up or down) */
+  padding-left: 8px;
+  padding-right: 8px;
 }
 .app.is-collapsed .sidebar-head {
   flex-direction: column;
   gap: 6px;
+}
+/* (stacked, the workspace button keeps its own height: flex would squash it and lift the mark) */
+.app.is-collapsed .sidebar-head > :first-child {
+  flex: none;
+  width: 100%;
 }
 .app.is-collapsed .workspace-button {
   justify-content: center;
@@ -182,6 +189,13 @@
 .app.is-collapsed .sidebar-scroll {
   padding-left: 8px;
   padding-right: 8px;
+  /* the rail has no room for a scrollbar, and keeping room for one would push
+     its icons off centre */
+  scrollbar-gutter: auto;
+  scrollbar-width: none;
+}
+.app.is-collapsed .sidebar-scroll::-webkit-scrollbar {
+  display: none;
 }
 .app.is-collapsed .nav-item,
 .app.is-collapsed .nav-hint {
