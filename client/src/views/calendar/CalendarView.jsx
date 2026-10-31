@@ -18,6 +18,8 @@ import { TimeGrid } from './TimeGrid.jsx'
 import { TimelineView } from './TimelineView.jsx'
 import { AgendaView, MonthView } from './MonthView.jsx'
 import { EventEditor } from './EventEditor.jsx'
+import { EventPreview } from './EventPreview.jsx'
+import { CardDialog } from '../boards/CardDialog.jsx'
 import './calendar.css'
 
 function download(name, text, type = 'text/calendar') {
@@ -97,6 +99,8 @@ export default function CalendarView({ route }) {
     }
   })
   const [editor, setEditor] = useState(null) // { anchor, value, isNew, occ }
+  const [preview, setPreview] = useState(null) // { o, anchor }
+  const [card, setCard] = useState(null) // a task opened as its card: { path, id }
   const [scope, setScope] = useState(null) // { title, actions: { this, following, all } }
   const [calEdit, setCalEdit] = useState(null) // { anchor, cal? }
   const [customize, setCustomize] = useState(false)
@@ -165,6 +169,7 @@ export default function CalendarView({ route }) {
   // ---- editing ----
   const openNew = (draft, anchor) => {
     if (!defaultCal && !lists.length) return
+    setPreview(null)
     const kind = defaultCal ? 'event' : 'task'
     setEditor({
       anchor,
@@ -172,7 +177,13 @@ export default function CalendarView({ route }) {
       value: { key: `new-${Date.now()}`, kind, path: kind === 'event' ? defaultCal.path : lists[0].path, title: '', date: draft.date, time: draft.allDay ? null : draft.time, duration: draft.duration || c.defaultDuration, recurrence: null, notes: '' },
     })
   }
+  // a click shows the item first; editing is one step further
   const openOcc = (o, anchor) => {
+    setEditor(null)
+    setPreview({ o, anchor })
+  }
+  const editOcc = (o, anchor) => {
+    setPreview(null)
     const i = o.item
     setEditor({
       anchor,
@@ -223,6 +234,7 @@ export default function CalendarView({ route }) {
 
   const deleteOcc = (o) => {
     setEditor(null)
+    setPreview(null)
     const item = o.item
     if (o.series)
       return askScope('Delete a repeating event', {
@@ -315,7 +327,7 @@ export default function CalendarView({ route }) {
   const toggleHidden = (path) => setPrefs({ calendar: { hidden: hidden.has(path) ? [...hidden].filter((p) => p !== path) : [...hidden, path] } })
 
   const settings = { ...c, h12 }
-  const common = { occs, settings, h12, onCreate: openNew, onOpen: openOcc, onToggle: toggle }
+  const common = { occs, settings, h12, onCreate: openNew, onOpen: openOcc, onToggle: toggle, onDay: (d) => go({ view: 'day', date: d }) }
 
   return (
     <div className={`view cal${side ? ' has-side' : ''}`}>
@@ -407,7 +419,7 @@ export default function CalendarView({ route }) {
         )}
         <div className="cal-main">
           {view === 'timeline' && <TimelineView date={date} {...common} />}
-          {(view === 'day' || view === '3day' || view === 'week') && <TimeGrid days={days} {...common} onMove={moveOcc} onDropItem={dropItem} announce={announce} />}
+          {(view === 'day' || view === '3day' || view === 'week') && <TimeGrid days={days} {...common} onMove={moveOcc} onDropItem={dropItem} draft={editor?.isNew ? editor.value : null} announce={announce} />}
           {view === 'month' && <MonthView days={days} focus={date} {...common} onMoveDay={moveDay} />}
           {view === 'agenda' && <AgendaView days={days} {...common} />}
         </div>
@@ -449,6 +461,32 @@ export default function CalendarView({ route }) {
           onDelete={() => deleteOcc(editor.occ)}
         />
       )}
+      {preview && (
+        <EventPreview
+          key={preview.o.key}
+          o={preview.o}
+          anchor={preview.anchor}
+          h12={h12}
+          colorBy={c.colorBy}
+          onClose={() => setPreview(null)}
+          onEdit={() => editOcc(preview.o, preview.anchor)}
+          onDelete={() => deleteOcc(preview.o)}
+          onToggle={() => toggle(preview.o)}
+          onOpenCard={() => {
+            setCard({ path: preview.o.item.path, id: preview.o.item.id })
+            setPreview(null)
+          }}
+          onDuplicate={() => {
+            const i = preview.o.item
+            const fields = { title: i.title, date: preview.o.date, time: i.time || null, duration: i.duration || null, color: i.color || null, notes: i.notes || '' }
+            if (i.kind === 'task') addTask(i.path, { ...fields, priority: i.priority || null })
+            else addEvent(i.path, { ...fields, location: i.location || null })
+            setPreview(null)
+            toast('Duplicated', { tone: 'success' })
+          }}
+        />
+      )}
+      {card && <CardDialog path={card.path} id={card.id} onClose={() => setCard(null)} />}
 
       <Dialog
         open={!!scope}

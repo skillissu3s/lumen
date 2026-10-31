@@ -73,7 +73,7 @@ function Block({ o, style, color, h12, compact, onPointerDown, onOpen, onKey, on
  * days: iso dates · occs: expanded occurrences · settings: prefs.calendar (+ h12, weekStart)
  * onCreate({ date, time, duration, allDay }, anchor) · onOpen(occ, anchor) · onMove(occ, { date, time, duration }) · onToggle(occ) · onDropItem({path,id}, date, time)
  */
-export function TimeGrid({ days, occs, settings, h12, onCreate, onOpen, onMove, onToggle, onDropItem, announce }) {
+export function TimeGrid({ days, occs, settings, h12, onCreate, onOpen, onMove, onToggle, onDropItem, onDay, draft, announce }) {
   const { dayStart, dayEnd, snap, colorBy, workStart, workEnd, highlightWork, showWeekNumbers } = settings
   const scrollRef = useRef(null)
   const colsRef = useRef(null)
@@ -92,6 +92,7 @@ export function TimeGrid({ days, occs, settings, h12, onCreate, onOpen, onMove, 
   const [drag, setDrag] = useState(null) // { type, occ?, day, start, end, startY, moved }
   const [now, setNow] = useState(nowMinutes())
   const [cursor, setCursor] = useState(null) // keyboard slot { day, min }
+  const [hover, setHover] = useState(null) // the empty slot under the pointer { day, min }
   const today = todayIso()
   const geo = { hourHeight, dayStart, snap }
   const height = (dayEnd - dayStart) * hourHeight
@@ -154,7 +155,14 @@ export function TimeGrid({ days, occs, settings, h12, onCreate, onOpen, onMove, 
     colsRef.current.setPointerCapture?.(e.pointerId)
   }
   const onPointerMove = (e) => {
-    if (!drag) return
+    if (!drag) {
+      // over empty space: show where a click would make something
+      const empty = !e.target.closest('.block') && e.pointerType === 'mouse'
+      const p = empty ? pointAt(e) : null
+      const at = p && { day: p.day, min: Math.floor(p.min / snap) * snap }
+      setHover((h) => (h?.day === at?.day && h?.min === at?.min ? h : at))
+      return
+    }
     if (!drag.moved && Math.abs(e.clientY - drag.startY) < 4 && drag.type !== 'create') return
     const p = pointAt(e)
     setDrag((d) => {
@@ -253,10 +261,10 @@ export function TimeGrid({ days, occs, settings, h12, onCreate, onOpen, onMove, 
       <div className="tgrid-head">
         <div className="tgrid-gutter">{showWeekNumbers && <span className="weeknum">W{isoWeek(days[0])}</span>}</div>
         {days.map((d) => (
-          <div key={d} className={`tgrid-day${d === today ? ' is-today' : ''}`}>
+          <button key={d} type="button" className={`tgrid-day${d === today ? ' is-today' : ''}${d < today ? ' is-past' : ''}`} onClick={() => onDay?.(d)} disabled={!onDay || days.length === 1} title={days.length > 1 ? `Open ${dayName(d)}` : undefined}>
             <span className="tgrid-dayname">{dayName(d, true)}</span>
             <span className="tgrid-daynum">{dayOfMonth(d)}</span>
-          </div>
+          </button>
         ))}
       </div>
       {allDay.length > 0 && (
@@ -287,6 +295,11 @@ export function TimeGrid({ days, occs, settings, h12, onCreate, onOpen, onMove, 
       <div className="tgrid-scroll" ref={scrollRef}>
         <div className="tgrid-body" style={{ height }}>
           <div className="tgrid-gutter tgrid-hours" aria-hidden="true">
+            {days.includes(today) && now >= dayStart * 60 && now <= dayEnd * 60 && (
+              <span className="now-pill" style={{ top: minutesToY(now, geo) }}>
+                {formatTime(fromMinutes(now), h12)}
+              </span>
+            )}
             {HOURS(dayStart, dayEnd).map((h) => (
               <span key={h} className="tgrid-hour" style={{ top: (h - dayStart) * hourHeight }}>
                 {h === dayStart ? '' : formatTime(fromMinutes(h * 60), h12).replace(':00', '')}
@@ -303,6 +316,7 @@ export function TimeGrid({ days, occs, settings, h12, onCreate, onOpen, onMove, 
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
             onPointerCancel={() => setDrag(null)}
+            onPointerLeave={() => setHover(null)}
             onKeyDown={onGridKey}
             onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setCursor(null)}
             onDragOver={onDragOver}
@@ -310,7 +324,8 @@ export function TimeGrid({ days, occs, settings, h12, onCreate, onOpen, onMove, 
             onDrop={onDrop}
           >
             {days.map((d) => (
-              <div key={d} className={`tgrid-col${d === today ? ' is-today' : ''}`} role="row" aria-label={`${dayName(d)} ${dayOfMonth(d)}`}>
+              <div key={d} className={`tgrid-col${d === today ? ' is-today' : ''}${d < today ? ' is-past' : ''}`} role="row" aria-label={`${dayName(d)} ${dayOfMonth(d)}`}>
+                {d === today && now > dayStart * 60 && <div className="tgrid-past" style={{ height: minutesToY(Math.min(now, dayEnd * 60), geo) }} aria-hidden="true" />}
                 {highlightWork && <div className="tgrid-work" style={{ top: minutesToY(workStart * 60, geo), height: (workEnd - workStart) * hourHeight }} />}
                 {(byDay.get(d) || []).map((o) => {
                   const hidden = drag?.moved && drag.occ?.key === o.key
@@ -333,6 +348,21 @@ export function TimeGrid({ days, occs, settings, h12, onCreate, onOpen, onMove, 
                   )
                 })}
                 {d === today && now >= dayStart * 60 && now <= dayEnd * 60 && <div className="now-line" style={{ top: minutesToY(now, geo) }} aria-hidden="true" />}
+                {hover && hover.day === d && !drag && !draft && (
+                  <div className="slot-ghost" style={{ top: minutesToY(hover.min, geo) + 1, height: (settings.defaultDuration / 60) * hourHeight - 3 }} aria-hidden="true">
+                    <span>+ {formatTime(fromMinutes(hover.min), h12)}</span>
+                  </div>
+                )}
+                {draft && draft.date === d && draft.time && (
+                  <div className="block is-preview is-draft" style={{ top: minutesToY(toMinutes(draft.time), geo) + 1, height: ((draft.duration || settings.defaultDuration) / 60) * hourHeight - 3, left: 4, right: 6 }} aria-hidden="true">
+                    <div className="block-inner">
+                      <span className="block-title">{titleOf(draft) || 'New'}</span>
+                      <span className="block-time">
+                        {formatTime(draft.time, h12)} – {formatTime(fromMinutes(toMinutes(draft.time) + (draft.duration || settings.defaultDuration)), h12)}
+                      </span>
+                    </div>
+                  </div>
+                )}
                 {preview && preview.day === d && (
                   <div className="block is-preview" style={{ top: minutesToY(preview.start, geo), height: ((preview.end - preview.start) / 60) * hourHeight - 3, left: 4, right: 6, '--c': `var(--c-${preview.occ ? colorOf(preview.occ.item, colorBy) : 'gray'})`, '--c-bg': `var(--c-${preview.occ ? colorOf(preview.occ.item, colorBy) : 'gray'}-bg)`, '--c-fg': `var(--c-${preview.occ ? colorOf(preview.occ.item, colorBy) : 'gray'}-fg)` }} aria-hidden="true">
                     <div className="block-inner">

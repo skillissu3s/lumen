@@ -1,7 +1,7 @@
 // Making or changing a calendar item: title (typed in plain words for new
 // ones), event or task, when, repeat, colour, place and notes.
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarDays, Clock, MapPin, Repeat, Trash2 } from 'lucide-react'
+import { CalendarDays, ChevronDown, Clock, MapPin, Repeat, Trash2 } from 'lucide-react'
 import { Button, ColorPicker, DateField, Popover, Segmented, Select, Switch, Textarea, TimeField } from '../../components/ui/index.js'
 import { parseQuickAdd } from '../../../../shared/quickadd.js'
 import { joinIcon, splitIcon } from '../../../../shared/items.js'
@@ -16,11 +16,14 @@ import { RepeatField } from '../shared/RepeatField.jsx'
  */
 export function EventEditor({ open, onClose, anchor, value, isNew, calendars, lists, h12, onSave, onDelete, defaultDuration = 30 }) {
   const [f, setF] = useState(value)
+  // a new item asks only for what it needs; the rest waits behind "More options"
+  const [more, setMore] = useState(!isNew)
   const titleRef = useRef(null)
   useEffect(() => {
     if (open) {
       const { icon, label } = splitIcon(value.title || '')
       setF({ ...value, icon: value.icon ?? icon, label })
+      setMore(!isNew)
       setTimeout(() => titleRef.current?.focus(), 30)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -152,23 +155,25 @@ export function EventEditor({ open, onClose, anchor, value, isNew, calendars, li
             </>
           )}
 
-          <span className="editor-label">Repeat</span>
-          <RepeatField value={v.recurrence || null} date={v.date} onChange={(r) => set({ recurrence: r })} />
-
-          {f.kind === 'task' && (
+          {more && (
             <>
-              <span className="editor-label">Priority</span>
-              <Segmented
-                label="Priority"
-                value={f.priority || ''}
-                onChange={(v) => set({ priority: v || null })}
-                options={[
-                  { value: '', label: 'None' },
-                  { value: 'low', label: 'Low' },
-                  { value: 'medium', label: 'Med' },
-                  { value: 'high', label: 'High' },
-                ]}
-              />
+              <span className="editor-label">Repeat</span>
+              <RepeatField value={v.recurrence || null} date={v.date} onChange={(r) => set({ recurrence: r })} />
+
+              {f.kind === 'task' && (
+                <>
+                  <span className="editor-label">Priority</span>
+                  <Segmented
+                    label="Priority"
+                    value={f.priority || ''}
+                    onChange={(v) => set({ priority: v || null })}
+                    options={[
+                      { value: '', label: 'None' },
+                      { value: 'low', label: 'Low' },
+                      { value: 'medium', label: 'Med' },
+                      { value: 'high', label: 'High' },
+                    ]}
+                  />
             </>
           )}
 
@@ -187,13 +192,22 @@ export function EventEditor({ open, onClose, anchor, value, isNew, calendars, li
             <ColorPicker value={f.color || null} onChange={(c) => set({ color: c === f.color ? null : c })} />
             {f.color && (
               <button type="button" className="editor-reset" onClick={() => set({ color: null })}>
-                Use {f.kind === 'event' ? 'calendar' : 'list'} colour
+                Use {f.kind === 'event' ? 'calendar' : 'board'} colour
               </button>
             )}
           </div>
+            </>
+          )}
         </div>
 
-        <Textarea value={f.notes || ''} onChange={(e) => set({ notes: e.target.value })} placeholder="Notes" aria-label="Notes" autoSize className="editor-notes" />
+        {more ? (
+          <Textarea value={f.notes || ''} onChange={(e) => set({ notes: e.target.value })} placeholder="Notes" aria-label="Notes" autoSize className="editor-notes" />
+        ) : (
+          <button type="button" className="editor-more" onClick={() => setMore(true)}>
+            <ChevronDown size={14} /> More options
+            <span className="faint">repeat, {f.kind === 'event' ? 'place' : 'priority'}, colour, notes</span>
+          </button>
+        )}
 
         <div className="editor-actions">
           {!isNew && (
@@ -201,7 +215,7 @@ export function EventEditor({ open, onClose, anchor, value, isNew, calendars, li
               Delete
             </Button>
           )}
-          <span className="editor-hint faint">Ctrl Enter</span>
+          <span className="editor-hint faint">{isNew && !more ? 'Enter' : 'Ctrl Enter'}</span>
           <Button type="button" variant="ghost" onClick={onClose}>
             Cancel
           </Button>
