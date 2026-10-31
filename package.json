@@ -40,7 +40,10 @@
     "zustand": "^5.0.15"
   },
   "main": "desktop/main.js",
-  "author": "skillissu3s",
+  "author": {
+    "name": "skillissu3s",
+    "email": "skillissu3s@users.noreply.github.com"
+  },
   "build": {
     "appId": "app.lumen.desktop",
     "productName": "Lumen",
@@ -87,7 +90,7 @@
         "deb"
       ],
       "category": "Office",
-      "maintainer": "Lumen"
+      "maintainer": "skillissu3s <skillissu3s@users.noreply.github.com>"
     },
     "publish": [
       {
@@ -97,5 +100,6 @@
       }
     ],
     "artifactName": "${productName}-Setup-${version}.${ext}"
-  }
+  },
+  "homepage": "https://github.com/skillissu3s/lumen"
 }
