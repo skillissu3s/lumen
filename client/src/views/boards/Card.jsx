@@ -2,13 +2,15 @@
 // as thin bars of colour (a click shows their names), the title with a tick that
 // appears where it starts, and a row of small badges.
 import { memo, useCallback, useEffect, useState } from 'react'
-import { AlignLeft, CalendarDays, Circle, CircleCheckBig, CircleDashed, Clock, Flag, ListChecks, Repeat } from 'lucide-react'
+import { AlignLeft, CalendarDays, CalendarPlus, Circle, CircleCheckBig, CircleDashed, Clock, Flag, ListChecks, Repeat, Tag } from 'lucide-react'
+import { Popover } from '../../components/ui/index.js'
 import { toggleTask } from '../../lib/actions.js'
 import { useSettle } from '../../lib/celebrate.js'
 import { colorFor, splitTitle } from '../../lib/colors.js'
 import { addDays, formatTime, relativeDay, todayIso } from '../../../../shared/dates.js'
 import { isOpen, itemDay } from '../../../../shared/items.js'
 import { progressOf } from '../tasks/taskQueries.js'
+import { DuePicker, LabelPicker, PriorityPicker } from './pickers.jsx'
 import './boards.css'
 
 export const PRIORITY_COLOR = { highest: 'red', high: 'orange', medium: 'blue', low: 'gray', lowest: 'gray' }
@@ -82,7 +84,7 @@ export function useLabelNames() {
  * `onPress` (pointer drag on a board) or, without it, the browser's drag and
  * drop (All tasks, onto the calendar or the sidebar). `hidden`: being dragged.
  */
-export const Card = memo(function Card({ item, labelColors = {}, cover, showBoard, h12, onOpen, onPress, onMenu, hidden, quiet }) {
+export const Card = memo(function Card({ item, labelColors = {}, labels, cover, showBoard, h12, onOpen, onPress, onMenu, hidden, quiet }) {
   const today = todayIso()
   const { text, tags } = splitTitle(item.title)
   const day = itemDay(item)
@@ -93,9 +95,16 @@ export const Card = memo(function Card({ item, labelColors = {}, cover, showBoar
   const [settling, settle] = useSettle(() => toggleTask(item.path, item.id))
   const toggle = (el) => (done ? toggleTask(item.path, item.id) : settle(el))
   const native = !onPress
+  // the due date, priority and labels, picked right on the card
+  const [picking, setPicking] = useState(null) // { kind, anchor }
+  const pick = (kind) => (e) => {
+    e.stopPropagation()
+    setPicking({ kind, anchor: { current: e.currentTarget } })
+  }
+  const stop = (e) => e.stopPropagation()
   return (
     <article
-      className={`pb-card${done ? ' done' : ''}${item.status === '/' ? ' doing' : ''}${settling ? ' settling' : ''}${hidden ? ' is-dragging' : ''}`}
+      className={`pb-card${done ? ' done' : ''}${item.status === '/' ? ' doing' : ''}${settling ? ' settling' : ''}${hidden ? ' is-dragging' : ''}${picking ? ' is-picking' : ''}`}
       data-card={item.id}
       tabIndex={0}
       draggable={native || undefined}
@@ -149,48 +158,73 @@ export const Card = memo(function Card({ item, labelColors = {}, cover, showBoar
           <span className="pb-strike">{text || 'Untitled card'}</span>
         </span>
       </div>
-      {(day || item.time || item.priority || item.recurrence || item.notes || prog.total > 0 || (showBoard && item.source)) && (
-        <div className="pb-badges">
-          {day && (
-            <span className={`pb-badge due ${tone}`} title={`Due ${day}`}>
-              <CalendarDays />
-              {relativeDay(day, today)}
-            </span>
-          )}
-          {item.time && (
-            <span className="pb-badge" title="Time">
-              <Clock />
-              {formatTime(item.time, h12)}
-            </span>
-          )}
-          {item.priority && (
-            <span className={`pb-badge task-pri pri-${item.priority}`} title={`${PRIORITY_NAME[item.priority]} priority`}>
+      <div className="pb-badges">
+        {day ? (
+          <button type="button" className={`pb-badge pb-pick due ${tone}`} title={`Due ${day} — change`} onClick={pick('due')}>
+            <CalendarDays />
+            {relativeDay(day, today)}
+          </button>
+        ) : (
+          !done && (
+            <button type="button" className="pb-badge pb-pick pb-ghost" title="Set a due date" aria-label="Set a due date" onClick={pick('due')}>
+              <CalendarPlus />
+            </button>
+          )
+        )}
+        {item.time && (
+          <span className="pb-badge" title="Time">
+            <Clock />
+            {formatTime(item.time, h12)}
+          </span>
+        )}
+        {item.priority ? (
+          <button type="button" className={`pb-badge pb-pick task-pri pri-${item.priority}`} title={`${PRIORITY_NAME[item.priority]} priority — change`} onClick={pick('priority')}>
+            <Flag />
+          </button>
+        ) : (
+          !done && (
+            <button type="button" className="pb-badge pb-pick pb-ghost" title="Set a priority" aria-label="Set a priority" onClick={pick('priority')}>
               <Flag />
-            </span>
-          )}
-          {item.recurrence && (
-            <span className="pb-badge" title={`Repeats ${item.recurrence}`}>
-              <Repeat />
-            </span>
-          )}
-          {item.notes && (
-            <span className="pb-badge" title="This card has a description">
-              <AlignLeft />
-            </span>
-          )}
-          {prog.total > 0 && (
-            <span className={`pb-badge${prog.done === prog.total ? ' full' : ''}`} title={`${prog.done} of ${prog.total} checklist items done`}>
-              <ListChecks />
-              {prog.done}/{prog.total}
-            </span>
-          )}
-          {showBoard && item.source && (
-            <span className="pb-badge pb-board" style={{ '--bc': `var(--c-${item.source.color || 'gray'})` }}>
-              <i />
-              {item.source.name}
-            </span>
-          )}
-        </div>
+            </button>
+          )
+        )}
+        {!done && labels && (
+          <button type="button" className="pb-badge pb-pick pb-ghost" title="Labels" aria-label="Labels" onClick={pick('labels')}>
+            <Tag />
+          </button>
+        )}
+        {item.recurrence && (
+          <span className="pb-badge" title={`Repeats ${item.recurrence}`}>
+            <Repeat />
+          </span>
+        )}
+        {item.notes && (
+          <span className="pb-badge" title="This card has a description">
+            <AlignLeft />
+          </span>
+        )}
+        {prog.total > 0 && (
+          <span className={`pb-badge${prog.done === prog.total ? ' full' : ''}`} title={`${prog.done} of ${prog.total} checklist items done`}>
+            <ListChecks />
+            {prog.done}/{prog.total}
+          </span>
+        )}
+        {showBoard && item.source && (
+          <span className="pb-badge pb-board" style={{ '--bc': `var(--c-${item.source.color || 'gray'})` }}>
+            <i />
+            {item.source.name}
+          </span>
+        )}
+      </div>
+      {picking && (
+        // (a popover renders elsewhere in the page, but its events still pass through the card: keep them there)
+        <span onClick={stop} onPointerDown={stop} onKeyDown={stop} onContextMenu={stop}>
+          <Popover open onOpenChange={(o) => !o && setPicking(null)} anchor={picking.anchor} placement="bottom-start" className={picking.kind === 'labels' ? 'label-pop' : 'qp-pop'}>
+            {picking.kind === 'due' && <DuePicker item={item} onClose={() => setPicking(null)} />}
+            {picking.kind === 'priority' && <PriorityPicker item={item} onClose={() => setPicking(null)} />}
+            {picking.kind === 'labels' && <LabelPicker item={item} settings={{ labels: labelColors }} known={labels} onClose={() => setPicking(null)} />}
+          </Popover>
+        </span>
       )}
     </article>
   )

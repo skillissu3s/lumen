@@ -14,11 +14,12 @@ import { splitTitle } from '../../lib/colors.js'
 import { addDays, todayIso, weekStartOf } from '../../../../shared/dates.js'
 import { boardOf } from '../../../../shared/board.js'
 import { isOpen, itemDay } from '../../../../shared/items.js'
-import { parseQuickAdd } from '../../../../shared/quickadd.js'
 import { ListEditor } from '../../shell/ListEditor.jsx'
 import { TaskRow } from '../tasks/TaskRow.jsx'
 import { Card, Label } from './Card.jsx'
-import { CardDialog, Colors, PopHead } from './CardDialog.jsx'
+import { Composer } from './Composer.jsx'
+import { CardDialog } from './CardDialog.jsx'
+import { Colors, PopHead } from './pickers.jsx'
 import { useBoardDrag } from './boardDrag.js'
 import './boards.css'
 
@@ -96,55 +97,6 @@ function FilterCard({ filter, labels, labelColors, onChange }) {
 }
 
 // ---------- adding ----------
-
-/** Adds cards one after another: Enter adds and stays open, Escape closes. A date or a priority can be typed in. */
-function Composer({ onAdd, onClose }) {
-  const [text, setText] = useState('')
-  const parsed = useMemo(() => (text.trim() ? parseQuickAdd(text, { today: todayIso() }) : null), [text])
-  const submit = () => {
-    if (!text.trim()) return
-    onAdd(text)
-    setText('')
-  }
-  return (
-    <div className="pb-composer" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && !text.trim() && onClose()}>
-      <textarea
-        ref={(el) => el && !el.dataset.f && ((el.dataset.f = '1'), el.focus(), el.scrollIntoView({ block: 'nearest' }))}
-        rows={2}
-        aria-label="Title of the new card"
-        placeholder="Enter a title… “Pay rent fri !high”"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault()
-            submit()
-          } else if (e.key === 'Escape') {
-            e.stopPropagation()
-            onClose()
-          }
-        }}
-      />
-      {parsed?.found.length > 0 && (
-        <div className="pb-chips">
-          {parsed.found.map((f) => (
-            <span key={f.kind} className="pb-chip">
-              {f.text}
-            </span>
-          ))}
-        </div>
-      )}
-      <div className="pb-composer-actions">
-        <button type="button" className="ui-button ui-button--primary ui-button--sm" onMouseDown={(e) => e.preventDefault()} onClick={submit}>
-          Add card
-        </button>
-        <button type="button" className="pop-icon" aria-label="Close" onClick={onClose}>
-          <X size={16} />
-        </button>
-      </div>
-    </div>
-  )
-}
 
 function AddList({ onAdd }) {
   const [open, setOpen] = useState(false)
@@ -425,6 +377,7 @@ export default function BoardPage({ route }) {
                     key={c.id}
                     item={c}
                     labelColors={board.settings.labels}
+                    labels={labels}
                     cover={board.settings.covers[c.id]}
                     h12={h12}
                     hidden={c.id === hiding}
@@ -451,6 +404,7 @@ export default function BoardPage({ route }) {
                   aria-label={`${lane.name || 'No list'}, ${visible.length} ${visible.length === 1 ? 'card' : 'cards'}`}
                 >
                   <header className="pb-list-head" onPointerDown={!lane.name || renaming === lane.key ? undefined : (e) => press(e, { kind: 'list', id: lane.key, el: e.currentTarget.closest('.pb-list') })}>
+                    {lane.color && renaming !== lane.key && <i className="pb-list-dot" aria-hidden="true" />}
                     {renaming === lane.key ? (
                       <input
                         className="pop-input pb-rename"

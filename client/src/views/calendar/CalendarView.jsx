@@ -345,9 +345,6 @@ export default function CalendarView({ route }) {
               <SlidersHorizontal size={16} />
             </button>
           </Tooltip>
-          <Button variant="primary" size="sm" icon={Plus} onClick={(e) => openNew({ date: days.includes(today) ? today : days[0], time: `${String(Math.min(22, new Date().getHours() + 1)).padStart(2, '0')}:00`, duration: c.defaultDuration }, e.currentTarget)}>
-            New
-          </Button>
         </div>
       </header>
 

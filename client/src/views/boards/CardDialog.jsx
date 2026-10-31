@@ -2,22 +2,23 @@
 // card (laid out the way obi does it). Each change is written to the card's
 // line at once.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { AlignLeft, Archive, CalendarDays, Check, Copy, Flag, ListChecks, Palette, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { AlignLeft, Archive, CalendarDays, Copy, Flag, ListChecks, Palette, Plus, Trash2, X } from 'lucide-react'
 import { DateField, DurationField, Popover, TimeField } from '../../components/ui/index.js'
 import { useLists } from '../../store/hooks.js'
 import { usePrefs } from '../../store/prefs.js'
 import { useWorkspace } from '../../store/workspace.js'
 import { addTask, deleteItem, updateItem } from '../../lib/actions.js'
-import { archiveCard, moveCard, setCover, setLabelColor } from '../../lib/boardActions.js'
+import { archiveCard, moveCard, setCover } from '../../lib/boardActions.js'
 import { celebrate } from '../../lib/celebrate.js'
-import { colorFor, joinTitle, splitTitle } from '../../lib/colors.js'
+import { joinTitle, splitTitle } from '../../lib/colors.js'
 import { navigate } from '../../lib/router.js'
 import { todayIso } from '../../../../shared/dates.js'
 import { addItem, isOpen } from '../../../../shared/items.js'
-import { BOARD_COLORS, boardOf } from '../../../../shared/board.js'
+import { boardOf } from '../../../../shared/board.js'
 import { RepeatField } from '../shared/RepeatField.jsx'
 import { renderMarkdown } from '../docs/markdown.js'
 import { Label, PRIORITY_NAME, StatusIcon, dueTone } from './Card.jsx'
+import { Colors, LabelPicker, PopHead } from './pickers.jsx'
 import { toggleTask } from '../../lib/actions.js'
 import './boards.css'
 
@@ -41,129 +42,6 @@ function Field({ label, children, wide }) {
       <div className="td-label">{label}</div>
       {children}
     </div>
-  )
-}
-
-/** The head of a popover: its title in the middle, a way back on the left (if any), × on the right */
-export function PopHead({ title, onBack, onClose }) {
-  return (
-    <div className="pop-head">
-      {onBack ? (
-        <button type="button" className="pop-icon" aria-label="Back" onClick={onBack}>
-          ‹
-        </button>
-      ) : (
-        <span />
-      )}
-      <b>{title}</b>
-      <button type="button" className="pop-icon" aria-label="Close" onClick={onClose}>
-        <X size={14} />
-      </button>
-    </div>
-  )
-}
-
-/** The colours to pick from, as wide tiles; the one in use ticked */
-export function Colors({ value, onPick }) {
-  return (
-    <div className="lp-colors" role="radiogroup" aria-label="Colour">
-      {BOARD_COLORS.map((c) => (
-        <button key={c} type="button" role="radio" className={`lp-color${value === c ? ' on' : ''}`} style={{ '--lc': `var(--c-${c})` }} title={COLOR_NAME(c)} aria-label={COLOR_NAME(c)} aria-checked={value === c} onClick={() => onPick(c)}>
-          {value === c && <Check size={14} />}
-        </button>
-      ))}
-    </div>
-  )
-}
-
-/** The board's labels: tick one to put it on the card, the pencil to recolour it, or make a new one */
-function LabelPicker({ item, settings, known, onClose }) {
-  const { text, tags } = splitTitle(item.title)
-  const [view, setView] = useState(null) // null: the list; { name?, color } editing or making one
-  const [q, setQ] = useState('')
-  const [name, setName] = useState('')
-  const [color, setColor] = useState('blue')
-  const colorOf = (t) => settings.labels[t] || colorFor(t)
-  const want = q.trim().replace(/^#/, '').replace(/\s+/g, '-').toLowerCase()
-  const shown = known.filter((t) => !want || t.toLowerCase().includes(want))
-  const has = (t) => tags.includes(t)
-  const toggle = (t) => updateItem(item.path, item.id, { title: joinTitle(text, has(t) ? tags.filter((x) => x !== t) : [...tags, t]) })
-  const open = (label) => {
-    setView(label ? { name: label } : {})
-    setName(label || want)
-    setColor(label ? colorOf(label) : 'blue')
-  }
-  if (view) {
-    const clean = name.trim().replace(/^#/, '').replace(/\s+/g, '-')
-    const save = () => {
-      if (!clean) return
-      setLabelColor(item.path, clean, color)
-      if (!view.name && !has(clean)) updateItem(item.path, item.id, { title: joinTitle(text, [...tags, clean]) })
-      setView(null)
-      setQ('')
-    }
-    return (
-      <>
-        <PopHead title={view.name ? 'Edit label' : 'Create a label'} onBack={() => setView(null)} onClose={onClose} />
-        <div className="lp-preview">
-          <span className="lp-bar static" style={{ '--lc': `var(--c-${color})` }}>
-            {clean || 'label'}
-          </span>
-        </div>
-        <div className="pop-body">
-          <label className="pop-label" htmlFor="lp-name">
-            Title
-          </label>
-          <input id="lp-name" className="pop-input" autoFocus value={name} disabled={!!view.name} placeholder="design, waiting, bug…" onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), save())} />
-          <div className="pop-label">Colour</div>
-          <Colors value={color} onPick={setColor} />
-          <div className="lp-actions">
-            <button type="button" className="ui-button ui-button--primary ui-button--sm" disabled={!clean} onClick={save}>
-              {view.name ? 'Save' : 'Create'}
-            </button>
-          </div>
-        </div>
-      </>
-    )
-  }
-  return (
-    <>
-      <PopHead title="Labels" onClose={onClose} />
-      <div className="pop-body">
-        <input
-          className="pop-input"
-          autoFocus
-          aria-label="Search labels"
-          placeholder="Search labels…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key !== 'Enter') return
-            e.preventDefault()
-            if (shown[0] && shown[0].toLowerCase() === want) toggle(shown[0])
-            else if (want) open(null)
-          }}
-        />
-        <div className="pop-label">Labels</div>
-        <ul className="lp-list">
-          {shown.map((t) => (
-            <li key={t} className="lp-row">
-              <input type="checkbox" className="lp-check" checked={has(t)} aria-label={`${t} on this card`} onChange={() => toggle(t)} />
-              <button type="button" className="lp-bar" style={{ '--lc': `var(--c-${colorOf(t)})` }} aria-pressed={has(t)} onClick={() => toggle(t)}>
-                {t}
-              </button>
-              <button type="button" className="pop-icon" aria-label={`Edit ${t}`} title="Edit label" onClick={() => open(t)}>
-                <Pencil size={13} />
-              </button>
-            </li>
-          ))}
-          {!shown.length && <li className="lp-empty">{want ? `No label called “${want}” yet.` : 'No labels on this board yet.'}</li>}
-        </ul>
-        <button type="button" className="lp-create" onClick={() => open(null)}>
-          {want && !known.some((t) => t.toLowerCase() === want) ? `Create “${want}”` : 'Create a new label'}
-        </button>
-      </div>
-    </>
   )
 }
 
@@ -393,6 +271,7 @@ export function CardDialog({ path, id, onClose }) {
         <button type="button" className="cd-close" aria-label="Close" onClick={onClose}>
           <X size={18} />
         </button>
+        {cover && <div className="cd-cover-band" aria-hidden="true" />}
         <div className="cd">
           <header className="cd-head">
             <button type="button" className={`pb-check cd-check${status === 'x' ? ' on' : ''}`} aria-label={status === 'x' ? 'Mark not done' : 'Mark done'} onClick={(e) => setStatus(status === 'x' ? ' ' : 'x', e.currentTarget)}>

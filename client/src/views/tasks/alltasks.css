@@ -5,15 +5,9 @@
   flex: 1;
   min-height: 0;
 }
-.all-tasks-body .board {
+.all-tasks-body .pb-lanes {
   flex: 1;
   min-width: 0;
-}
-.col-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--col);
 }
 .filter-button {
   display: inline-flex;
@@ -154,9 +148,9 @@
 }
 .rail-chip i {
   flex: none;
-  width: 3px;
-  height: 14px;
-  border-radius: 2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
   background: var(--bc);
 }
 .rail-chip span {

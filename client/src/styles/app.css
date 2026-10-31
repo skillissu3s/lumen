@@ -808,11 +808,11 @@
 .is-desktop-titlebar .sidebar-top > * {
   -webkit-app-region: no-drag;
 }
-.is-desktop-titlebar .view-header {
+.is-desktop-titlebar :is(.view-header, .pb-bar) {
   -webkit-app-region: drag;
   padding-right: 150px;
 }
-.is-desktop-titlebar .view-header > * {
+.is-desktop-titlebar :is(.view-header, .pb-bar) > * {
   -webkit-app-region: no-drag;
 }
 

@@ -2,7 +2,7 @@
 // priority or board, with filters, and a schedule beside it to drop cards on
 // a day.
 import { useMemo, useState } from 'react'
-import { CalendarDays, ChevronLeft, ChevronRight, ListFilter, PanelRight, Search } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, ListFilter, PanelRight, Plus, Search } from 'lucide-react'
 import { IconButton, Menu, Segmented } from '../../components/ui/index.js'
 import { useLists } from '../../store/hooks.js'
 import { usePrefs } from '../../store/prefs.js'
@@ -14,8 +14,8 @@ import { addDays, addMonths, dayOfMonth, monthGrid, monthName, relativeDay, toda
 import { boardOf } from '../../../../shared/board.js'
 import { compareItems, isOpen, itemDay, priorityRank } from '../../../../shared/items.js'
 import { Card } from '../boards/Card.jsx'
+import { Composer } from '../boards/Composer.jsx'
 import { CardDialog } from '../boards/CardDialog.jsx'
-import { QuickAdd } from './QuickAdd.jsx'
 import '../boards/boards.css'
 import './alltasks.css'
 
@@ -56,13 +56,15 @@ function columnsFor(group, today, lists) {
   }
 }
 
-function Column({ col, cards, settingsOf, onOpen, h12, defaultBoard }) {
+function Column({ col, cards, settingsOf, labels, onOpen, h12, defaultBoard }) {
   const [over, setOver] = useState(false)
+  const [adding, setAdding] = useState(false)
   const droppable = !!(col.patch || col.board)
   return (
     <section
-      className={`col${over ? ' is-over' : ''}`}
-      style={{ '--col': `var(--c-${col.color})` }}
+      className={`pb-list${over ? ' over' : ''}`}
+      style={{ '--lc': `var(--c-${col.color})` }}
+      data-color={col.color}
       aria-label={`${col.label}, ${cards.length} cards`}
       onDragOver={(e) => {
         if (!droppable || !e.dataTransfer.types.includes('application/x-lumen-item')) return
@@ -85,22 +87,27 @@ function Column({ col, cards, settingsOf, onOpen, h12, defaultBoard }) {
         updateItem(path, id, patch)
       }}
     >
-      <header className="col-head">
-        <span className="col-dot" />
-        <h3 className="col-name">{col.label}</h3>
-        <span className="col-count">{cards.length}</span>
+      <header className="pb-list-head is-static">
+        <i className="pb-list-dot" aria-hidden="true" />
+        <h3>{col.label}</h3>
+        <span className="pb-count">{cards.length}</span>
       </header>
-      <div className="col-cards">
+      <div className="pb-cards">
         {cards.map((item) => (
-          <Card key={`${item.path}#${item.id}`} item={item} labelColors={settingsOf(item.path).labels} cover={settingsOf(item.path).covers[item.id]} showBoard={!col.board} h12={h12} onOpen={onOpen} />
+          <Card key={`${item.path}#${item.id}`} item={item} labelColors={settingsOf(item.path).labels} labels={labels} cover={settingsOf(item.path).covers[item.id]} showBoard={!col.board} h12={h12} onOpen={onOpen} />
         ))}
-        {!cards.length && <div className="col-empty">{droppable ? 'Drop a card here' : 'Nothing here'}</div>}
+        {!cards.length && <div className="pb-empty">{droppable ? 'Drop a card here' : 'Nothing here'}</div>}
       </div>
-      {droppable && col.id !== 'done' && col.id !== 'late' && (
-        <div className="col-composer">
-          <QuickAdd placeholder="Add a card" onAdd={(f) => addCard(col.board || defaultBoard, null, { ...f, ...(col.patch || {}), ...(f.date ? { date: f.date } : {}) })} />
-        </div>
-      )}
+      {droppable &&
+        col.id !== 'done' &&
+        col.id !== 'late' &&
+        (adding ? (
+          <Composer onAdd={(t) => addCard(col.board || defaultBoard, null, t, col.patch || {})} onClose={() => setAdding(false)} />
+        ) : (
+          <button type="button" className="pb-add-card" onClick={() => setAdding(true)}>
+            <Plus /> Add a card
+          </button>
+        ))}
     </section>
   )
 }
@@ -260,13 +267,13 @@ export default function AllTasks({ route }) {
         </div>
       </header>
       <div className="all-tasks-body">
-        <div className="board">
+        <div className="pb-lanes">
           {columns
             .filter((c) => showDone || c.id !== 'done')
             .map((col) => {
               const list = cards.filter((i) => col.test(i) && (showDone || isOpen(i.status) || col.id === 'done'))
               const sorted = col.id === 'done' ? list.sort((a, b) => (b.done || '').localeCompare(a.done || '')).slice(0, 50) : list.sort((a, b) => compareItems(a, b) || priorityRank(b.priority) - priorityRank(a.priority))
-              return <Column key={col.id} col={col} cards={sorted} settingsOf={settingsOf} onOpen={(i) => setOpen({ path: i.path, id: i.id })} h12={h12} defaultBoard={defaultBoard} />
+              return <Column key={col.id} col={col} cards={sorted} settingsOf={settingsOf} labels={labels} onOpen={(i) => setOpen({ path: i.path, id: i.id })} h12={h12} defaultBoard={defaultBoard} />
             })}
         </div>
         {rail && <ScheduleRail cards={cards} today={today} weekStart={prefs.weekStart} onOpen={(i) => setOpen({ path: i.path, id: i.id })} onHide={toggleRail} />}

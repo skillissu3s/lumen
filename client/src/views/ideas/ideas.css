@@ -149,16 +149,6 @@
   border-color: color-mix(in srgb, var(--nc) 55%, var(--border));
   background: var(--nc-bg);
 }
-.idea.has-color::before {
-  content: '';
-  position: absolute;
-  left: 10px;
-  right: 10px;
-  top: -1px;
-  height: 3px;
-  border-radius: 0 0 3px 3px;
-  background: var(--nc);
-}
 .idea.is-selected {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent), var(--shadow);
