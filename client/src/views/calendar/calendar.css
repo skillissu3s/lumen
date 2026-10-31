@@ -1131,11 +1131,7 @@
     display: none;
   }
   .tgrid {
-    overflow-x: auto;
-  }
-  .tgrid-head,
-  .tgrid-body {
-    min-width: calc(var(--cols) * 110px + 56px);
+    --gutter: 48px;
   }
   .editor {
     width: calc(100vw - 24px);

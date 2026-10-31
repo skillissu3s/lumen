@@ -55,6 +55,7 @@ share: [ana, sam]
 | `owner` | handle of the person who made it |
 | `share` | missing = private to the owner · `everyone` · `[handle, handle]` |
 | `default` | (calendars) `true` on the calendar new events go to |
+| `icon`, `color`, `cover`, `width` | (docs) the page's icon and its colour, a cover colour, and `full` for full width |
 
 ## Boards
 

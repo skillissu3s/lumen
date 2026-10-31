@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased
+
+- **Cards**: the quick controls for due date, priority and labels sit in a
+  neat row instead of piling up; due dates use a plain calendar icon and a
+  soft tint (red when late, amber today, green when done).
+- **Every list has a tag**: a dot in its colour, grey until you pick one;
+  click it to choose.
+- **Desktop app**: a title strip across the top holds the window's buttons, so
+  every page lines up below it.
+- **Account menu** on the workspace button: who you are and where Lumen keeps
+  your work, Light / Dark / System, Settings (Ctrl+,), your account, keyboard
+  shortcuts, About, sign out. The collapsed sidebar shows the workspace first.
+- **Smoother drops**: a dropped card is drawn in its new place before the
+  floating copy disappears. No press effect on sidebar items.
+- **Idea boards**: sticky notes (S), text (T), image cards from a link,
+  line up / space out / tidy a selection, a minimap, find on the board
+  (Ctrl+F), and checklists you can tick inside a card.
+- **Docs, closer to Notion**: hover a block for + (add a block below) and a
+  grip (drag it somewhere else); add a page icon and a cover; full width;
+  Notion's measure; page icons in the list.
+- The week view fits narrow windows instead of scrolling sideways.
+
 ## 0.3.1 — quick pickers on cards, a calmer calendar
 
 - **Set a card's due date, priority and labels right on the card.** Every open

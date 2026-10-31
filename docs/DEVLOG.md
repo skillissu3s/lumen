@@ -289,3 +289,23 @@ settable right on a card; drop the calendar's New button.
 - `.is-desktop-titlebar` padding now covers `.pb-bar` as well as
   `.view-header`.
 
+### Fixes from 0.3.1 feedback; idea tools; Notion-style pages
+- The card's quick controls used the class `pb-ghost`, which is also the drag
+  ghost's class (`position: fixed`), so all three sat on one spot. Renamed to
+  `pb-unset`.
+- Drop smoothness: `boardDrag.js` now commits the move and clears the drag
+  inside `flushSync` and removes the floating copy right after, so React paints
+  the card in its new place in the same frame (before, React rendered a frame
+  after the copy was removed, leaving a blank gap).
+- Desktop title bar: `.is-desktop-titlebar .main` gets a 34px strip (drag
+  region, sidebar colour, hairline under it) instead of padding every header
+  clear of the window buttons.
+- `shell/AccountMenu.jsx` replaces the workspace dropdown.
+- Idea boards: text nodes may carry `style: "sticky" | "label"` (JSON Canvas
+  keeps unknown keys); a link node whose URL is an image renders the image;
+  `Minimap`, arrange (align, distribute, tidy) and find live in IdeaCanvas.
+- Docs: `@tiptap/extension-drag-handle-react` for the block handle; page
+  `icon`, `color`, `cover` and `width` are front matter keys.
+- Removed the narrow-screen `min-width` on the week grid: the all-day row did
+  not scroll with it, which cut Sunday off.
+
