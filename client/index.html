@@ -3,11 +3,155 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lumen — your day, in plain text</title>
+    <meta name="description" content="Tasks, a time-blocking calendar, docs and chat — stored as plain text in your own GitHub repository. Web and desktop." />
     <meta name="color-scheme" content="light dark" />
-    <title>Lumen</title>
+    <link rel="icon" href="favicon.svg" />
+    <link rel="stylesheet" href="landing.css" />
   </head>
   <body>
-    <h1>Lumen</h1>
-    <p><a href="./app.html">Open the app</a></p>
+    <header class="top">
+      <a class="brand" href="./" aria-label="Lumen home">
+        <svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" class="mark-bg" /><circle cx="16" cy="16" r="6.25" fill="none" class="mark-ring" stroke-width="2.5" /><circle cx="16" cy="16" r="1.9" class="mark-dot" /></svg>
+        <span>Lumen</span>
+      </a>
+      <nav class="top-links" aria-label="Site">
+        <a href="#features">Features</a>
+        <a href="https://github.com/skillissu3s/lumen/releases/latest">Download</a>
+        <a class="btn btn-ink btn-sm" href="app.html#/signin">Sign in</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <p class="eyebrow">Tasks · Calendar · Docs · Chat</p>
+        <h1>Plan your day<br />in plain text.</h1>
+        <p class="lede">A calm productivity app whose data is markdown in your own GitHub repository. Time-block your day, keep your lists, write things down — and extend it with plugins.</p>
+        <div class="cta">
+          <a class="btn btn-ink" href="app.html#/signin">Sign in</a>
+          <a class="btn btn-line" href="app.html#/github">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" /></svg>
+            Use with GitHub
+          </a>
+        </div>
+        <p class="cta-note"><a href="https://github.com/skillissu3s/lumen/releases/latest">Get the desktop app</a> for Windows, macOS and Linux — works offline.</p>
+      </section>
+
+      <section class="shot" aria-label="Lumen showing a day planned on a timeline">
+        <div class="window" aria-hidden="true">
+          <div class="win-side">
+            <div class="win-ws"><span class="win-mark">N</span>Nikhil’s workspace</div>
+            <div class="win-search">Search <span>Ctrl K</span></div>
+            <div class="win-nav is-on"><i class="ic sun"></i>Today<b>4</b></div>
+            <div class="win-nav"><i class="ic inbox"></i>Inbox<b>5</b></div>
+            <div class="win-nav"><i class="ic cal"></i>Calendar</div>
+            <div class="win-nav"><i class="ic doc"></i>Docs</div>
+            <div class="win-nav"><i class="ic chat"></i>Chat</div>
+            <div class="win-label">Lists</div>
+            <div class="win-nav"><i class="dot" style="--c: #30a46c"></i>Home</div>
+            <div class="win-nav"><i class="dot" style="--c: #3e63dd"></i>Work</div>
+            <div class="win-label">Plugins</div>
+            <div class="win-nav"><i class="ic tree"></i>Focus</div>
+          </div>
+          <div class="win-main">
+            <div class="win-head">Saturday <span>31 October</span></div>
+            <ol class="tl">
+              <li><span class="t">07:00<em>07:45</em></span><span class="pill" style="--c: #30a46c; --h: 52px">🏃</span><span class="b"><strong>Run</strong><small>45 min · Personal</small></span></li>
+              <li class="gap"><span class="t"></span><span class="rail"></span><span class="free">Free · 2 h 15 min</span></li>
+              <li><span class="t">10:00<em>12:00</em></span><span class="pill" style="--c: #5b5bd6; --h: 104px">🎯</span><span class="b"><strong>Deep work: quarterly report</strong><small>2 h · Work</small></span></li>
+              <li class="now"><span class="t">12:10</span><span class="line"></span></li>
+              <li><span class="t">12:30<em>13:30</em></span><span class="pill" style="--c: #f76b15; --h: 64px">🥗</span><span class="b"><strong>Lunch with Sam</strong><small>1 h · Café Nero</small></span></li>
+              <li><span class="t">15:00<em>15:15</em></span><span class="pill is-task" style="--c: #8e4ec6; --h: 44px">📞</span><span class="b"><strong>Call the bank</strong><small>15 min · Inbox</small></span></li>
+            </ol>
+          </div>
+          <div class="win-tasks">
+            <div class="win-tasks-head">Today</div>
+            <div class="task is-done"><span class="box"></span>Renew passport</div>
+            <div class="task"><span class="box"></span>Review pull requests</div>
+            <div class="task"><span class="box"></span>Water plants <em>🔁</em></div>
+            <div class="task"><span class="box hi"></span>Send the deck to Ana</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="features" id="features" aria-labelledby="features-title">
+        <h2 id="features-title">Only what a day needs</h2>
+        <div class="grid">
+          <article>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11l3 3 8-8" /><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
+            <h3>Tasks</h3>
+            <p>Type “Call Sam tomorrow 3pm !high” and it’s understood. Lists, sections, subtasks, repeats and a board.</p>
+          </article>
+          <article>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
+            <h3>Calendar</h3>
+            <p>Time-block on a timeline, drag tasks onto your day, and shape every view to how you plan.</p>
+          </article>
+          <article>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5M9 13h6M9 17h6" /></svg>
+            <h3>Docs</h3>
+            <p>Markdown documents beside your tasks, with a quiet editor and a live preview.</p>
+          </article>
+          <article>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" /></svg>
+            <h3>Chat</h3>
+            <p>Channels and direct messages with the people you invite. Only the admin can invite.</p>
+          </article>
+          <article>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8" /></svg>
+            <h3>Plugins</h3>
+            <p>Add a focus timer, a usage monitor, or your own. Each one runs sandboxed with the permissions you grant.</p>
+          </article>
+          <article>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="2.5" /><circle cx="6" cy="18" r="2.5" /><circle cx="18" cy="9" r="2.5" /><path d="M6 8.5v7M18 11.5c0 3-3 4-7.5 5" /></svg>
+            <h3>Your data, in Git</h3>
+            <p>Every list, event and doc is a text file you can read, diff, back up and take with you.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="modes" aria-labelledby="modes-title">
+        <h2 id="modes-title">Run it the way you like</h2>
+        <div class="mode-grid">
+          <div class="mode">
+            <h3>With GitHub</h3>
+            <p>No server at all. The web app reads and writes a repository you choose.</p>
+            <dl><dt>For</dt><dd>Just you</dd><dt>Sign in</dt><dd>GitHub token</dd><dt>Hosting</dt><dd>Any static host</dd></dl>
+          </div>
+          <div class="mode">
+            <h3>Self-hosted</h3>
+            <p>Run the Lumen server and invite people for shared lists, docs and chat.</p>
+            <dl><dt>For</dt><dd>You and your team</dd><dt>Sign in</dt><dd>Email and password</dd><dt>Hosting</dt><dd>Docker</dd></dl>
+          </div>
+          <div class="mode">
+            <h3>Desktop app</h3>
+            <p>Works offline with a folder on your computer, synced to GitHub if you like.</p>
+            <dl><dt>For</dt><dd>Just you</dd><dt>Sign in</dt><dd>None</dd><dt>Hosting</dt><dd>Your computer</dd></dl>
+          </div>
+        </div>
+      </section>
+
+      <section class="text" aria-labelledby="text-title">
+        <div>
+          <h2 id="text-title">It’s just text</h2>
+          <p>A task is a line of markdown — the same format Obsidian uses — so your lists read fine anywhere, merge cleanly in git, and outlive any app.</p>
+        </div>
+        <pre><code><span class="c">---</span>
+<span class="k">name:</span> Errands
+<span class="c">---</span>
+- [ ] 📞 Call the bank ⏫ 📅 2026-11-02 ⏰ 10:30 ⏱ 15m
+- [ ] Water plants 🔁 every week 📅 2026-11-03
+- [x] Renew passport ✅ 2026-10-28</code></pre>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <span class="brand-sm">Lumen</span>
+      <nav aria-label="Footer">
+        <a href="https://github.com/skillissu3s/lumen">GitHub</a>
+        <a href="https://github.com/skillissu3s/lumen/tree/main/docs">Docs</a>
+        <a href="app.html#/signin">Sign in</a>
+      </nav>
+    </footer>
   </body>
 </html>
