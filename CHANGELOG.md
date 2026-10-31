@@ -1,5 +1,34 @@
 # Changelog
 
+## Unreleased — boards as obi has them, Notion-style docs
+
+- **Boards feel like obi's.** Cards lift and tilt as you drag them and the
+  others slide out of the way; lists drag the same way. Each list has a menu
+  (rename, colour, done list, sort by due date, priority or name, move all
+  cards, archive all, delete), each card a right-click menu, and the board a
+  filter card and an **archive** (Obsidian Kanban's `***` section). Labels show
+  as thin bars until clicked; a card's tick appears where its title starts, and
+  ticking it off strikes it through with a small celebration.
+- **Card view laid out like obi's**: status and priority rows, due date,
+  repeat, time, cover, a label picker with colours, description and checklist.
+- No banner on a board without lists: its loose cards are a list you can name,
+  and the board menu can set up To do, Doing and Done.
+- **Docs are written the way Notion does it**: formatted as you type, never
+  showing markdown, with "/" for blocks (headings, to-dos, lists, quotes, code,
+  dividers) and a small bar over selected text. They are still saved as
+  markdown files.
+- **Idea boards**: drag to select, Space to pan, undo and redo, copy and paste
+  (a pasted link becomes a link card), link cards, labels on arrows and arrow
+  ends, right-click menus, snap to grid, group a selection with Ctrl+G.
+- **Settings** open as a dialog over the app, grouped into You, Workspace and
+  App, with flat rows.
+- **Notifications** sit in the bottom-right corner with an icon, a countdown
+  and Undo; the same note again counts up instead of stacking.
+- **The sidebar collapses** to a slim rail of icons (button or Ctrl+\).
+- **Calendar**: more room everywhere: stacked day headers, a wider time
+  gutter, events inset from the column edges.
+- Small motion throughout: pages rise in, views fade, buttons give on press.
+
 ## 0.2.0 — boards, idea boards and a calmer look
 
 - **Boards at the centre.** Every list is now a Kanban board: columns of cards

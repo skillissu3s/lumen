@@ -237,3 +237,33 @@ obi does, as Kanban boards; also an idea board page, and no emoji anywhere.
   timeline.
 - Dev note: editing a file the workspace store imports (e.g. `shared/seed.js`)
   hot-reloads the store and leaves the app on its boot screen; reload the page.
+
+### Boards ported from obi; Notion-style docs; settings, toasts, sidebar
+The owner asked for the board to feel exactly like obi's, settings like obi's,
+more on idea boards, Notion-like docs (markdown underneath, none showing),
+small animations, a collapsible sidebar, calendar spacing, no banner on boards
+without lists, and notifications in the corner rather than the middle.
+- Boards: obi's `ProjectBoard.jsx`, `CardDialog.jsx`, `boardDrag.js`,
+  `celebrate.js` and `projects.css` ported onto Lumen's data (list files via
+  `shared/items.js` and `shared/board.js`), not obi's kanban model, so Today,
+  the calendar and All tasks keep reading the same files. `boardDrag.js` and
+  `celebrate.js` are copied nearly verbatim. Added to `shared/board.js` (+
+  tests): `archiveCard`, `archivedOf`, `nameLooseColumn`, and `boardEnd` so new
+  or moved columns land before the archive. `MenuPopup` is exported from the UI
+  kit for menus at a point (a wrapper element would break the drag geometry).
+- Settings: a dialog over the page you were on (`AppShell` keeps the route
+  behind it); obi's nav groups, flat `.setting` rows, summary header.
+- Docs: Tiptap 3 with `@tiptap/markdown` (`views/docs/RichEditor.jsx`):
+  StarterKit, task lists, placeholder; a "/" menu and a bubble menu written
+  here. Saves `editor.getMarkdown()` half a second after typing stops, and
+  takes in changes from elsewhere only while the editor isn't focused.
+- Found while testing: Chrome's `scrollIntoView` now returns a Promise, so an
+  effect written as `() => el.scrollIntoView()` returns it and React crashes
+  ("destroy is not a function"). Effects must use braces around such calls.
+- Toasts: bottom-right, an icon per tone, a countdown line, slide in and out,
+  repeats merge (`×3`). `actions.js` gives "Completed" the success tone.
+- Sidebar: collapses to a 52px rail of icons (titles as tooltips).
+- Idea boards: box select, Space/middle-button pan, a 100-step undo history,
+  clipboard (internal copies keep their arrows; text and URLs become cards),
+  JSON Canvas link nodes, edge labels and ends, context menus, 12px snap
+  (Alt frees it). `shared/canvas.js` gained `edgeMid` and `overlaps` (+ test).

@@ -99,6 +99,9 @@ kanban-plugin: board
 
 A board's `view: list` front matter key opens it as a list instead.
 
+**Archive.** Archived cards go under a heading after a `***` line, before the
+settings block, as Obsidian Kanban keeps them; the board leaves them out.
+
 ## Idea boards
 
 `ideas/<id>.canvas` is a [JSON Canvas](https://jsoncanvas.org) file: text

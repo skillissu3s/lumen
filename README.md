@@ -19,7 +19,8 @@ with it).
   Every option is adjustable (hours, hour height, snap, week start, colours,
   12/24 h, weekends, week numbers…) and everything works from the keyboard.
   Import and export `.ics`.
-- **Docs** — markdown documents with write, split and preview modes.
+- **Docs** — pages you write the way you would in Notion (formatted as you
+  type, "/" for blocks), saved as plain markdown files.
 - **Chat** — channels and direct messages with the people you invite (server mode).
 - **Plugins** — sandboxed, permissioned, installed from inside the app and
   stored as files in your workspace. See [docs/PLUGINS.md](docs/PLUGINS.md).
