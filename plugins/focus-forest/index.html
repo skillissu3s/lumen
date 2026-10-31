@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Focus Forest</title>
+  <script src="../_dev/mock-lumen.js" data-lumen-dev></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="tabs" role="tablist" aria-label="Focus Forest">
+        <button type="button" class="tab" role="tab" id="tab-focus" aria-controls="panel-focus" aria-selected="true">Focus</button>
+        <button type="button" class="tab" role="tab" id="tab-forest" aria-controls="panel-forest" aria-selected="false" tabindex="-1">Forest</button>
+      </div>
+      <button type="button" class="icon-button" id="settings-button" aria-label="Settings" title="Settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.55 1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 8.9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 8.97 4.6H9a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.88V9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1Z"></path>
+        </svg>
+      </button>
+    </header>
+    <main class="main">
+      <section id="panel-focus" role="tabpanel" aria-labelledby="tab-focus" class="panel">
+        <div id="focus-view" class="view"></div>
+      </section>
+      <section id="panel-forest" role="tabpanel" aria-labelledby="tab-forest" class="panel" hidden>
+        <div id="forest-view" class="view"></div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="settings-dialog" class="dialog" aria-labelledby="settings-title">
+    <form method="dialog" class="dialog-body">
+      <header class="dialog-head">
+        <h2 id="settings-title">Settings</h2>
+        <button type="submit" class="icon-button" value="close" aria-label="Close settings">×</button>
+      </header>
+      <label class="field">
+        <span class="field-label">Default duration</span>
+        <span class="slider-row">
+          <input type="range" id="set-duration" min="10" max="180" step="5" value="25">
+          <output id="set-duration-out" for="set-duration">25 min</output>
+        </span>
+      </label>
+      <label class="field">
+        <span class="field-label">Default tree</span>
+        <select id="set-species"></select>
+      </label>
+      <div class="field">
+        <span class="field-label">Breaks</span>
+        <div class="two-col">
+          <label class="field"><span class="field-label small">Short break</span><input type="number" id="set-short-break" min="1" max="60" step="1" inputmode="numeric"></label>
+          <label class="field"><span class="field-label small">Long break</span><input type="number" id="set-long-break" min="1" max="60" step="1" inputmode="numeric"></label>
+        </div>
+      </div>
+      <label class="check">
+        <input type="checkbox" id="set-strict">
+        <span><strong>Strict mode</strong><span class="hint">Your tree withers if you leave Lumen for more than 10 seconds.</span></span>
+      </label>
+      <label class="check">
+        <input type="checkbox" id="set-sound">
+        <span><strong>Sound on finish</strong><span class="hint">A short chime when a session ends.</span></span>
+      </label>
+      <footer class="dialog-foot"><button type="submit" class="button" value="close">Done</button></footer>
+    </form>
+  </dialog>
+
+  <dialog id="confirm-dialog" class="dialog" aria-labelledby="confirm-title">
+    <form method="dialog" class="dialog-body">
+      <h2 id="confirm-title">Give up this session?</h2>
+      <p id="confirm-text" class="dialog-text"></p>
+      <footer class="dialog-foot">
+        <button type="submit" class="button" value="cancel" autofocus>Keep focusing</button>
+        <button type="submit" class="button danger" value="confirm">Give up</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="session-dialog" class="dialog" aria-labelledby="session-title">
+    <div class="dialog-body">
+      <header class="dialog-head">
+        <h2 id="session-title">Session</h2>
+        <button type="button" class="icon-button" id="session-close" aria-label="Close session">×</button>
+      </header>
+      <div id="session-detail"></div>
+    </div>
+  </dialog>
+
+  <script src="trees.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "id": "focus-forest",
+  "name": "Focus Forest",
+  "version": "1.0.0",
+  "description": "Grow a tree while you focus.",
+  "author": "Lumen",
+  "entry": "index.html",
+  "files": ["index.html", "main.js", "style.css", "trees.js"],
+  "icon": "trees",
+  "permissions": ["storage", "tasks:read", "tasks:write", "notify"],
+  "background": true,
+  "view": { "title": "Focus", "icon": "trees" },
+  "commands": [
+    { "id": "start", "title": "Start a focus session" },
+    { "id": "stop", "title": "Give up the current session" }
+  ],
+  "statusBar": true,
+  "minLumen": "0.1.0"
+}
