@@ -396,4 +396,23 @@ settable right on a card; drop the calendar's New button.
   roots when a card moves; the old owner too when ownership changes); `remove`
   leaves a tombstone. SQL keywords were avoided as column names (`view_mode`,
   `column_list`, `created_by`, `author`).
+- Phase 1 finished. `server/store/units.js` maps each path to rows and back;
+  `server/files.js` is rewritten on top of it with the same exports, so api.js,
+  chat.js, ws.js, seed.js and git.js keep working. The old folder-based module
+  is gone (git history has it).
+- Details that mattered: children are keyed per file (`<root>/<id>`), so ids
+  only need to be unique within a file; a file whose root id another live file
+  already has gets an id of its own (a hand-made copy, not a move); value
+  comparison ignores JSON key order and parsers produce canonical data (sorted
+  permissions), so a second save of anything writes nothing; the write path
+  accepts owner '' for the workspace's own records.
+- The file API answers a write with the stored text when it differs; the
+  client rebases its pending edits onto it (`workspace.js`), so ids added by
+  the server reach the app at once.
+- chat.js reads current-state lines (a lone `deleted` line, `edited`) as well
+  as old edit and delete lines.
+- Checked in the app: the dev workspace imported into rows (15 files: 17
+  cards, 10 doc blocks, 5 idea nodes…); ticking a task changed one card row
+  and wrote one journal row; docs and the idea board render from their
+  tables; the folder was not touched.
 

@@ -187,9 +187,13 @@ async function foldMessages(channel) {
           msg.deleted = true
           msg.text = ''
           delete msg.edited
+        } else {
+          // a log written from the database has each message once, as it is now
+          map.set(o.id, { id: o.id, at: o.at, from: o.from, text: '', deleted: true })
+          order.push(o.id)
         }
       } else if (!map.has(o.id)) {
-        map.set(o.id, { id: o.id, at: o.at, from: o.from, text: o.text, reply: o.reply })
+        map.set(o.id, { id: o.id, at: o.at, from: o.from, text: o.text, reply: o.reply, ...(o.edited ? { edited: true } : {}) })
         order.push(o.id)
       }
     }

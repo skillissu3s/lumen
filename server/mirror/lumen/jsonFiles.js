@@ -48,8 +48,11 @@ export const prefs = {
 export const workspace = {
   parse(text) {
     const warnings = []
-    const data = readJson(text, {}, warnings)
-    return { data: isObject(data) ? data : {}, warnings }
+    const raw = readJson(text, {}, warnings)
+    const data = isObject(raw) ? raw : {}
+    // permissions are a set: kept sorted, as they are written
+    if (isObject(data.plugins)) for (const p of Object.values(data.plugins)) if (isObject(p) && Array.isArray(p.permissions)) p.permissions = [...p.permissions].sort()
+    return { data, warnings }
   },
   render(data) {
     const plugins = Object.fromEntries(

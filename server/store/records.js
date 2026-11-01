@@ -6,7 +6,9 @@
 
 import { COMMON, TABLES, rootOf, schemaSql } from './tables.js'
 
-const sameValue = (a, b) => (a ?? null) === (b ?? null) || JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
+// JSON with keys sorted, so two objects that differ only in key order are the same value
+const canonical = (v) => JSON.stringify(v ?? null, (k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.keys(x).sort().map((key) => [key, x[key]])) : x))
+const sameValue = (a, b) => (a ?? null) === (b ?? null) || canonical(a) === canonical(b)
 
 /** Creates the tables (if they aren't there) and returns the store for `db` (a node:sqlite DatabaseSync) */
 export function createStore(db, { clock = () => Date.now() } = {}) {
@@ -70,7 +72,8 @@ export function createStore(db, { clock = () => Date.now() } = {}) {
       const now = clock()
       const before = get(type, fields.id)
       if (!before) {
-        if (!fields.owner) throw new Error(`A new ${type} needs an owner`)
+        // ('' is the workspace's own: lumen.json, plugin code, files nobody owns)
+        if (fields.owner == null) throw new Error(`A new ${type} needs an owner`)
         const row = { id: fields.id, owner: fields.owner, rev: 1, created_at: now, updated_at: now, deleted: 0, extra: fields.extra && Object.keys(fields.extra).length ? JSON.stringify(fields.extra) : null }
         for (const c of d.columns) row[c] = encode(type, c, fields[c])
         const names = [...COMMON, ...d.columns]
@@ -128,6 +131,14 @@ export function createStore(db, { clock = () => Date.now() } = {}) {
     return rows.map((r) => decode(type, r))
   }
 
+  /** Every live row of `type` */
+  function all(type) {
+    return prep(`SELECT * FROM ${def(type).table} WHERE deleted = 0`).all().map((r) => decode(type, r))
+  }
+
+  /** Is there any live row of these types? */
+  const isEmpty = (types = Object.keys(TABLES)) => types.every((t) => !prep(`SELECT 1 FROM ${def(t).table} WHERE deleted = 0 LIMIT 1`).get())
+
   /** Journal rows after `seq` (for one owner, if given), oldest first */
   function changesSince(seq, { owner, limit = 10000 } = {}) {
     return owner
@@ -137,5 +148,5 @@ export function createStore(db, { clock = () => Date.now() } = {}) {
 
   const highWater = () => prep('SELECT COALESCE(MAX(seq), 0) AS seq FROM journal').get().seq
 
-  return { tx, get, write, remove, where, changesSince, highWater }
+  return { tx, get, write, remove, where, all, isEmpty, changesSince, highWater }
 }

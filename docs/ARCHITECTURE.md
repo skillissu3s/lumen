@@ -1,9 +1,11 @@
 # Lumen — architecture
 
-> **Changing.** Lumen is moving its data into databases (SQLite on the server
-> and in the desktop app) with GitHub as a readable mirror written by the
-> server. The plan and target design are in [DATABASE.md](DATABASE.md); this
-> page describes how Lumen works today.
+> **Changing.** Lumen is moving its data into databases with GitHub as a
+> readable mirror written by the server ([DATABASE.md](DATABASE.md)). Phase 1
+> is in: the server and the desktop app keep everything in SQLite, and the
+> file API below is answered from the database (files are rendered from rows
+> and parsed back into them). The rest of this page still describes the app's
+> side as it is.
 
 Lumen is a personal productivity app: tasks, a calendar, docs and chat, with a
 plugin system for everything else. It grew out of the todo and calendar parts of

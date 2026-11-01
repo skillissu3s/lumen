@@ -140,8 +140,21 @@ Progress:
   nothing lost (first pass adds ids and settles formatting, second pass is
   stable).
 - [x] Tables, the single write path and the journal (`server/store/`).
-- [ ] Mapping between codec records and table rows; the file facade.
-- [ ] Importing a data folder on start.
+- [x] Mapping between files and rows (`server/store/units.js`): children
+  keyed per file (`<root>/<card>`), doc blocks keeping their rows when their
+  content didn't change, a hand-copied file's id clash giving the copy its own
+  id, and no writes when nothing changed.
+- [x] The file facade (`server/files.js`): the same interface as before,
+  answered from the database. A write returns the stored text when it differs
+  (ids added, formatting settled) and the app carries on from it.
+- [x] Import on first start: an empty database takes in the workspace folder,
+  which is left in place as a backup (recorded under the `store.imported`
+  setting). Picking a folder on the desktop imports it too.
+- [x] Git sync keeps working until phase 4 replaces it: while it is on, the
+  folder is its working copy, a mirror of the database written after every
+  change, and outside edits (a git pull) are taken back in.
+
+Phase 1 is done: the server and the desktop app keep everything in SQLite.
 
 ### Phase 2: accounts everywhere
 

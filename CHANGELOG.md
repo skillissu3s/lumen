@@ -2,11 +2,12 @@
 
 ## Unreleased
 
-- Groundwork for moving Lumen's data into databases, with GitHub as a readable
-  mirror written by the server (see docs/DATABASE.md). Nothing changes in the
-  app yet: this adds the file converters the mirror and restore will use (for
-  boards, calendars, docs, idea boards, settings and chat) and the database
-  tables with their change journal.
+- **Your data now lives in a database.** The server and the desktop app keep
+  everything in SQLite instead of files. On first start, your existing
+  workspace folder is imported and left where it is as a backup. Nothing looks
+  different in the app.
+- Git sync keeps working for now (its folder mirrors the database); it will be
+  replaced by the GitHub mirror (see docs/DATABASE.md).
 
 ## 0.3.6 — a sliding sidebar, themes, and a fuller idea board
 

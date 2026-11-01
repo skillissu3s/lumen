@@ -295,8 +295,11 @@ async function writeOnce(path, q) {
       queues.delete(path)
       removePath(path)
     } else {
-      q.base = { text, sha: result.sha }
       q.ops = q.ops.slice(opsCount)
+      if (typeof result.text === 'string' && result.text !== text) {
+        // the server settled the file (ids added, formatting); carry on from its version
+        setFile(path, rebaseOnto(q, { text: result.text, sha: result.sha }), result.sha)
+      } else q.base = { text, sha: result.sha }
     }
     q.conflicts = 0
     offline = false

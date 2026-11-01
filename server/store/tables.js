@@ -70,6 +70,8 @@ export const TABLES = {
   // what a plugin stored for one person (id: '<plugin>/<user>/<file>')
   plugin_data: { table: 'plugin_data', root: true, columns: ['plugin', 'user_id', 'file', 'content'], index: ['plugin, user_id'] },
   channel: { table: 'chat_channels', root: true, columns: ['name', 'dm', 'members', 'created', 'created_by'], json: ['members'], bool: ['dm'] },
+  // any other text file in a workspace (a README, notes made by hand), kept as it is
+  other_file: { table: 'other_files', root: true, columns: ['content'] },
   message: {
     table: 'chat_messages',
     columns: ['channel', 'at', 'author', 'text', 'reply', 'edited'],

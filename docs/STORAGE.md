@@ -1,8 +1,10 @@
-# Lumen — what's in the workspace folder
+# Lumen — the file formats
 
-Everything Lumen stores about your work is a text file in one folder (or one
-GitHub repository). You can read and edit all of it by hand; Lumen picks the
-changes up.
+Lumen keeps your work in its database (see [DATABASE.md](DATABASE.md)). These
+are the files that work is shown as: in the app's file API, in a GitHub mirror
+(profile `lumen/1` of the Repo Sync Protocol), and in workspace folders from
+before the database, which Lumen imports. They are plain text you can read and
+edit by hand.
 
 ```
 lumen.json                       workspace name and settings

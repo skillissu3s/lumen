@@ -372,7 +372,8 @@ router.put('/files', requireUser, async (req, res, next) => {
       },
       by: req.user.handle,
     })
-    res.json({ sha: result.sha })
+    // the file as stored, when it differs from what was sent (ids added, formatting settled)
+    res.json(result.text != null && result.text !== text ? { sha: result.sha, text: result.text } : { sha: result.sha })
   } catch (e) {
     next(guardConflict(e, req.user, files.cleanPath(req.body?.path)))
   }

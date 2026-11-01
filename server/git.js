@@ -8,7 +8,7 @@ import path from 'node:path'
 import { decrypt, encrypt } from './config.js'
 import { HttpError } from './auth.js'
 import { getSetting, setSetting } from './db.js'
-import { events as fileEvents, workspaceRoot, rescan } from './files.js'
+import { events as fileEvents, workspaceRoot, rescan, setMirror } from './files.js'
 
 export const syncEvents = new EventEmitter()
 syncEvents.setMaxListeners(100)
@@ -154,6 +154,8 @@ async function setup() {
   if (!root || !cfg?.remote) return
   if (!fs.existsSync(path.join(root, '.git'))) await runGit(['init', '-b', cfg.branch])
   await ensureRemote()
+  // the folder is git's working copy: it mirrors the database while sync is on
+  await setMirror(true)
 }
 
 async function resolveConflicts() {
@@ -269,6 +271,7 @@ export async function configure(input = {}) {
     restartLoop()
     syncNow().catch(() => {})
   } else {
+    await setMirror(false)
     restartLoop()
   }
   return status()
