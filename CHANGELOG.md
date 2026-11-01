@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 — your data in a database, and a sign-in wall
 
 - **Your data now lives in a database.** The server and the desktop app keep
   everything in SQLite instead of files. On first start, your existing
