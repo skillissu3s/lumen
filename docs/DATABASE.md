@@ -66,8 +66,8 @@ extra TEXT   -- JSON: anything not modelled yet, kept and written back
 
 | Table | Main columns | Mirror file |
 |---|---|---|
-| `boards` | name, color, icon, share, view, path, columns (JSON: names, colours, done column), labels (JSON) | `lists/<slug>.md` |
-| `cards` | root_type, root_id, column, parent_card, position, kind (task/event), status, title, icon, priority, date, scheduled, start, end_date, time, duration, recurrence, skip (JSON), location, color, cover, notes, created_on, done_on, cancelled_on, archived | inside its board or calendar |
+| `boards` | name, color, icon, share, view_mode, path, column_list (JSON: names and colours), done, labels (JSON) | `lists/<slug>.md` |
+| `cards` | root_type, root_id, col, parent, position, kind (task/event), status, title (with its icon and tags), notes, priority, recurrence, start, scheduled, date, end_date, time, duration, location, color, skip (JSON), created, done, cancelled, cover, archived | inside its board or calendar |
 | `calendars` | name, color, icon, share, is_default, path, sections (JSON) | `calendars/<slug>.md` |
 | `docs` | title, icon, color, cover, width, folder, share, path | `docs/…/<slug>.md` |
 | `doc_blocks` | doc_id, position, type, attrs (JSON), text | inside its doc |
@@ -78,7 +78,7 @@ extra TEXT   -- JSON: anything not modelled yet, kept and written back
 | `workspace` | name, inbox, plugins (JSON) | `lumen.json` |
 | `plugins`, `plugin_files` | id, version, granted; path, content | `plugins/<id>/…` |
 | `plugin_data` | plugin, user, path, content | `data/plugins/…` |
-| `chat_channels`, `chat_messages` | as today's JSON | `chat/…` |
+| `chat_channels`, `chat_messages` | name, dm, members, created, created_by; channel, at, author, text, reply, edited | `chat/…` |
 | `journal` | seq, type, id, owner, root_type, root_id, kind, at | (the protocol's journal) |
 | `sync_connections`, `sync_drift` | (the protocol's) | — |
 
@@ -130,6 +130,18 @@ in the browser keeps working unchanged.
 Done when the server and desktop write no user data to files, every existing
 test passes, and an imported folder renders back identically (or as documented
 normalisations).
+
+Progress:
+
+- [x] Codecs for every file kind (`server/mirror/lumen/`): boards and
+  calendars, docs as blocks, idea boards, preferences, `lumen.json`, chat
+  channels and messages; plugin files pass through. Tested with golden files,
+  hand-made files and random round trips; the dev workspace round-trips with
+  nothing lost (first pass adds ids and settles formatting, second pass is
+  stable).
+- [x] Tables, the single write path and the journal (`server/store/`).
+- [ ] Mapping between codec records and table rows; the file facade.
+- [ ] Importing a data folder on start.
 
 ### Phase 2: accounts everywhere
 

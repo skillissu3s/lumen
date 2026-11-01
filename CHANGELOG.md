@@ -4,8 +4,9 @@
 
 - Groundwork for moving Lumen's data into databases, with GitHub as a readable
   mirror written by the server (see docs/DATABASE.md). Nothing changes in the
-  app yet: this adds the board and calendar file converters the mirror and
-  restore will use.
+  app yet: this adds the file converters the mirror and restore will use (for
+  boards, calendars, docs, idea boards, settings and chat) and the database
+  tables with their change journal.
 
 ## 0.3.6 — a sliding sidebar, themes, and a fuller idea board
 

@@ -383,4 +383,17 @@ settable right on a card; drop the calendar's New button.
   pure and deterministic, keeping unknown front matter, Obsidian Kanban
   settings and loose text in `extra`. Tests: golden files byte for byte, a
   hand-made file settling after one pass, and 300 random boards round-tripping.
+- Codecs for the rest: docs as Notion-style blocks (each list item its own
+  block with an indent; tables and HTML kept as `raw`), idea boards (keys in a
+  fixed order, unknown ones sorted), preferences and `lumen.json` (sorted),
+  chat channels, and chat messages as current-state lines (old logs with edit
+  and delete lines are replayed). `index.js` maps a path to its kind.
+- Checked against the dev workspace: every file is stable on a second pass and
+  boards, idea boards, docs and settings keep exactly their content.
+- `server/store/`: `tables.js` declares every table once (columns, JSON and
+  boolean columns, each row's root), `records.js` is the only write path:
+  `write` skips no-op writes, bumps `rev`, and journals the row's root (both
+  roots when a card moves; the old owner too when ownership changes); `remove`
+  leaves a tombstone. SQL keywords were avoided as column names (`view_mode`,
+  `column_list`, `created_by`, `author`).
 

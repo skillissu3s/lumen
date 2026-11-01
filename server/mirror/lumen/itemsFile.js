@@ -150,7 +150,8 @@ export function render(root, cards, { kind = root.type || 'board' } = {}) {
     if (!isEmpty(v) && v !== false) meta[k] = v
   }
   Object.assign(meta, sortKeys(root.extra?.meta))
-  const out = [frontMatter(meta), '']
+  const head = frontMatter(meta)
+  const out = head ? [head, ''] : []
 
   const group = (name, cardsHere) => {
     const block = []
