@@ -162,6 +162,24 @@ The login wall: the desktop's first-run choice (cloud or this computer only),
 the web always signed in, GitHub-token mode removed (with a one-time import of
 such repositories through restore's legacy path).
 
+Progress:
+
+- [x] The web app shows nothing before signing in. A copy with no server
+  behind it (GitHub Pages) asks for your server's address instead of offering
+  GitHub-token mode, which is gone from the client.
+- [x] The desktop app's first run: *Sign in to a Lumen server* (the local
+  server checks a Lumen server answers at that address, then the window loads
+  that server's app, behind its sign-in) or *Use on this computer only*.
+  Switching later: Settings → Account. A server that can't be reached shows
+  *Try again* / *Use this computer only*. Pages from the server can't use the
+  desktop's local-only calls.
+- [x] *Bring in from GitHub* (Settings → Sync, admins): reads a repository
+  once through the REST API (`server/github/readRepo.js`, which restore will
+  reuse) and imports its files by id. The token is never stored.
+
+Phase 2 is done. Until phase 3, a desktop signed in to a server needs the
+server to be reachable; phase 3 gives it a local copy that syncs.
+
 ### Phase 3: devices in sync
 
 The device ↔ cloud protocol above: desktop as a replica of the cloud, the web

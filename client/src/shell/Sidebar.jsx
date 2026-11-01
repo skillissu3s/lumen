@@ -49,8 +49,7 @@ function NavItem({ href, icon: Icon, tint, label, count, active, children, onDro
 export function SyncStatus() {
   const saving = useWorkspace((s) => s.saving)
   const mode = useSession((s) => s.mode)
-  const github = useSession((s) => s.github)
-  const where = mode === 'github' && github ? `${github.owner}/${github.repo}` : mode === 'desktop' ? 'This computer' : 'Server'
+  const where = mode === 'desktop' ? 'This computer' : 'Server'
   const map = {
     saved: { icon: null, text: 'Saved' },
     saving: { icon: <Spinner size={11} />, text: 'Saving…' },
@@ -195,7 +194,7 @@ export function Sidebar({ route, onNavigate, closed }) {
         onClose={() => setConfirm(null)}
         size="sm"
         title={`Delete “${confirm?.name}”?`}
-        description="The board and all its cards will be removed. With GitHub sync, git history still has them."
+        description="The board and all its cards will be removed."
         footer={
           <>
             <Button variant="ghost" onClick={() => setConfirm(null)}>

@@ -2,7 +2,6 @@
 // Everything the Settings → Plugins page needs to read and drive installs.
 
 import { useWorkspace } from '../store/workspace.js'
-import { useSession } from '../store/session.js'
 import { selectConfig, selectPlugins } from '../store/derived.js'
 import { validateManifest } from './manifest.js'
 
@@ -74,10 +73,10 @@ function decodeBase64(b64) {
   return new TextDecoder().decode(bytes)
 }
 
-async function ghGet(token, owner, repo, path, ref) {
+// public repositories only: no token is sent
+async function ghGet(owner, repo, path, ref) {
   const url = `https://api.github.com/repos/${owner}/${repo}/contents/${encodePath(path)}${ref ? `?ref=${encodeURIComponent(ref)}` : ''}`
   const headers = { Accept: 'application/vnd.github+json' }
-  if (token) headers.Authorization = `Bearer ${token}`
   const res = await fetch(url, { headers })
   if (res.status === 404) throw new Error(`Not found in the repository: ${path}`)
   if (!res.ok) throw new Error(`GitHub request failed (${res.status})`)
@@ -104,9 +103,8 @@ function parseGitHubRef(input) {
 /** `fetchFromGitHub('owner/repo[/sub/path][@ref]')` → { manifest, files }. */
 export async function fetchFromGitHub(input) {
   const { owner, repo, sub, ref } = parseGitHubRef(input)
-  const token = useSession.getState().github?.token || null
   const manifestPath = sub ? `${sub}/manifest.json` : 'manifest.json'
-  const raw = await ghGet(token, owner, repo, manifestPath, ref)
+  const raw = await ghGet(owner, repo, manifestPath, ref)
   let manifest
   try {
     manifest = JSON.parse(decodeBase64(raw.content))
@@ -116,7 +114,7 @@ export async function fetchFromGitHub(input) {
   const files = { 'manifest.json': decodeBase64(raw.content) }
   for (const name of manifest.files || []) {
     if (typeof name !== 'string') continue
-    const item = await ghGet(token, owner, repo, sub ? `${sub}/${name}` : name, ref)
+    const item = await ghGet(owner, repo, sub ? `${sub}/${name}` : name, ref)
     files[name] = decodeBase64(item.content)
   }
   return { manifest, files }

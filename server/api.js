@@ -2,7 +2,7 @@
 import crypto from 'node:crypto'
 import express from 'express'
 import { APP_NAME, VERSION, DESKTOP, PUBLIC_URL, INVITE_DAYS } from './config.js'
-import { db } from './db.js'
+import { db, getSetting } from './db.js'
 import { HttpError, userFromRequest, countUsers, createUser, login, getUser, allUsers, changePassword, createInvite, listInvites, revokeInvite, findInvite, acceptInvite, createSession, setSessionCookie, endSession, endUserSessions, cleanEmail, hashPassword, validPassword, userByEmail } from './auth.js'
 import * as files from './files.js'
 import { canRead, writeProblem, metaOf } from './access.js'
@@ -11,6 +11,7 @@ import * as git from './git.js'
 import { seedWorkspace } from './seed.js'
 import { mailEnabled, sendMail, codeMail, inviteMail } from './mail.js'
 import { issueCode, checkCode } from './codes.js'
+import { readRepo } from './github/readRepo.js'
 
 const DAY = 86400000
 const router = express.Router()
@@ -67,6 +68,8 @@ router.get('/info', (req, res) => {
     needsSetup: countUsers() === 0,
     user: req.user ? toUser(req.user) : null,
     mail: mailEnabled(),
+    // the desktop app hasn't been told yet: a Lumen server, or this computer only
+    ...(DESKTOP && !getSetting('desktop.mode') ? { desktopChoice: true } : {}),
   })
 })
 
@@ -300,6 +303,24 @@ router.post('/admin/invites', requireAdmin, async (req, res, next) => {
 router.delete('/admin/invites/:id', requireAdmin, (req, res) => {
   revokeInvite(req.params.id)
   res.json({ ok: true })
+})
+
+// Bring in the files of a GitHub repository (what Lumen's old GitHub mode wrote).
+// The token reads the repository for this request only and is never stored.
+router.post('/admin/import/github', requireAdmin, async (req, res, next) => {
+  try {
+    const token = String(req.body?.token || '').trim() || null
+    const { files: entries, truncated, ref } = await readRepo({
+      repo: req.body?.repo,
+      branch: String(req.body?.branch || '').trim() || null,
+      token,
+      keep: (p, size) => files.cleanPath(p) === p && !p.startsWith('.sync/') && size <= 2 * 1024 * 1024,
+    })
+    const count = files.importTexts(entries)
+    res.json({ files: count, branch: ref, truncated })
+  } catch (e) {
+    next(e.status ? new HttpError(e.status, e.message) : e)
+  }
 })
 
 router.get('/admin/sync', requireAdmin, (req, res) => res.json({ config: git.getConfig(), status: git.status() }))

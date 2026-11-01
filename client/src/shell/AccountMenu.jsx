@@ -11,7 +11,6 @@ import { navigate } from '../lib/router.js'
 
 const WHERE = {
   desktop: () => 'On this computer',
-  github: (s) => (s.github ? `GitHub · ${s.github.owner}/${s.github.repo}` : 'GitHub'),
   server: (s) => s.user?.email || 'Lumen server',
 }
 
@@ -70,11 +69,9 @@ export function AccountMenu({ workspace, compact = false }) {
           {item(Keyboard, 'Keyboard shortcuts', () => useUI.setState({ shortcutsOpen: true }), ['?'])}
           {item(Info, 'About Lumen', () => navigate('/settings/about'))}
         </div>
-        {(mode === 'server' || mode === 'github') && (
+        {mode === 'server' && (
           <div className="acct-items acct-out" role="menu">
-            {mode === 'server'
-              ? item(LogOut, 'Sign out', () => session.logout().then(() => navigate('/signin')))
-              : item(LogOut, 'Disconnect GitHub', () => session.disconnectGitHub())}
+            {item(LogOut, 'Sign out', () => session.logout().then(() => navigate('/signin')))}
           </div>
         )}
       </Popover>

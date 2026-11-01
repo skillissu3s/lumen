@@ -1,5 +1,5 @@
 // First-run content for an empty workspace (the files themselves are in
-// shared/seed.js, shared with GitHub mode). Writes only what doesn't exist yet,
+// shared/seed.js). Writes only what doesn't exist yet,
 // so seeding is safe to run again on a folder someone already uses.
 import { seedFiles } from '../shared/seed.js'
 import * as files from './files.js'

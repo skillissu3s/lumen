@@ -1,15 +1,15 @@
-// Boot: find out where we are (server, desktop or GitHub mode), sign in, load
-// the workspace, then show the app.
+// Boot: find out where we are (a Lumen server, or the desktop app's own), sign
+// in, load the workspace, then show the app. Nothing shows before signing in.
 import { useEffect } from 'react'
 import { useSession } from './store/session.js'
 import { useWorkspace } from './store/workspace.js'
 import { usePrefs, applyTheme } from './store/prefs.js'
 import { useRoute, navigate } from './lib/router.js'
 import { connectSocket } from './lib/socket.js'
-import { AcceptInvite, BootError, BootScreen, ConnectGitHub, ForgotPassword, SignIn, Setup } from './auth/AuthScreens.jsx'
+import { AcceptInvite, BootError, BootScreen, DesktopWelcome, ForgotPassword, NoServer, SignIn, Setup, Unreachable } from './auth/AuthScreens.jsx'
 import { AppShell } from './shell/AppShell.jsx'
 
-const AUTH_ROUTES = ['signin', 'setup', 'invite', 'github', 'forgot']
+const AUTH_ROUTES = ['signin', 'setup', 'invite', 'forgot']
 
 export default function App() {
   const status = useSession((s) => s.status)
@@ -49,13 +49,16 @@ export default function App() {
 
   if (status === 'booting') return <BootScreen />
   if (status === 'error') return <BootError message={error} onRetry={() => useSession.getState().boot()} />
+  if (status === 'no-server') return <NoServer />
+  // the desktop app lands here when the server it signs in to doesn't answer
+  if (mode === 'desktop' && route.parts[0] === 'unreachable') return <Unreachable server={route.query.server} />
+  if (status === 'choose') return <DesktopWelcome />
 
   if (status !== 'ready') {
     const [first, second] = route.parts
     if (first === 'invite' && second) return <AcceptInvite token={second} />
     if (status === 'needs-setup') return <Setup />
     if (first === 'forgot' && mode === 'server') return <ForgotPassword />
-    if (first === 'github' || mode === 'github') return <ConnectGitHub />
     return <SignIn />
   }
 

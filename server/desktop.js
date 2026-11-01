@@ -58,6 +58,40 @@ desktopRouter.put('/desktop/workspace', async (req, res, next) => {
   }
 })
 
+// where this app's data lives: 'local' (this computer) or 'cloud' (a Lumen
+// server the window signs in to); 'ask' clears the choice so the app asks again
+desktopRouter.get('/desktop/mode', (req, res) => res.json(getSetting('desktop.mode') || { mode: null }))
+
+desktopRouter.post('/desktop/mode', async (req, res, next) => {
+  try {
+    const mode = String(req.body?.mode || '')
+    if (mode === 'ask') {
+      setSetting('desktop.mode', null)
+      return res.json({ mode: null })
+    }
+    if (mode === 'local') {
+      setSetting('desktop.mode', { mode: 'local' })
+      return res.json({ mode })
+    }
+    if (mode !== 'cloud') throw new HttpError(400, 'Choose this computer or a server.')
+    const server = String(req.body?.server || '').replace(/\/+$/, '')
+    if (!/^https?:\/\/[^\s/]+/i.test(server)) throw new HttpError(400, 'Enter your Lumen server’s address.')
+    // make sure a Lumen server answers there before the window goes to it
+    let info = null
+    try {
+      const r = await fetch(`${server}/api/info`, { headers: { 'X-Lumen': '1' }, signal: AbortSignal.timeout(6000) })
+      info = await r.json()
+    } catch {
+      throw new HttpError(400, `Nothing answered at ${server}. Check the address and your connection.`)
+    }
+    if (info?.app !== 'lumen' || info.mode !== 'server') throw new HttpError(400, `${server} isn’t a Lumen server.`)
+    setSetting('desktop.mode', { mode: 'cloud', server })
+    res.json({ mode, server })
+  } catch (e) {
+    next(e)
+  }
+})
+
 desktopRouter.get('/desktop/sync', (req, res) => res.json({ config: git.getConfig(), status: git.status() }))
 
 desktopRouter.put('/desktop/sync', async (req, res, next) => {

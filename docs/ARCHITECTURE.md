@@ -27,18 +27,21 @@ Three ideas shape everything below:
 
 ## Ways to run it
 
-| | **GitHub mode** (web, no server) | **Server mode** (web, self-hosted) | **Desktop app** |
-|---|---|---|---|
-| Who | just you | you (admin) + people you invite | just you, offline-first |
-| Where data lives | your GitHub repo, via the GitHub API | server's data folder, optionally synced to a GitHub repo with git | a folder on your computer, optionally synced to GitHub with git |
-| Sign in | GitHub fine-grained token | email + password, invite-only | none (local) |
-| Chat, sharing | — | ✅ | — |
-| Computer-usage tracking (plugin) | — (only time in Lumen) | — | ✅ |
-| Hosting | any static host (GitHub Pages workflow included) | Docker | installers built by GitHub Actions |
+| | **Server** (web, self-hosted) | **Desktop app** |
+|---|---|---|
+| Who | you (admin) + people you invite | you |
+| Where data lives | the server's database, optionally synced to a GitHub repository | this computer's database, or your account on a Lumen server |
+| Sign in | email + password or an emailed code, invite-only | first run: sign in to a Lumen server, or use this computer only |
+| Chat, sharing | ✅ | with a server account |
+| Computer-usage tracking (plugin) | — | ✅ (on this computer) |
+| Hosting | Docker | installers built by GitHub Actions |
 
-The client detects where it is: if `/api/info` answers, it is served by a Lumen
-server (server mode, or the desktop app's embedded server); otherwise it offers
-GitHub mode only.
+Nothing shows before signing in. The client asks `/api/info` where it is: a
+Lumen server (sign in), or the desktop app's embedded server (the first-run
+choice, then the local app). A static copy of the app with no server behind it
+(GitHub Pages) asks for your server's address. The old GitHub-token mode is
+retired; Settings → Sync → *Bring in from GitHub* takes in a repository it
+wrote.
 
 ## Repository layout
 
@@ -122,21 +125,22 @@ quickly is one commit in GitHub mode, not five.
   > Everything in the workspace — including other members' private lists and
   > chat — ends up in the admin's repository. Members should know that.
 
-## GitHub mode
-
-The browser talks to `api.github.com` with a fine-grained personal access token
-(Contents: read & write on one repository). The token stays in that browser's
-local storage. Listing uses one recursive tree request; file contents are cached
-by blob sha, so a reload only downloads files that changed. Writes use the
-contents API with the file's sha, which gives the same conflict detection as the
-server. Remote changes made elsewhere (another device, Obsidian) are picked up
-by polling while the tab is visible.
-
 ## Desktop app
 
 Electron starts the Lumen server in-process on `127.0.0.1` with a single local
-user, and the window loads it — the same app as the web. The workspace is a
-folder you choose; GitHub sync (git) is optional and configured in Settings. The
+user. The first run asks where data should live (the `desktop.mode` setting):
+
+- **This computer only**: the window loads the local app, signed in as the
+  local user. Data is in the app's own SQLite database; a folder from before is
+  imported, and Settings → Sync can bring in another folder or a repository.
+- **A Lumen server**: the window loads that server's app, behind its sign-in.
+  If the server can't be reached the local app says so, with *Try again* and
+  *Use this computer only*. Pages from the server can't use the desktop's
+  local-only calls (folders, the activity log). Keeping a copy on the computer
+  that syncs with the server, so it works offline, is phase 3 of
+  [DATABASE.md](DATABASE.md).
+
+GitHub sync (git) is optional and configured in Settings. The
 desktop app also provides the **activity tracker** used by the Usage Monitor
 plugin: it samples the foreground app (and, if enabled, window title) every few
 seconds and the system idle time, keeps the raw log in the app's local data

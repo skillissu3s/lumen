@@ -57,56 +57,26 @@ const when = (ms) => (ms ? `${relativeDay(isoOf(new Date(ms)))} at ${timeOf(new 
 function Account() {
   const mode = useSession((s) => s.mode)
   const user = useSession((s) => s.user)
-  const github = useSession((s) => s.github)
-  const disconnect = useSession((s) => s.disconnectGitHub)
   const toast = useUI((s) => s.toast)
   const [name, setName] = useState(user?.name || '')
   const [pw, setPw] = useState({ current: '', next: '', confirm: '' })
   const [error, setError] = useState('')
-  const [confirm, setConfirm] = useState(false)
 
-  if (mode === 'github')
-    return (
-      <Section description="You’re using Lumen with a GitHub repository. Nothing about you is stored anywhere else.">
-        <Row label="Signed in as">
-          <span className="set-value">
-            <Avatar name={user?.name} size={22} /> {user?.name} <span className="faint">@{user?.handle}</span>
-          </span>
-        </Row>
-        <Row label="Repository">
-          <a href={`https://github.com/${github?.owner}/${github?.repo}`} target="_blank" rel="noopener noreferrer" className="set-value">
-            {github?.owner}/{github?.repo} <span className="faint">· {github?.branch}</span> <ExternalLink size={12} />
-          </a>
-        </Row>
-        <Row label="This browser" hint="Removes the token from this browser. Your data stays in the repository.">
-          <Button variant="danger" onClick={() => setConfirm(true)}>
-            Disconnect
-          </Button>
-        </Row>
-        <Dialog
-          open={confirm}
-          onClose={() => setConfirm(false)}
-          size="sm"
-          title="Disconnect GitHub?"
-          description="Unsaved changes are kept until they reach GitHub; once everything says Saved, it’s safe."
-          footer={
-            <>
-              <Button variant="ghost" onClick={() => setConfirm(false)}>
-                Cancel
-              </Button>
-              <Button variant="danger" onClick={() => disconnect()}>
-                Disconnect
-              </Button>
-            </>
-          }
-        />
-      </Section>
-    )
   if (mode === 'desktop')
     return (
-      <Section description="The desktop app runs for you alone on this computer — there is no account to manage.">
+      <Section description="Lumen keeps everything on this computer, with no account.">
         <Row label="Name">
           <span className="set-value">{user?.name}</span>
+        </Row>
+        <Row label="Lumen server" hint="Use your account on a Lumen server instead. What is on this computer stays here.">
+          <Button
+            onClick={async () => {
+              await api('POST', '/desktop/mode', { mode: 'ask' })
+              await useSession.getState().boot()
+            }}
+          >
+            Sign in to a server
+          </Button>
         </Row>
       </Section>
     )
@@ -144,6 +114,11 @@ function Account() {
         <Row label="Handle" hint="How people mention you in chat.">
           <span className="set-value">@{user?.handle}</span>
         </Row>
+        {window.lumenDesktop?.useLocal && (
+          <Row label="This computer" hint="Leave the server in this app and keep Lumen on this computer only. Your account stays on the server.">
+            <Button onClick={() => window.lumenDesktop.useLocal()}>Use this computer only</Button>
+          </Row>
+        )}
       </Section>
       <Section title="Password">
         <form
@@ -398,8 +373,6 @@ function Members() {
 
 function Sync() {
   const mode = useSession((s) => s.mode)
-  const github = useSession((s) => s.github)
-  const saving = useWorkspace((s) => s.saving)
   const toast = useUI((s) => s.toast)
   const base = mode === 'desktop' ? '/desktop/sync' : '/admin/sync'
   const [cfg, setCfg] = useState(null)
@@ -410,7 +383,6 @@ function Sync() {
   const [dir, setDir] = useState('')
 
   useEffect(() => {
-    if (mode === 'github') return
     api('GET', base)
       .then((r) => {
         setCfg(r.config)
@@ -421,24 +393,6 @@ function Sync() {
     if (mode === 'desktop') api('GET', '/desktop/workspace').then((r) => setDir(r.dir)).catch(() => {})
   }, [mode, base])
 
-  if (mode === 'github')
-    return (
-      <Section title="Sync" description="In GitHub mode the repository is the storage: every change is a commit, made a moment after you stop typing.">
-        <Row label="Repository">
-          <span className="set-value">
-            {github?.owner}/{github?.repo} · {github?.branch}
-          </span>
-        </Row>
-        <Row label="Status">
-          <span className="set-value">{saving.state === 'saved' ? 'Everything saved' : saving.state === 'offline' ? 'Offline — changes kept in this browser' : saving.state === 'error' ? saving.error : 'Saving…'}</span>
-        </Row>
-        <Row label="Changes made elsewhere" hint="Lumen checks for them every 30 seconds while open.">
-          <Button icon={RefreshCw} onClick={() => useWorkspace.getState().load()}>
-            Check now
-          </Button>
-        </Row>
-      </Section>
-    )
 
   const save = async (e) => {
     e.preventDefault()
@@ -460,25 +414,19 @@ function Sync() {
   return (
     <>
       {mode === 'desktop' && (
-        <Section title="Workspace folder" description="Lumen keeps everything as plain files in this folder.">
-          <Row label="Folder">
-            <div className="set-inline">
-              <code className="set-path">{dir}</code>
-              <Button
-                icon={FolderOpen}
-                onClick={async () => {
-                  const picked = await window.lumenDesktop?.pickFolder({ title: 'Choose a workspace folder', buttonLabel: 'Use this folder' })
-                  if (!picked) return
-                  await api('PUT', '/desktop/workspace', { dir: picked })
-                  location.reload()
-                }}
-              >
-                Change…
-              </Button>
-              <Button variant="ghost" onClick={() => window.lumenDesktop?.reveal(dir)}>
-                Show
-              </Button>
-            </div>
+        <Section title="Bring in a folder" description="Takes in a Lumen folder: a workspace from before, or a clone of a repository. Nothing in the folder changes.">
+          <Row label="Folder" hint={dir ? `Last brought in: ${dir}` : undefined}>
+            <Button
+              icon={FolderOpen}
+              onClick={async () => {
+                const picked = await window.lumenDesktop?.pickFolder({ title: 'Choose a Lumen folder', buttonLabel: 'Bring it in' })
+                if (!picked) return
+                await api('PUT', '/desktop/workspace', { dir: picked })
+                location.reload()
+              }}
+            >
+              Choose a folder…
+            </Button>
           </Row>
         </Section>
       )}
@@ -531,7 +479,53 @@ function Sync() {
           </p>
         )}
       </Section>
+      <ImportGitHub />
     </>
+  )
+}
+
+// a repository Lumen's old GitHub mode kept data in, brought in once
+function ImportGitHub() {
+  const toast = useUI((s) => s.toast)
+  const [form, setForm] = useState({ repo: '', token: '', branch: '' })
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
+  const submit = async (e) => {
+    e.preventDefault()
+    setBusy(true)
+    setError('')
+    try {
+      const r = await api('POST', '/admin/import/github', form)
+      setForm({ repo: '', token: '', branch: '' })
+      toast(`Brought in ${r.files} file${r.files === 1 ? '' : 's'} from ${r.branch}${r.truncated ? ' (the repository was too big to take in whole)' : ''}`, { tone: 'success' })
+      await useWorkspace.getState().load()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <Section title="Bring in from GitHub" description="Takes in a repository Lumen kept your data in before (GitHub mode). Anything already here with the same id is updated, not doubled. The token reads the repository once and isn’t kept.">
+      <form className="set-form" onSubmit={submit}>
+        <Field label="Repository" hint="you/lumen-data, or its address on GitHub">
+          <Input value={form.repo} onChange={set('repo')} placeholder="you/lumen-data" spellCheck={false} autoCapitalize="off" required />
+        </Field>
+        <Field label="Token" hint="For a private repository: a fine-grained token with Contents: Read.">
+          <Input type="password" value={form.token} onChange={set('token')} placeholder="github_pat_…" autoComplete="off" />
+        </Field>
+        <Field label="Branch" hint="Leave empty for the repository’s default.">
+          <Input value={form.branch} onChange={set('branch')} placeholder="main" spellCheck={false} autoCapitalize="off" />
+        </Field>
+        {error && <p className="auth-error">{error}</p>}
+        <div>
+          <Button type="submit" loading={busy} disabled={!form.repo.trim()}>
+            Bring it in
+          </Button>
+        </div>
+      </form>
+    </Section>
   )
 }
 
@@ -539,7 +533,6 @@ function Workspace() {
   const config = useConfig()
   const mode = useSession((s) => s.mode)
   const user = useSession((s) => s.user)
-  const github = useSession((s) => s.github)
   const [name, setName] = useState(config.name)
   const [busy, setBusy] = useState(false)
   const canEdit = mode !== 'server' || user?.role === 'admin'
@@ -570,7 +563,7 @@ function Workspace() {
       </Row>
       <Row label="Where your data lives">
         <span className="set-value">
-          {mode === 'github' ? `GitHub · ${github?.owner}/${github?.repo}` : mode === 'desktop' ? 'A folder on this computer (Settings → Sync)' : 'This server’s data folder (and GitHub, if sync is on)'}
+          {mode === 'desktop' ? 'The database on this computer' : 'This server’s database (and GitHub, if sync is on)'}
         </span>
       </Row>
       <Row label="Export" hint="Every file you can see, in one JSON file.">
@@ -627,7 +620,7 @@ function About() {
         <span className="set-value">{info?.version || '0.1.0'}</span>
       </Row>
       <Row label="Running as">
-        <span className="set-value">{{ github: 'Web app with GitHub', server: 'Web app on a Lumen server', desktop: 'Desktop app' }[mode]}</span>
+        <span className="set-value">{window.lumenDesktop ? (mode === 'server' ? 'Desktop app, signed in to a Lumen server' : 'Desktop app') : 'Web app on a Lumen server'}</span>
       </Row>
       {mode === 'desktop' ? (
         <Row label="Updates" hint={update?.selfUpdating ? 'New versions download by themselves and install when Lumen restarts.' : 'Lumen tells you when a new version is out.'}>

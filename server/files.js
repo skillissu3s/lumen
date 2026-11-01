@@ -152,16 +152,13 @@ async function removeFromFolder(p) {
 }
 
 /**
- * Every file of `dir` into the database. Records are matched by id, so importing
- * the same folder again adds nothing twice. Returns how many files were read.
+ * Files from elsewhere ([[path, text]]: a folder, a GitHub repository) into the
+ * database, in one transaction. Records are matched by id, so bringing in the
+ * same files again adds nothing twice. Paths that aren't workspace files are
+ * skipped. Returns how many files were taken in.
  */
-export async function importFolder(dir, { quiet = false } = {}) {
-  const paths = await walk(dir)
-  const texts = []
-  for (const p of paths) {
-    const buf = await fs.readFile(path.join(dir, ...p.split('/')))
-    if (buf.length <= MAX_FILE_BYTES) texts.push([p, buf.toString('utf8')])
-  }
+export function importTexts(entries, { quiet = false } = {}) {
+  const texts = entries.filter(([p, text]) => cleanPath(p) === p && Buffer.byteLength(text, 'utf8') <= MAX_FILE_BYTES)
   const changes = []
   store.tx(() => {
     for (const [p, text] of texts) {
@@ -173,6 +170,13 @@ export async function importFolder(dir, { quiet = false } = {}) {
   })
   if (changes.length && !quiet) events.emit('change', changes, { external: true })
   return texts.length
+}
+
+/** Every file of `dir` into the database (see importTexts) */
+export async function importFolder(dir, { quiet = false } = {}) {
+  const entries = []
+  for (const p of await walk(dir)) entries.push([p, await fs.readFile(path.join(dir, ...p.split('/')), 'utf8')])
+  return importTexts(entries, { quiet })
 }
 
 /**

@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld('lumenDesktop', {
   pickFolder: () => ipcRenderer.invoke('lumen:pick-folder'),
   reveal: (p) => ipcRenderer.invoke('lumen:reveal', p),
   reauth: () => ipcRenderer.invoke('lumen:reauth'),
+  openServer: (url) => ipcRenderer.invoke('lumen:open-server', url),
+  useLocal: () => ipcRenderer.invoke('lumen:use-local'),
   notify: (opts) => ipcRenderer.invoke('lumen:notify', opts),
   activity: {
     status: () => ipcRenderer.invoke('lumen:activity:status'),

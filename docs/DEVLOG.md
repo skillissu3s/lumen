@@ -416,3 +416,29 @@ settable right on a card; drop the calendar's New button.
   and wrote one journal row; docs and the idea board render from their
   tables; the folder was not touched.
 
+### Phase 2: the login wall
+- GitHub-token mode removed from the client (session store, the connect
+  screen, `storage/github.js`, settings, account menu, sidebar, plugin
+  installer token). `session.boot()` now ends in `no-server` when no Lumen
+  server answers, and in `choose` when the desktop hasn't been told where data
+  lives (`/api/info` sends `desktopChoice`).
+- New screens in `auth/AuthScreens.jsx`: `NoServer` (a server address, which
+  is remembered; or the desktop app), `DesktopWelcome` (server or this computer
+  only), `Unreachable`.
+- Desktop: `POST /api/desktop/mode` stores `{ mode: 'local' }` or
+  `{ mode: 'cloud', server }` after checking `${server}/api/info` answers as a
+  Lumen server (`'ask'` clears it). Electron reads it at start and loads the
+  local app or the server's; IPC `open-server` and `use-local` switch;
+  `did-fail-load` on the server shows the local `#/unreachable` screen. IPC that
+  touches this computer (folder picker, reveal, re-auth, the activity log)
+  answers only the local origin, since a server's page runs in the same window.
+- `server/github/readRepo.js` reads a repository's text files with one
+  recursive tree request and the blobs, 8 at a time; `POST
+  /api/admin/import/github` imports them through `files.importTexts`, which
+  the folder import now uses too.
+- Checked: a static copy of the app asks for a server and goes to it; in a
+  throwaway Electron profile, the first run shows the choice, a server choice
+  loads that server's sign-in, and an unreachable server shows the warning
+  (a first attempt went straight to Today because `unreachable` was listed as
+  a sign-in route the app leaves once signed in).
+

@@ -24,29 +24,23 @@ with it).
 - **Chat** — channels and direct messages with the people you invite (server mode).
 - **Plugins** — sandboxed, permissioned, installed from inside the app and
   stored as files in your workspace. See [docs/PLUGINS.md](docs/PLUGINS.md).
-- **Your data is text** — `lists/*.md`, `calendars/*.md`, `ideas/*.canvas`,
-  `docs/**/*.md`, JSON lines for chat. Obsidian-Tasks compatible. See [docs/STORAGE.md](docs/STORAGE.md).
+- **Your data stays yours** — kept in a database, and readable as plain files
+  (`lists/*.md`, `calendars/*.md`, `ideas/*.canvas`, `docs/**/*.md`;
+  Obsidian-Tasks compatible) that can be synced to your own GitHub repository.
+  See [docs/STORAGE.md](docs/STORAGE.md) and [docs/DATABASE.md](docs/DATABASE.md).
 
-## Three ways to run it
+## Two ways to run it
 
-| | With GitHub (web) | Self-hosted (web) | Desktop app |
-|---|---|---|---|
-| Who | just you | you + people you invite | just you, offline |
-| Data | your GitHub repo, via the GitHub API | the server's folder, optionally synced to GitHub | a folder on your computer, optionally synced to GitHub |
-| Sign in | a fine-grained GitHub token | email + password (invite-only; only admins invite) | none |
-| Chat | — | ✅ | — |
-| Usage monitor plugin | — | — | ✅ |
+| | Self-hosted (web) | Desktop app |
+|---|---|---|
+| Who | you + people you invite | you |
+| Data | the server's database, optionally synced to GitHub | this computer, or your account on a Lumen server |
+| Sign in | email + password or an emailed code (invite-only; only admins invite) | first run: sign in to a server, or use this computer only |
+| Chat | ✅ | with a server account |
+| Usage monitor plugin | — | ✅ |
 
-### With GitHub (no server)
-
-1. Create an empty **private** repository on GitHub.
-2. Create a [fine-grained token](https://github.com/settings/personal-access-tokens/new)
-   with access to only that repository and **Contents: Read and write**.
-3. Open Lumen (any static host, e.g. GitHub Pages — see below), choose
-   **Use with GitHub**, paste the token, pick the repository.
-
-The token stays in that browser. Lumen seeds the repository with a starter
-workspace and commits each change a moment after you stop typing.
+Used Lumen's old GitHub mode? Your data is still in that repository: an admin
+can bring it in from **Settings → Sync → Bring in from GitHub**.
 
 ### Self-hosted (Docker)
 
@@ -71,14 +65,16 @@ npm run desktop          # build the client and open the app
 npm run desktop:build    # installer for this OS in release/
 ```
 
-The workspace is a folder (default `Documents/Lumen`, change it in
-Settings → Sync). GitHub sync needs `git` installed.
+The first run asks: sign in to a Lumen server, or use this computer only.
+On this computer, data lives in the app's own database; a workspace folder from
+before is imported. GitHub sync needs `git` installed.
 
 ### GitHub Pages
 
-`.github/workflows/pages.yml` builds the web app and publishes it. Enable
-*Settings → Pages → Source: GitHub Actions* in the repository. The published
-site runs in GitHub mode.
+`.github/workflows/pages.yml` builds the landing page and the web app and
+publishes them. Enable *Settings → Pages → Source: GitHub Actions* in the
+repository. The published app has no server of its own: it asks for your Lumen
+server's address.
 
 ## Development
 
@@ -89,8 +85,8 @@ npm test           # shared core, server end-to-end, client store and views
 npm run build      # client into dist/ (served by `npm start`)
 ```
 
-Open http://localhost:5173/app.html. Without a server running, the app falls
-back to GitHub mode.
+Open http://localhost:5173/app.html. Without a server running, the app asks for
+a server's address.
 
 ```
 client/      React app (Vite) + landing page — client/src/{auth,shell,views,store,storage,plugins}

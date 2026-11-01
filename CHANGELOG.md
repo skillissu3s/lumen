@@ -8,6 +8,14 @@
   different in the app.
 - Git sync keeps working for now (its folder mirrors the database); it will be
   replaced by the GitHub mirror (see docs/DATABASE.md).
+- **Sign in first.** The desktop app asks on first start: sign in to your Lumen
+  server, or use it on this computer only (switch later in Settings →
+  Account). If your server can't be reached, it says so and offers to use
+  this computer instead.
+- **GitHub mode is retired.** The web app runs on a Lumen server; a copy with
+  no server (like the GitHub Pages site) asks for your server's address. Data
+  from GitHub mode is still in your repository: an admin can bring it in from
+  Settings → Sync → Bring in from GitHub.
 
 ## 0.3.6 — a sliding sidebar, themes, and a fuller idea board
 

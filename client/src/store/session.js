@@ -1,19 +1,10 @@
-// Session: which mode we're in, who we are, and the auth actions for each mode.
+// Session: where we are (a Lumen server, or the desktop app's own), who we are,
+// and the sign-in actions. Without a server there is nothing to sign in to: the
+// app asks where your server is (status 'no-server').
 
 import { create } from 'zustand'
 import { api } from '../lib/api.js'
 import { createServerBackend } from '../storage/server.js'
-import { createGitHubBackend, githubUser, repoInfo } from '../storage/github.js'
-
-const GITHUB_KEY = 'lumen.github'
-
-function readGithub() {
-  try {
-    return JSON.parse(localStorage.getItem(GITHUB_KEY) || 'null')
-  } catch {
-    return null
-  }
-}
 
 // /api/info that only succeeds when a Lumen server actually answered.
 async function fetchInfo() {
@@ -37,36 +28,23 @@ async function fetchInfo() {
 }
 
 let backendInstance = null
-let backendKey = null
 
 export const useSession = create((set, get) => ({
   status: 'booting',
   mode: null,
   info: null,
   user: null,
-  github: null,
   error: null,
 
   async boot() {
     set({ status: 'booting', error: null })
     const info = await fetchInfo()
-    if (info) {
-      if (info.user) set({ status: 'ready', mode: info.mode, info, user: info.user })
-      else if (info.needsSetup) set({ status: 'needs-setup', mode: info.mode, info })
-      else set({ status: 'signed-out', mode: info.mode, info })
-      return
-    }
-    const github = readGithub()
-    if (github && github.token) {
-      try {
-        const u = await githubUser(github.token)
-        set({ status: 'ready', mode: 'github', github, user: { handle: u.login, name: u.name || u.login, role: 'admin' } })
-      } catch (e) {
-        set({ status: 'error', mode: 'github', github, error: e.message })
-      }
-      return
-    }
-    set({ status: 'signed-out', mode: 'github', github: null })
+    if (!info) return set({ status: 'no-server', mode: null })
+    // the desktop app asks once: a Lumen server, or this computer only
+    if (info.desktopChoice) set({ status: 'choose', mode: info.mode, info, user: info.user })
+    else if (info.user) set({ status: 'ready', mode: info.mode, info, user: info.user })
+    else if (info.needsSetup) set({ status: 'needs-setup', mode: info.mode, info })
+    else set({ status: 'signed-out', mode: info.mode, info })
   },
 
   async login(email, password) {
@@ -93,52 +71,13 @@ export const useSession = create((set, get) => ({
     } catch {
       /* still sign out locally */
     }
-    set({ status: 'signed-out', user: null, github: null })
-  },
-
-  async connectGitHub({ token, owner, repo, branch }) {
-    const info = await repoInfo(token, owner, repo)
-    if (!info.push) throw new Error('That token cannot write to this repository')
-    const github = { token, owner, repo, branch: branch || info.defaultBranch }
-    try {
-      localStorage.setItem(GITHUB_KEY, JSON.stringify(github))
-    } catch {
-      /* storage unavailable */
-    }
-    const u = await githubUser(token)
-    set({ status: 'ready', mode: 'github', github, user: { handle: u.login, name: u.name || u.login, role: 'admin' } })
-    return github
-  },
-
-  disconnectGitHub() {
-    try {
-      localStorage.removeItem(GITHUB_KEY)
-    } catch {
-      /* storage unavailable */
-    }
-    backendInstance?.stop()
-    backendInstance = null
-    backendKey = null
-    set({ status: 'signed-out', mode: 'github', github: null, user: null })
+    set({ status: 'signed-out', user: null })
   },
 
   backend() {
     const s = get()
-    if (s.mode === 'server' || s.mode === 'desktop') {
-      if (backendKey !== 'server') {
-        backendInstance = createServerBackend()
-        backendKey = 'server'
-      }
-      return backendInstance
-    }
-    if (s.mode === 'github' && s.github) {
-      const key = `github:${s.github.owner}/${s.github.repo}/${s.github.branch}`
-      if (backendKey !== key) {
-        backendInstance = createGitHubBackend(s.github)
-        backendKey = key
-      }
-      return backendInstance
-    }
-    return null
+    if (s.mode !== 'server' && s.mode !== 'desktop') return null
+    backendInstance ||= createServerBackend()
+    return backendInstance
   },
 }))

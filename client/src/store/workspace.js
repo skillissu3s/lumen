@@ -4,7 +4,6 @@
 
 import { create } from 'zustand'
 import { rebaseText } from '../../../shared/merge.js'
-import { seedFiles } from '../../../shared/seed.js'
 import { createEmitter } from '../lib/emitter.js'
 import { ConflictError, AuthError } from '../storage/errors.js'
 
@@ -71,14 +70,8 @@ export const useWorkspace = create((set, get) => ({
   async load() {
     set({ status: 'loading', error: null })
     try {
-      let list = await backend.list()
-      let paths = list.map((f) => f.path)
-      if (get().mode === 'github' && !paths.includes('lumen.json')) {
-        const seed = seedFiles({ handle: get().user?.handle, chat: false })
-        for (const [p, text] of Object.entries(seed)) await backend.write(p, text, null)
-        list = await backend.list()
-        paths = list.map((f) => f.path)
-      }
+      const list = await backend.list()
+      const paths = list.map((f) => f.path)
       const handle = get().user?.handle
       const core = paths.filter((p) => isCore(p, handle))
       const loaded = await backend.readMany(core)
@@ -254,7 +247,7 @@ function rebaseOnto(q, current) {
 function scheduleWrite(path, q) {
   if (q.inflight) return
   if (q.timer) clearTimeout(q.timer)
-  const delay = getState().mode === 'github' ? 1500 : 400
+  const delay = 400
   q.timer = setTimeout(() => {
     q.timer = null
     doWrite(path, q)
