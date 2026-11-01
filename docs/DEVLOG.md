@@ -368,3 +368,19 @@ settable right on a card; drop the calendar's New button.
   Templates are built from (0, 0) and centred where you are. The minimap is
   `prefs.ideas.minimap`, off by default.
 
+### Towards databases, with GitHub as a mirror
+- The owner asked for: user data in databases (SQLite on the server and in the
+  desktop app, not files), a login wall, offline use with sync to the cloud,
+  and GitHub kept as a readable, restorable mirror written by the server on a
+  schedule, through a GitHub App. Decisions: SQLite on the server too,
+  invite-only accounts, one-way mirror plus restore, old modes replaced.
+- The mirror's rules are written up as a separate, private, app-agnostic spec:
+  the Repo Sync Protocol (skillissu3s/repo-sync-protocol), with Lumen as
+  profile `lumen/1`. Lumen's existing file formats are the mirror's formats,
+  so old repositories import through restore's parser.
+- docs/DATABASE.md is the plan, in five phases. Phase 1 starts with the codecs:
+  `server/mirror/lumen/itemsFile.js` parses and renders boards and calendars,
+  pure and deterministic, keeping unknown front matter, Obsidian Kanban
+  settings and loose text in `extra`. Tests: golden files byte for byte, a
+  hand-made file settling after one pass, and 300 random boards round-tripping.
+

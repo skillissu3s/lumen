@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Groundwork for moving Lumen's data into databases, with GitHub as a readable
+  mirror written by the server (see docs/DATABASE.md). Nothing changes in the
+  app yet: this adds the board and calendar file converters the mirror and
+  restore will use.
+
 ## 0.3.6 — a sliding sidebar, themes, and a fuller idea board
 
 - **The sidebar slides** open and closed, as obi's does: the full sidebar and
