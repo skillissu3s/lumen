@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.0 — a readable copy of your data on GitHub
 
 - **A readable copy of your data on GitHub.** In Settings → GitHub, add a
   repository and a token for it, and choose when to sync: after
