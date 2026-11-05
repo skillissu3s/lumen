@@ -89,24 +89,32 @@ or an admin changes `share`.
 
 ## Devices and the cloud
 
-Lumen's own sync between a device and the cloud server (separate from GitHub):
+Lumen's own sync between a device and the cloud server (separate from GitHub).
+What is built (phase 3) carries **file units** (a board with its cards, a doc,
+an idea board…) through the server's file API, which already checks who may
+read and write what and gives every file a version, and merges them **record by
+record**:
 
-- **Pull**: `GET /api/sync/changes?since=<seq>` returns the current state of
-  every record the user may read that changed after `seq` (tombstones
-  included) and the new high-water mark. The device applies them and
-  remembers the mark. The WebSocket already open for live updates tells
-  devices when to pull.
-- **Push**: the device sends its unsent changes as operations:
-  `{ op: uuid, type, id, base_rev, set: { field: value… } }` (or `delete`).
-  The server applies each in one transaction: fields untouched since `base_rev`
-  are set; a field someone else changed in the meantime goes to whoever wrote
-  last by the server's order, and the device is told so it can show the result.
-  `op` ids make retries harmless.
-- **Docs** sync block by block, so two people editing different paragraphs
-  never collide; the same paragraph resolves by last write.
-- The desktop's embedded server uses exactly this to sync its local SQLite
-  with the cloud, so the window always talks to the local server and works
-  offline.
+- The device remembers, per file, the last version both sides agreed on
+  (`sync_files`: the text, the server's sha, the local sha).
+- A round lists both sides and compares each with that: a file changed on one
+  side is copied to the other; changed on both, it is merged three ways
+  (`server/sync/merge.js`): cards, idea board nodes and arrows, chat messages
+  and settings keys merge one by one, field by field where both changed the same
+  record, with the server's value winning a true clash (and the app listing
+  the file under *Changed in both places*). Docs merge as text
+  (diff-match-patch); a doc the two can't combine keeps this computer's
+  version beside the server's as `… (this computer).md`. Deleted on one side
+  and changed on the other keeps it.
+- A change the server refuses (not yours to change) stays on the device and is
+  listed under *Kept on this computer*.
+- Rounds run on start, 1.5 s after a change on the device, every 30 s, and on
+  *Sync now*. Offline, changes wait in the local database; the next round that
+  reaches the server sends them.
+
+Record-level operations (`base_rev`, field sets) between the app and the
+server, and docs syncing block by block, belong to phase 5, when the client
+itself works on records.
 
 ## The way there
 
@@ -184,6 +192,27 @@ server to be reachable; phase 3 gives it a local copy that syncs.
 
 The device ↔ cloud protocol above: desktop as a replica of the cloud, the web
 app's IndexedDB copy and outbox, conflict reporting in the app.
+
+Progress:
+
+- [x] The desktop app as a replica (`server/sync/replica.js`): signing in
+  happens in the local app (address, email, password, and the emailed code for
+  admins); the window always shows the local app, which works offline. The
+  local user takes the account's handle, so what is made here is theirs on the
+  server. On a fresh install the account's data simply arrives; a computer
+  with work of its own asks whether to keep both or only the account's (this
+  computer's is backed up to `DATA_DIR/backups/<time>/` first). Signing in
+  again after a session ends carries on where it was. Signing out leaves the
+  computer its copy.
+- [x] Sync state in the app: the sidebar (Synced, Syncing…, Offline · changes
+  kept, Sign in again) and Settings → Account (Sync now, files changed in both
+  places, changes the server refused, Sign out).
+- [x] Tests: `server/sync/merge.test.js` (the merge rules) and
+  `server/sync/replica.e2e.test.js` (a real server and a desktop server:
+  signing in, changes both ways, the same board changed on both sides,
+  offline and back, deletions, signing out).
+- [ ] The web app's copy in IndexedDB, so a browser tab also opens and works
+  without a connection.
 
 ### Phase 4: the GitHub mirror
 

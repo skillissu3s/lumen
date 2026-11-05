@@ -83,7 +83,8 @@ export function createStore(db, { clock = () => Date.now() } = {}) {
         return { record, changed: true }
       }
       const next = { ...before }
-      let changed = before.deleted && fields.deleted === false
+      // writing a deleted record brings it back, even with the same content
+      let changed = before.deleted
       for (const c of cols) {
         if (!(c in fields)) continue
         const v = c === 'extra' ? fields.extra || {} : fields[c]

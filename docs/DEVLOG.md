@@ -442,3 +442,31 @@ settable right on a card; drop the calendar's New button.
   (a first attempt went straight to Today because `unreachable` was listed as
   a sign-in route the app leaves once signed in).
 
+### Phase 3: the desktop app as an offline copy
+- Chose file units as the sync unit, merged record by record, over the
+  record-level protocol sketched in DATABASE.md: it reuses the server's file
+  API (access control, versions, conflict answers), the units are the same as
+  the GitHub mirror's, and the codecs already turn each file into records. The
+  record-level protocol is now phase 5.
+- `server/sync/merge.js`: three-way merge per kind through the codecs. Records
+  keyed by id; one side changed → that side; both → field by field, the
+  server winning a clash; deleted vs changed → kept. Docs by diff-match-patch,
+  and a doc the two can't combine is kept twice. Plugin JSON Lines keep lines
+  either side added.
+- `server/sync/replica.js`: `sync_files` keeps each file's agreed text and both
+  shas; a round lists both sides, reads the changed remote files in batches,
+  copies or merges, and saves the new agreement. A 409 makes another round
+  run; 403/400/413 keep the change local and report it; 401 means sign in
+  again; no answer means offline. The session token is stored encrypted
+  (`config.encrypt`). Signing in again with the same account resumes.
+- The window always loads the local app again; phase 2's "load the server's
+  app" path and its Unreachable screen are gone.
+- Fixes found by the end-to-end test: writing a deleted record now brings it
+  back even with the same content (sign-in cleared `.gitattributes`, then
+  pulled the identical file, which stayed deleted); the desktop routes had no
+  error handler, so errors came back as Express's HTML page (`apiErrors` is
+  now shared).
+- Checked in the app with a throwaway server and desktop server: the welcome
+  screen, signing in, the account's workspace arriving, "Synced" in the
+  sidebar, Settings → Account, and the offline state when the server stopped.
+

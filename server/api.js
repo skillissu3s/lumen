@@ -12,6 +12,7 @@ import { seedWorkspace } from './seed.js'
 import { mailEnabled, sendMail, codeMail, inviteMail } from './mail.js'
 import { issueCode, checkCode } from './codes.js'
 import { readRepo } from './github/readRepo.js'
+import { publicStatus as cloudStatus } from './sync/replica.js'
 
 const DAY = 86400000
 const router = express.Router()
@@ -70,6 +71,8 @@ router.get('/info', (req, res) => {
     mail: mailEnabled(),
     // the desktop app hasn't been told yet: a Lumen server, or this computer only
     ...(DESKTOP && !getSetting('desktop.mode') ? { desktopChoice: true } : {}),
+    // and when it's signed in to one, how keeping in step with it is going
+    ...(DESKTOP && req.user ? { cloud: cloudStatus() } : {}),
   })
 })
 
@@ -484,7 +487,8 @@ router.post('/chat/read', chatOnly, requireUser, async (req, res, next) => {
 
 // ---------- errors ----------
 
-router.use((err, req, res, next) => {
+/** Errors as JSON ({ error }), for this router and the desktop's */
+export function apiErrors(err, req, res, next) {
   if (err instanceof HttpError) return res.status(err.status).json({ error: err.message })
   if (err instanceof files.ConflictError) return res.status(409).json({ error: err.message, current: err.current })
   if (err instanceof RangeError) return res.status(400).json({ error: err.message })
@@ -493,6 +497,7 @@ router.use((err, req, res, next) => {
   if (err?.status && err.status >= 400 && err.status < 500) return res.status(err.status).json({ error: err.message })
   console.error('[api]', err)
   res.status(500).json({ error: 'Something went wrong.' })
-})
+}
+router.use(apiErrors)
 
 export { router as apiRouter }

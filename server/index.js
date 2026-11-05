@@ -13,6 +13,7 @@ import * as git from './git.js'
 import { initChat } from './chat.js'
 import { attachWs, closeWs } from './ws.js'
 import { logMail } from './mail.js'
+import * as replica from './sync/replica.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.join(here, '..')
@@ -59,6 +60,8 @@ if (!files.info('lumen.json')) {
 }
 await initChat()
 await git.start()
+// the desktop app signed in to a server keeps its copy in step
+if (DESKTOP) replica.start()
 
 // ---------- listen ----------
 
@@ -71,6 +74,7 @@ export const listening = new Promise((resolve, reject) => {
 })
 
 export async function stopServer() {
+  replica.stop()
   await git.stop()
   closeWs()
   if (httpServer.listening) await new Promise((resolve) => httpServer.close(resolve))

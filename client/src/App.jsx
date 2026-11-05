@@ -5,8 +5,8 @@ import { useSession } from './store/session.js'
 import { useWorkspace } from './store/workspace.js'
 import { usePrefs, applyTheme } from './store/prefs.js'
 import { useRoute, navigate } from './lib/router.js'
-import { connectSocket } from './lib/socket.js'
-import { AcceptInvite, BootError, BootScreen, DesktopWelcome, ForgotPassword, NoServer, SignIn, Setup, Unreachable } from './auth/AuthScreens.jsx'
+import { connectSocket, onSocket } from './lib/socket.js'
+import { AcceptInvite, BootError, BootScreen, DesktopWelcome, ForgotPassword, NoServer, SignIn, Setup } from './auth/AuthScreens.jsx'
 import { AppShell } from './shell/AppShell.jsx'
 
 const AUTH_ROUTES = ['signin', 'setup', 'invite', 'forgot']
@@ -33,7 +33,10 @@ export default function App() {
     ws.initWorkspace({ backend: useSession.getState().backend(), user, mode })
     ws.load()
     if (mode === 'server' || mode === 'desktop') connectSocket()
+    // the desktop app's syncing with a Lumen server, as it goes
+    const off = mode === 'desktop' ? onSocket('cloud', (msg) => useSession.setState({ cloud: msg.status })) : null
     if (AUTH_ROUTES.includes(route.parts[0])) navigate('/today', { replace: true })
+    return () => off?.()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, mode, user?.handle])
 
@@ -50,8 +53,6 @@ export default function App() {
   if (status === 'booting') return <BootScreen />
   if (status === 'error') return <BootError message={error} onRetry={() => useSession.getState().boot()} />
   if (status === 'no-server') return <NoServer />
-  // the desktop app lands here when the server it signs in to doesn't answer
-  if (mode === 'desktop' && route.parts[0] === 'unreachable') return <Unreachable server={route.query.server} />
   if (status === 'choose') return <DesktopWelcome />
 
   if (status !== 'ready') {

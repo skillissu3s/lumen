@@ -46,20 +46,36 @@ function NavItem({ href, icon: Icon, tint, label, count, active, children, onDro
   )
 }
 
+// a desktop app signed in to a server: once saved here, how syncing with it goes
+const CLOUD = {
+  idle: { look: 'saved', text: 'Synced' },
+  syncing: { look: 'saving', text: 'Syncing…' },
+  offline: { look: 'offline', text: 'Offline · changes kept' },
+  'signed-out': { look: 'error', text: 'Sign in again' },
+  error: { look: 'error', text: 'Not synced' },
+}
+
 export function SyncStatus() {
   const saving = useWorkspace((s) => s.saving)
   const mode = useSession((s) => s.mode)
-  const where = mode === 'desktop' ? 'This computer' : 'Server'
+  const cloud = useSession((s) => s.cloud)
+  const synced = mode === 'desktop' && cloud?.linked
+  const where = synced ? cloud.server.replace(/^https?:\/\//, '') : mode === 'desktop' ? 'This computer' : 'Server'
   const map = {
     saved: { icon: null, text: 'Saved' },
     saving: { icon: <Spinner size={11} />, text: 'Saving…' },
     offline: { icon: <CloudOff size={13} />, text: 'Offline · changes kept' },
     error: { icon: <CircleAlert size={13} />, text: 'Couldn’t save' },
   }
-  const s = map[saving.state] || map.saved
+  let look = saving.state
+  let s = map[saving.state] || map.saved
+  if (synced && saving.state === 'saved' && CLOUD[cloud.state]) {
+    look = CLOUD[cloud.state].look
+    s = { ...map[look], text: CLOUD[cloud.state].text }
+  }
   return (
-    <Tooltip label={saving.error || `${s.text} · ${where}`}>
-      <div className={`sync-status is-${saving.state}`} role="status">
+    <Tooltip label={saving.error || (synced && cloud.lastError) || `${s.text} · ${where}`}>
+      <div className={`sync-status is-${look}`} role="status">
         {s.icon || <span className="sync-dot" />}
         <span className="sync-text">{s.text}</span>
       </div>

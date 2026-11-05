@@ -7,6 +7,7 @@ import { events as fileEvents, info as fileInfo, list as fileList } from './file
 import { canRead } from './access.js'
 import { chatEvents, membersOf } from './chat.js'
 import { syncEvents, status as syncStatus } from './git.js'
+import { cloudEvents } from './sync/replica.js'
 
 let wss = null
 let heartbeat = null
@@ -114,6 +115,7 @@ export function attachWs(httpServer) {
   chatEvents.on('channels', () => broadcast({ type: 'channels' }))
 
   syncEvents.on('status', (st) => broadcast({ type: 'sync', status: st }, (s) => s.user.role === 'admin'))
+  cloudEvents.on('status', (st) => broadcast({ type: 'cloud', status: st }))
 }
 
 export function closeWs() {

@@ -350,7 +350,7 @@ const DOWNLOADS = 'https://github.com/skillissu3s/lumen/releases/latest'
 const LAST_SERVER = 'lumen.server'
 
 // "lumen.example.com" → "https://lumen.example.com"; null if it isn't an address
-export function serverUrl(input) {
+function serverUrl(input) {
   const raw = String(input || '').trim().replace(/\/+$/, '').replace(/\/app\.html.*$/, '')
   if (!raw) return null
   try {
@@ -412,37 +412,92 @@ export function NoServer() {
 
 /** The desktop app's first question: a Lumen server, or this computer only */
 export function DesktopWelcome() {
-  const [address, setAddress] = useState('')
-  const [asking, setAsking] = useState(false)
+  const [step, setStep] = useState(null) // null · 'signin' · { code } · { keep }
+  const [form, setForm] = useState({ server: '', email: '', password: '' })
+  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
+  const done = async () => {
+    navigate('/today', { replace: true })
+    await useSession.getState().boot()
+  }
   const local = useSubmit(async () => {
     await api('POST', '/desktop/mode', { mode: 'local' })
-    await useSession.getState().boot()
+    await done()
   })
-  const cloud = useSubmit(async () => {
-    const url = serverUrl(address)
-    if (!url) throw new Error('Enter your Lumen server’s address, like lumen.example.com.')
-    const { server } = await api('POST', '/desktop/mode', { mode: 'cloud', server: url })
-    await window.lumenDesktop?.openServer?.(server)
+  // signed in: if this computer has its own work, ask what to keep
+  const signedIn = async (r) => {
+    if (r.hasOwnData) setStep({ keep: r.user })
+    else await finish.submit(null, 'server')
+  }
+  const signin = useSubmit(async () => {
+    const r = await api('POST', '/desktop/cloud/login', form)
+    setForm((f) => ({ ...f, server: r.server }))
+    if (r.needsCode) setStep({ code: r })
+    else await signedIn(r)
   })
+  const verify = useSubmit(async (code) => signedIn(await api('POST', '/desktop/cloud/verify', { server: form.server, challenge: step.code.challenge, code })))
+  const finish = useSubmit(async (keep) => {
+    await api('POST', '/desktop/cloud/link', { keep })
+    await done()
+  })
+
+  if (step?.code)
+    return (
+      <Card title="Check your email" subtitle="Admins confirm every sign-in with a code.">
+        <CodeStep to={step.code.email} busy={verify.busy || finish.busy} error={verify.error || finish.error} onVerify={(code) => verify.submit(null, code)} onResend={() => signin.submit()} onBack={() => setStep('signin')} />
+      </Card>
+    )
+  if (step?.keep)
+    return (
+      <Card title={`Signed in as ${step.keep.name}`} subtitle="This computer already has boards, docs or tasks of its own.">
+        <div className="auth-form">
+          <button type="button" className="auth-choice" onClick={() => finish.submit(null, 'both')} disabled={finish.busy}>
+            <Cloud size={18} />
+            <span>
+              <b>Keep both</b>
+              <small>Add what is on this computer to your account, next to what is already there.</small>
+            </span>
+          </button>
+          <button type="button" className="auth-choice" onClick={() => finish.submit(null, 'server')} disabled={finish.busy}>
+            <Monitor size={18} />
+            <span>
+              <b>Use my account’s only</b>
+              <small>This computer’s work is saved to a backup folder first, then replaced by your account’s.</small>
+            </span>
+          </button>
+          <ErrorLine error={finish.error} />
+        </div>
+      </Card>
+    )
+  if (step === 'signin')
+    return (
+      <Card title="Sign in to a Lumen server" subtitle="Your account’s work stays on this computer too, so Lumen works offline and catches up when it’s back online." footer={<button type="button" className="auth-link" onClick={() => setStep(null)}>Back</button>}>
+        <form className="auth-form" onSubmit={signin.submit}>
+          <Field label="Server">
+            <Input icon={Cloud} value={form.server} onChange={set('server')} placeholder="lumen.example.com" autoFocus spellCheck={false} autoCapitalize="off" required />
+          </Field>
+          <Field label="Email">
+            <Input type="email" value={form.email} onChange={set('email')} autoComplete="email" required />
+          </Field>
+          <Field label="Password">
+            <Input type="password" icon={Lock} value={form.password} onChange={set('password')} autoComplete="current-password" required />
+          </Field>
+          <ErrorLine error={signin.error || finish.error} />
+          <Button variant="primary" type="submit" loading={signin.busy || finish.busy} iconRight={ArrowRight} full>
+            Sign in
+          </Button>
+        </form>
+      </Card>
+    )
   return (
     <Card title="Welcome to Lumen" subtitle="Where should your tasks, calendar and docs live?">
       <div className="auth-form">
-        <button type="button" className="auth-choice" onClick={() => setAsking(true)} aria-expanded={asking}>
+        <button type="button" className="auth-choice" onClick={() => setStep('signin')}>
           <Cloud size={18} />
           <span>
             <b>Sign in to a Lumen server</b>
-            <small>Your account, on every device. Use the address your server is at.</small>
+            <small>Your account, on every device. Works offline here and catches up when you’re back online.</small>
           </span>
         </button>
-        {asking && (
-          <form className="auth-form auth-choice-form" onSubmit={cloud.submit}>
-            <Input icon={Cloud} value={address} onChange={(e) => setAddress(e.target.value)} placeholder="lumen.example.com" autoFocus spellCheck={false} autoCapitalize="off" aria-label="Your Lumen server" />
-            <ErrorLine error={cloud.error} />
-            <Button variant="primary" type="submit" loading={cloud.busy} iconRight={ArrowRight} full>
-              Continue
-            </Button>
-          </form>
-        )}
         <button type="button" className="auth-choice" onClick={local.submit} disabled={local.busy}>
           <Monitor size={18} />
           <span>
@@ -450,29 +505,6 @@ export function DesktopWelcome() {
             <small>Everything stays here, with no account. You can sign in to a server later.</small>
           </span>
         </button>
-        <ErrorLine error={local.error} />
-      </div>
-    </Card>
-  )
-}
-
-/** The desktop app couldn't reach the server it signs in to */
-export function Unreachable({ server }) {
-  const retry = () => window.lumenDesktop?.openServer?.(server)
-  const local = useSubmit(async () => {
-    await api('POST', '/desktop/mode', { mode: 'local' })
-    navigate('/today', { replace: true })
-    await useSession.getState().boot()
-  })
-  return (
-    <Card title="Can’t reach your server" subtitle={`${server || 'Your Lumen server'} isn’t answering. Check your connection, or that the server is running.`}>
-      <div className="auth-form">
-        <Button variant="primary" onClick={retry} full>
-          Try again
-        </Button>
-        <Button variant="ghost" onClick={local.submit} loading={local.busy} full>
-          Use this computer only instead
-        </Button>
         <ErrorLine error={local.error} />
       </div>
     </Card>

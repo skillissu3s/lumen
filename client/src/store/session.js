@@ -35,6 +35,7 @@ export const useSession = create((set, get) => ({
   info: null,
   user: null,
   error: null,
+  cloud: null, // the desktop app's account on a Lumen server, and how syncing with it goes
 
   async boot() {
     set({ status: 'booting', error: null })
@@ -42,7 +43,7 @@ export const useSession = create((set, get) => ({
     if (!info) return set({ status: 'no-server', mode: null })
     // the desktop app asks once: a Lumen server, or this computer only
     if (info.desktopChoice) set({ status: 'choose', mode: info.mode, info, user: info.user })
-    else if (info.user) set({ status: 'ready', mode: info.mode, info, user: info.user })
+    else if (info.user) set({ status: 'ready', mode: info.mode, info, user: info.user, cloud: info.cloud || null })
     else if (info.needsSetup) set({ status: 'needs-setup', mode: info.mode, info })
     else set({ status: 'signed-out', mode: info.mode, info })
   },

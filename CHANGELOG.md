@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+- **The desktop app works offline with your server account.** Sign in to your
+  Lumen server from the app: your account's boards, docs and tasks are kept on
+  the computer too, so everything works without a connection, and changes go
+  both ways as soon as the server can be reached (on start, a moment after you
+  change something, and every half minute).
+- **Changes made in two places at once are merged** card by card, setting by
+  setting; docs keep both sets of edits where they don't overlap. If the same
+  thing was changed in both places, the server's version is kept and Settings →
+  Account lists the file.
+- If this computer already has work of its own when you sign in, you choose:
+  keep both, or use only your account's (this computer's is backed up first).
+- The sidebar shows Synced, Syncing…, Offline or Sign in again; Settings →
+  Account has Sync now and Sign out of the server.
+
 ## 0.4.0 — your data in a database, and a sign-in wall
 
 - **Your data now lives in a database.** The server and the desktop app keep

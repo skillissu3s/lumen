@@ -54,6 +54,106 @@ function Row({ label, hint, children, stacked }) {
 
 const when = (ms) => (ms ? `${relativeDay(isoOf(new Date(ms)))} at ${timeOf(new Date(ms))}` : 'never')
 
+// back to the welcome screen, to sign in to a server (or again)
+async function askWhere() {
+  await api('POST', '/desktop/mode', { mode: 'ask' })
+  await useSession.getState().boot()
+}
+
+function cloudLine(cloud) {
+  if (cloud.state === 'syncing') return 'Syncing…'
+  if (cloud.state === 'offline') return 'Offline. Your changes are kept here and sent when you’re back online.'
+  if (cloud.state === 'signed-out' || cloud.state === 'error') return cloud.lastError || 'Not synced'
+  return cloud.lastSync ? `Up to date, last synced ${when(Date.parse(cloud.lastSync))}` : 'Not synced yet'
+}
+
+// the desktop app: this computer only, or a copy of an account on a Lumen server
+function DesktopAccount({ user }) {
+  const cloud = useSession((s) => s.cloud)
+  const [busy, setBusy] = useState(false)
+  const [confirm, setConfirm] = useState(false)
+  if (!cloud?.linked)
+    return (
+      <Section description="Lumen keeps everything on this computer, with no account.">
+        <Row label="Name">
+          <span className="set-value">{user?.name}</span>
+        </Row>
+        <Row label="Lumen server" hint="Use your account on a Lumen server here too. What is on this computer can come with you.">
+          <Button onClick={askWhere}>Sign in to a server</Button>
+        </Row>
+      </Section>
+    )
+  const host = cloud.server.replace(/^https?:\/\//, '')
+  return (
+    <Section description={`Signed in to ${host}. Your account’s work is kept on this computer too, so Lumen works offline.`}>
+      <Row label="Account">
+        <span className="set-value">
+          <Avatar name={cloud.user?.name} size={22} /> {cloud.user?.name} <span className="faint">@{cloud.user?.handle}</span>
+        </span>
+      </Row>
+      <Row label="Syncing" hint={cloudLine(cloud)}>
+        {cloud.state === 'signed-out' ? (
+          <Button onClick={askWhere}>Sign in again</Button>
+        ) : (
+          <Button
+            icon={RefreshCw}
+            loading={busy || cloud.state === 'syncing'}
+            onClick={async () => {
+              setBusy(true)
+              try {
+                useSession.setState({ cloud: await api('POST', '/desktop/cloud/sync') })
+              } finally {
+                setBusy(false)
+              }
+            }}
+          >
+            Sync now
+          </Button>
+        )}
+      </Row>
+      {cloud.conflicts?.length > 0 && (
+        <Row label="Changed in both places" hint="These were changed here and on the server at once; where the same thing changed, the server’s version was kept.">
+          <span className="set-value faint">{cloud.conflicts.join(', ')}</span>
+        </Row>
+      )}
+      {cloud.refused?.length > 0 && (
+        <Row label="Kept on this computer" hint="The server didn’t take these changes, so they are only here.">
+          <span className="set-value faint">{cloud.refused.map((r) => `${r.path}: ${r.reason}`).join('; ')}</span>
+        </Row>
+      )}
+      <Row label="Sign out" hint="This computer keeps a copy of your work, on its own.">
+        <Button variant="danger" onClick={() => setConfirm(true)}>
+          Sign out of the server
+        </Button>
+      </Row>
+      <Dialog
+        open={confirm}
+        onClose={() => setConfirm(false)}
+        size="sm"
+        title={`Sign out of ${host}?`}
+        description="Changes not sent yet stay on this computer only. Your account and everything on the server stay as they are."
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirm(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={async () => {
+                await api('POST', '/desktop/cloud/logout')
+                setConfirm(false)
+                await useSession.getState().boot()
+              }}
+            >
+              Sign out
+            </Button>
+          </>
+        }
+      />
+    </Section>
+  )
+}
+
 function Account() {
   const mode = useSession((s) => s.mode)
   const user = useSession((s) => s.user)
@@ -62,24 +162,7 @@ function Account() {
   const [pw, setPw] = useState({ current: '', next: '', confirm: '' })
   const [error, setError] = useState('')
 
-  if (mode === 'desktop')
-    return (
-      <Section description="Lumen keeps everything on this computer, with no account.">
-        <Row label="Name">
-          <span className="set-value">{user?.name}</span>
-        </Row>
-        <Row label="Lumen server" hint="Use your account on a Lumen server instead. What is on this computer stays here.">
-          <Button
-            onClick={async () => {
-              await api('POST', '/desktop/mode', { mode: 'ask' })
-              await useSession.getState().boot()
-            }}
-          >
-            Sign in to a server
-          </Button>
-        </Row>
-      </Section>
-    )
+  if (mode === 'desktop') return <DesktopAccount user={user} />
   return (
     <>
       <Section title="Profile">
@@ -114,11 +197,6 @@ function Account() {
         <Row label="Handle" hint="How people mention you in chat.">
           <span className="set-value">@{user?.handle}</span>
         </Row>
-        {window.lumenDesktop?.useLocal && (
-          <Row label="This computer" hint="Leave the server in this app and keep Lumen on this computer only. Your account stays on the server.">
-            <Button onClick={() => window.lumenDesktop.useLocal()}>Use this computer only</Button>
-          </Row>
-        )}
       </Section>
       <Section title="Password">
         <form

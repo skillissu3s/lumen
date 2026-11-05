@@ -133,12 +133,11 @@ user. The first run asks where data should live (the `desktop.mode` setting):
 - **This computer only**: the window loads the local app, signed in as the
   local user. Data is in the app's own SQLite database; a folder from before is
   imported, and Settings → Sync can bring in another folder or a repository.
-- **A Lumen server**: the window loads that server's app, behind its sign-in.
-  If the server can't be reached the local app says so, with *Try again* and
-  *Use this computer only*. Pages from the server can't use the desktop's
-  local-only calls (folders, the activity log). Keeping a copy on the computer
-  that syncs with the server, so it works offline, is phase 3 of
-  [DATABASE.md](DATABASE.md).
+- **A Lumen server**: you sign in from the local app, and this computer's
+  database becomes a copy of your account that the embedded server keeps in
+  step with the server (`server/sync/replica.js`, see *Devices and the cloud* in
+  [DATABASE.md](DATABASE.md)). The window still shows the local app, so it works
+  offline; changes go both ways when the server can be reached.
 
 GitHub sync (git) is optional and configured in Settings. The
 desktop app also provides the **activity tracker** used by the Usage Monitor

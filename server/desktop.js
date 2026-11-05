@@ -9,7 +9,8 @@ import { HttpError, userByEmail, createUser, createSession } from './auth.js'
 import { openWorkspace, importFolder, info } from './files.js'
 import { seedWorkspace } from './seed.js'
 import * as git from './git.js'
-import { jsonBody, csrf, loadUser, requireUser } from './api.js'
+import { apiErrors, jsonBody, csrf, loadUser, requireUser } from './api.js'
+import * as replica from './sync/replica.js'
 
 const LOCAL_EMAIL = 'local@lumen.desktop'
 
@@ -58,35 +59,84 @@ desktopRouter.put('/desktop/workspace', async (req, res, next) => {
   }
 })
 
-// where this app's data lives: 'local' (this computer) or 'cloud' (a Lumen
-// server the window signs in to); 'ask' clears the choice so the app asks again
+// where this app's data lives: 'local' (this computer only) or 'cloud' (a copy
+// of an account on a Lumen server, kept in sync: see sync/replica.js); 'ask'
+// clears the choice so the app asks again
 desktopRouter.get('/desktop/mode', (req, res) => res.json(getSetting('desktop.mode') || { mode: null }))
 
-desktopRouter.post('/desktop/mode', async (req, res, next) => {
+desktopRouter.post('/desktop/mode', (req, res, next) => {
   try {
     const mode = String(req.body?.mode || '')
-    if (mode === 'ask') {
-      setSetting('desktop.mode', null)
-      return res.json({ mode: null })
-    }
-    if (mode === 'local') {
-      setSetting('desktop.mode', { mode: 'local' })
-      return res.json({ mode })
-    }
-    if (mode !== 'cloud') throw new HttpError(400, 'Choose this computer or a server.')
-    const server = String(req.body?.server || '').replace(/\/+$/, '')
-    if (!/^https?:\/\/[^\s/]+/i.test(server)) throw new HttpError(400, 'Enter your Lumen server’s address.')
-    // make sure a Lumen server answers there before the window goes to it
-    let info = null
-    try {
-      const r = await fetch(`${server}/api/info`, { headers: { 'X-Lumen': '1' }, signal: AbortSignal.timeout(6000) })
-      info = await r.json()
-    } catch {
-      throw new HttpError(400, `Nothing answered at ${server}. Check the address and your connection.`)
-    }
-    if (info?.app !== 'lumen' || info.mode !== 'server') throw new HttpError(400, `${server} isn’t a Lumen server.`)
-    setSetting('desktop.mode', { mode: 'cloud', server })
-    res.json({ mode, server })
+    if (mode === 'ask') setSetting('desktop.mode', null)
+    else if (mode === 'local') setSetting('desktop.mode', { mode: 'local' })
+    else throw new HttpError(400, 'Choose this computer, or sign in to a server.')
+    res.json({ mode: mode === 'ask' ? null : mode })
+  } catch (e) {
+    next(e)
+  }
+})
+
+// ---------- the account on a Lumen server ----------
+
+// "lumen.example.com" → "https://lumen.example.com", checked to be a Lumen server
+async function lumenServer(input) {
+  let s = String(input || '').trim().replace(/\/+$/, '')
+  if (s && !/^https?:\/\//i.test(s)) s = `https://${s}`
+  let url
+  try {
+    url = new URL(s)
+  } catch {
+    throw new HttpError(400, 'Enter your Lumen server’s address, like lumen.example.com.')
+  }
+  const server = `${url.origin}${url.pathname.replace(/\/+$/, '')}`
+  let info = null
+  try {
+    const r = await fetch(`${server}/api/info`, { headers: { 'X-Lumen': '1' }, signal: AbortSignal.timeout(8000) })
+    info = await r.json()
+  } catch {
+    throw new HttpError(400, `Nothing answered at ${server}. Check the address and your connection.`)
+  }
+  if (info?.app !== 'lumen' || info.mode !== 'server') throw new HttpError(400, `${server} isn’t a Lumen server.`)
+  return server
+}
+
+// the server's own answer (a wrong password, an expired code) passes through
+const remoteProblem = (e) => (e instanceof HttpError ? e : new HttpError(e.status && e.status < 500 ? 400 : 502, e.status === 0 ? 'The server didn’t answer.' : e.message))
+
+desktopRouter.get('/desktop/cloud', (req, res) => res.json(replica.publicStatus()))
+
+desktopRouter.post('/desktop/cloud/login', async (req, res, next) => {
+  try {
+    const server = await lumenServer(req.body?.server)
+    res.json({ server, ...(await replica.login({ server, email: req.body?.email, password: req.body?.password })) })
+  } catch (e) {
+    next(remoteProblem(e))
+  }
+})
+
+desktopRouter.post('/desktop/cloud/verify', async (req, res, next) => {
+  try {
+    const server = await lumenServer(req.body?.server)
+    res.json({ server, ...(await replica.verify({ server, challenge: req.body?.challenge, code: req.body?.code })) })
+  } catch (e) {
+    next(remoteProblem(e))
+  }
+})
+
+desktopRouter.post('/desktop/cloud/link', async (req, res, next) => {
+  try {
+    res.json(await replica.link({ keep: req.body?.keep === 'both' ? 'both' : 'server' }))
+  } catch (e) {
+    next(remoteProblem(e))
+  }
+})
+
+desktopRouter.post('/desktop/cloud/sync', async (req, res) => res.json(await replica.syncNow()))
+
+desktopRouter.post('/desktop/cloud/logout', async (req, res, next) => {
+  try {
+    await replica.unlink()
+    res.json(replica.publicStatus())
   } catch (e) {
     next(e)
   }
@@ -110,3 +160,5 @@ desktopRouter.post('/desktop/sync/now', async (req, res, next) => {
     next(e)
   }
 })
+
+desktopRouter.use(apiErrors)
