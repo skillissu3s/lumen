@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.1 — choose your username
 
 - **Choose your username** in Settings → Account. It's how you're shown in
   chat (@username) and as the owner in your files and their GitHub copy. Lists
