@@ -1,6 +1,6 @@
 // Settings: one page per topic, saved as you change them.
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { CalendarDays, Copy, Database, ExternalLink, FolderOpen, GitBranch, Info, Kanban, Keyboard, Palette, Puzzle, RefreshCw, Trash2, UserRound, Users, X } from 'lucide-react'
+import { CalendarDays, Copy, Database, ExternalLink, FolderGit2, FolderOpen, GitBranch, Info, Kanban, Keyboard, Palette, Puzzle, RefreshCw, Trash2, UserRound, Users, X } from 'lucide-react'
 import { Avatar, Button, Dialog, Field, Input, Kbd, Segmented, Select, Spinner, Switch } from '../../components/ui/index.js'
 import { useSession } from '../../store/session.js'
 import { useWorkspace } from '../../store/workspace.js'
@@ -13,9 +13,11 @@ import { relativeDay, isoOf, timeOf } from '../../../../shared/dates.js'
 import { shortcutList, comboKeys } from '../../shell/shortcuts.js'
 import { Customize } from '../calendar/CalendarView.jsx'
 import { useUpdateState } from '../../shell/UpdateNotice.jsx'
+import { Row, Section } from './parts.jsx'
 import './settings.css'
 
 const PluginSettings = lazy(() => import('./PluginSettings.jsx'))
+const GitHubSettings = lazy(() => import('./GitHubSettings.jsx'))
 
 const ACCENTS = ['indigo', 'blue', 'teal', 'green', 'orange', 'rose', 'violet', 'graphite']
 const THEMES = [
@@ -27,30 +29,6 @@ const THEMES = [
   ['contrast', 'High contrast'],
 ]
 const ACCENT_HEX = { indigo: '#5b5bd6', blue: '#0b6bcb', teal: '#0d7f72', green: '#18794e', orange: '#c2410c', rose: '#c62a5a', violet: '#7c3aed', graphite: '#3a3a37' }
-
-// a group of settings under a small heading, the way obi lays them out
-function Section({ title, description, children }) {
-  return (
-    <section className="set-section">
-      {title && <h3>{title}</h3>}
-      {description && <p className="setting-desc set-section-desc">{description}</p>}
-      <div className="set-section-body">{children}</div>
-    </section>
-  )
-}
-
-// one setting: its name (and a line about it) on the left, the control on the right
-function Row({ label, hint, children, stacked }) {
-  return (
-    <div className={`setting${stacked ? ' stacked' : ''}`}>
-      <div className="setting-text">
-        <div className="setting-name">{label}</div>
-        {hint && <div className="setting-desc">{hint}</div>}
-      </div>
-      <div className="setting-control">{children}</div>
-    </div>
-  )
-}
 
 const when = (ms) => (ms ? `${relativeDay(isoOf(new Date(ms)))} at ${timeOf(new Date(ms))}` : 'never')
 
@@ -743,7 +721,8 @@ export default function SettingsView({ route, onClose }) {
     { id: 'tasks', label: 'Boards and tasks', icon: Kanban, about: 'Where new tasks land and how boards open.', el: TasksTab },
     { id: 'calendar', label: 'Calendar', icon: CalendarDays, about: 'Hours, colours and what the calendar shows.', el: CalendarTab },
     ...(mode === 'server' && role === 'admin' ? [{ id: 'members', label: 'Members', icon: Users, about: 'Only admins can invite people or change who has access.', el: Members }] : []),
-    ...(mode !== 'server' || role === 'admin' ? [{ id: 'sync', label: 'Sync', icon: GitBranch, about: 'Keep the workspace in a GitHub repository, as plain text.', el: Sync }] : []),
+    ...(mode === 'server' ? [{ id: 'github', label: 'GitHub', icon: FolderGit2, about: 'A readable copy of your data in a GitHub repository, written by this server on a schedule.', el: GitHubTab }] : []),
+    ...(mode !== 'server' || role === 'admin' ? [{ id: 'sync', label: mode === 'server' ? 'Git sync' : 'Sync', icon: GitBranch, about: mode === 'server' ? 'The older two-way sync: the server keeps a git copy of the workspace and pushes and pulls with a token.' : 'Keep the workspace in a GitHub repository, as plain text.', el: Sync }] : []),
     { id: 'plugins', label: 'Plugins', icon: Puzzle, about: 'Add features to Lumen. Plugins run sandboxed with only the access you grant.', el: PluginsTab },
     { group: 'App' },
     { id: 'shortcuts', label: 'Shortcuts', icon: Keyboard, about: 'Press ? anywhere to see these.', el: Shortcuts },
@@ -812,6 +791,14 @@ export default function SettingsView({ route, onClose }) {
         </button>
       </div>
     </div>
+  )
+}
+
+function GitHubTab() {
+  return (
+    <Suspense fallback={<Spinner size={16} />}>
+      <GitHubSettings />
+    </Suspense>
   )
 }
 

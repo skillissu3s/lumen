@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+- **A readable copy of your data on GitHub.** In Settings → GitHub, connect a
+  repository through the server's GitHub App and choose when to sync: after
+  you make changes, every few hours, once a day or week at a time you pick, or
+  only when you ask. Each sync is one commit with only the files that changed,
+  in formats you can read (boards and calendars as Markdown task lists, docs as
+  Markdown, idea boards as JSON Canvas). Files you add to the repository
+  yourself are left alone, and edits made on GitHub are reported and put back.
+- Admins sync the whole workspace or only what they own; everyone else syncs
+  what they own.
+- **Restore from a repository**: see what a mirror holds, then bring it in.
+  Nothing is deleted, and anything you changed here since keeps your version
+  unless you choose the repository's.
+- Syncing pauses with a clear reason when it needs you: the repository became
+  public, the app lost access to it, or another Lumen server writes there (you
+  can take it over).
+
 ## 0.5.0 — works offline, in the app and in the browser
 
 - **The desktop app works offline with your server account.** Sign in to your

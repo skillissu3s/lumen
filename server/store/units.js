@@ -268,5 +268,43 @@ export function createUnits(store, people, { makeId = newId } = {}) {
     return [...new Set(out)].sort()
   }
 
-  return { render, save, remove, paths, kindOf }
+  /**
+   * The record a file renders from: { type, id, owner, rev }, or null. Chat
+   * files have no single record; they belong to the workspace.
+   */
+  function recordOf(path) {
+    const k = kindOf(path)
+    if (k.kind === 'channels') return { type: 'channels', id: 'channels', owner: '', rev: 0 }
+    if (k.kind === 'messages') return { type: 'chat_month', id: `${k.channel}/${k.month}`, owner: '', rev: 0 }
+    let type = ROOT_TYPE[k.kind]
+    let row = null
+    if (type) row = rootAt(type, path)
+    else if (k.kind === 'prefs') row = store.get((type = 'prefs'), people.idOf(k.handle))
+    else if (k.kind === 'workspace') row = store.get((type = 'workspace'), 'workspace')
+    else if (k.kind === 'plugin_file') row = store.get((type = 'plugin_file'), `${k.plugin}/${k.file}`)
+    else if (k.kind === 'plugin_data') row = store.get((type = 'plugin_data'), `${k.plugin}/${people.idOf(k.handle)}/${k.file}`)
+    else row = store.get((type = 'other_file'), path)
+    return row && !row.deleted ? { type, id: row.id, owner: row.owner, rev: row.rev } : null
+  }
+
+  /** The file a journal row's root renders to (a deleted root's too, so its file can go) */
+  function pathOfRoot(type, id) {
+    if (Object.values(ROOT_TYPE).includes(type)) return store.get(type, id)?.path ?? null
+    if (type === 'prefs') return `users/${people.handleOf(id)}/settings.json`
+    if (type === 'workspace') return 'lumen.json'
+    if (type === 'plugin_file') return `plugins/${id}`
+    if (type === 'plugin_data') {
+      const [plugin, user, ...file] = id.split('/')
+      return `data/plugins/${plugin}/${people.handleOf(user)}/${file.join('/')}`
+    }
+    if (type === 'channel') return 'chat/channels.json'
+    if (type === 'chat_month') {
+      const [channel, month] = id.split('/')
+      return `chat/${channel}/${month}.jsonl`
+    }
+    if (type === 'other_file') return id
+    return null
+  }
+
+  return { render, save, remove, paths, kindOf, recordOf, pathOfRoot }
 }

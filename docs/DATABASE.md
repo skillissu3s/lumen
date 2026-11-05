@@ -230,6 +230,54 @@ The GitHub App connection flow, the sync worker and scheduler (manual, after
 changes, interval, daily, weekly), *Rebuild the mirror*, the drift report,
 Settings → GitHub, and **Restore from a repository**. Replaces today's git sync.
 
+Progress:
+
+- [x] A sync run (`server/mirror/run.js`): the journal since the connection's
+  cursor names the roots that changed; their files are rendered and compared
+  with the branch's tree by blob sha, and whatever differs goes in as one
+  commit with `.sync/index.jsonl` and `.sync/manifest.json`. A rename is a
+  delete and an add in that commit. A full pass (first run, *Check every
+  file*, and weekly) looks at every file and reports drift (files edited on
+  GitHub), then puts the database's version back. Files Lumen didn't write are
+  never touched. If the branch moves meanwhile, the run starts again from the
+  new head (three tries). It pauses for a public repository (unless allowed),
+  a different repository id, another server's mirror (unless taken over) and
+  a mirror from a newer profile. A file that fails to render keeps its old
+  version and is named in the status.
+- [x] Scope: *the whole workspace* (admins) or *what I own* (no chat, and for
+  an admin also the workspace's own files).
+- [x] The GitHub App (`server/github/app.js`): the App's JWT signed with
+  node:crypto, installation tokens limited to one repository and kept until
+  near expiry, and the connect check: the OAuth code proves which
+  installations the person can reach, then that user token is revoked.
+  `server/github/repo.js` writes through the Git Data API (one tree, one
+  commit, a ref update that is never forced; the first commit of an empty
+  repository goes through the contents API).
+- [x] Schedules (`server/mirror/schedule.js`, `worker.js`): manual, after
+  changes (quiet 10 minutes, at most 60), every 1–24 hours, daily or weekly at
+  a time in the person's time zone (kept across daylight saving), spread over
+  two minutes; `next_run_at` survives restarts; failures back off 1, 2, 4 …
+  minutes up to 6 hours; GitHub losing access (401/403/404) pauses with a
+  message. Tables `sync_connections`, `sync_drift`, `sync_runs` (the last 20).
+- [x] Settings → GitHub (server only): connect, choose repository, branch,
+  folder, scope and schedule; status, last commit, Sync now, Check every file,
+  Try again / Take it over / Allow a public mirror, Disconnect.
+- [x] Restore (`server/mirror/restore.js`, admins): reads the files the
+  mirror's index lists (or, for a repository from before the protocol, every
+  Lumen file), refuses another app's or a newer profile's mirror, shows what
+  it found, and takes files in by id. Nothing is deleted; a record changed
+  here since the mirror was written keeps this workspace's version unless the
+  person chooses the repository's.
+- [x] Checked against a local stand-in for GitHub (OAuth redirects and the Git
+  Data API): connect, first sync into an empty repository, one changed task
+  giving a one-file commit, a wiped repository rebuilt by *Check every file*,
+  an edit on GitHub reported as drift, and a restore of a GitHub edit.
+- [ ] Checked against real GitHub with a real App (needs the App created and
+  its settings on the server).
+- [ ] Git sync retired. It stays for now: the desktop app on this computer
+  only has no server to run the mirror, so git sync is still its way to
+  GitHub; on a server it shows as *Git sync* beside the new *GitHub* page.
+
 ### Phase 5: the app on records
 
 The client moves from files to records (queries and operations instead of text

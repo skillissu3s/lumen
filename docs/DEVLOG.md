@@ -498,3 +498,27 @@ settable right on a card; drop the calendar's New button.
   Fixed with the 1.5 s page limit and by opening the copy straight away when
   the session already knows it's offline.
 
+### Phase 4: the GitHub mirror
+- `mirror/run.js` is the protocol's sync run behind a five-call interface
+  (`repo`, `head`, `tree`, `read`, `commit`), so the same code runs against
+  `mirror/fakeRepo.js` in tests and `github/repo.js` for real. Candidates come
+  from the journal (root type and id mapped to a path by `units.pathOfRoot`,
+  plus the root's old path from the index, which is how renames become a
+  delete and an add). Everything is compared by git blob sha, so a run with
+  nothing new writes nothing.
+- Restore can't use root revs to tell "changed here since the mirror": a card
+  edit journals the card, not its board. It uses the journal instead: when
+  the mirror is this database's own, any row after the manifest's cursor for
+  that root means changed here; from another database everything that differs
+  counts as changed in both, and this workspace's version is kept.
+- Moving to a new server: restore, then *Take it over* (or connect after
+  restoring), which lets the new server write to a mirror whose manifest names
+  the old one.
+- A local stand-in for GitHub (OAuth redirects, the Git Data API, raw contents)
+  run beside a Lumen server with `GITHUB_URL` pointing at it found one real
+  bug: with the raw media type `ghFetch` still parsed JSON files, so reading
+  `.sync/manifest.json` failed and an existing mirror looked foreign. Raw
+  answers are now returned as text, with a test. `GITHUB_URL`/`GITHUB_API_URL`
+  stay as settings: they are also how GitHub Enterprise Server is reached.
+- Tests: run (11), GitHub App and Git Data client (6), schedules (7), worker
+  (6), restore (4), and the server's no-App behaviour.

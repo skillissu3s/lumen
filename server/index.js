@@ -14,6 +14,7 @@ import { initChat } from './chat.js'
 import { attachWs, closeWs } from './ws.js'
 import { logMail } from './mail.js'
 import * as replica from './sync/replica.js'
+import { githubRouter, worker as mirror } from './github/routes.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.join(here, '..')
@@ -31,6 +32,7 @@ app.use((req, res, next) => {
   next()
 })
 
+app.use('/api/github', githubRouter)
 app.use('/api', apiRouter)
 if (DESKTOP) app.use('/api', desktopRouter)
 
@@ -62,6 +64,8 @@ await initChat()
 await git.start()
 // the desktop app signed in to a server keeps its copy in step
 if (DESKTOP) replica.start()
+// the GitHub mirror's schedules, on a server with a GitHub App
+mirror?.start()
 
 // ---------- listen ----------
 
@@ -75,6 +79,7 @@ export const listening = new Promise((resolve, reject) => {
 
 export async function stopServer() {
   replica.stop()
+  await mirror?.stop()
   await git.stop()
   closeWs()
   if (httpServer.listening) await new Promise((resolve) => httpServer.close(resolve))

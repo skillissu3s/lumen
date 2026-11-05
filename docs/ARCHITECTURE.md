@@ -65,6 +65,12 @@ shared/           Pure JS used by client, server and tests
   merge.js        Rebase of pending edits onto a newer remote version
 server/           Express + ws. Auth, invites, file API with access control,
                   chat, git sync. Runs standalone or inside the desktop app.
+  store/          The database: records, the journal, files ⇄ rows (units.js)
+  mirror/         The GitHub mirror: run.js (one sync run), schedule.js,
+                  worker.js (connections and the timer), restore.js, and the
+                  lumen/ file formats (profile lumen/1)
+  github/         The GitHub App (app.js), one repository over the Git Data
+                  API (repo.js), the /api/github routes
 desktop/          Electron shell: embedded server, folder picker, activity tracker
 plugins/          Source of the starter plugins + registry.json (the catalog)
 docs/             This file, STORAGE.md (formats), PLUGINS.md (plugin API), DEVLOG.md

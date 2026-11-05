@@ -253,6 +253,7 @@
 .set-grid2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  align-items: start;
   gap: 12px;
 }
 .set-section-body > .customize {
@@ -569,4 +570,54 @@
   padding-top: 12px;
   color: var(--success);
   font-size: var(--fs-sm);
+}
+
+/* GitHub */
+.gh-repo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: inherit;
+  text-decoration: none;
+}
+.gh-repo:hover {
+  text-decoration: underline;
+}
+.set-section h3 .gh-repo {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: var(--fs);
+  color: var(--text);
+}
+.gh-when {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.setting-control .gh-when {
+  justify-content: flex-end;
+}
+.gh-status {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+  text-align: right;
+}
+.gh-status .sync-line {
+  padding: 0;
+}
+.gh-drift {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gh-report {
+  display: grid;
+  gap: 10px;
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+.gh-report p {
+  margin: 0;
 }

@@ -37,7 +37,7 @@ const people = {
     return db.prepare('SELECT handle FROM users WHERE id = ?').get(id)?.handle ?? id
   },
 }
-const units = createUnits(store, people)
+export const units = createUnits(store, people)
 
 let root = null
 let mirror = false // the folder is git sync's working copy
