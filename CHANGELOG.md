@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 — works offline, in the app and in the browser
 
 - **The desktop app works offline with your server account.** Sign in to your
   Lumen server from the app: your account's boards, docs and tasks are kept on
