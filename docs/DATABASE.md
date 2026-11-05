@@ -211,8 +211,18 @@ Progress:
   `server/sync/replica.e2e.test.js` (a real server and a desktop server:
   signing in, changes both ways, the same board changed on both sides,
   offline and back, deletions, signing out).
-- [ ] The web app's copy in IndexedDB, so a browser tab also opens and works
-  without a connection.
+- [x] The web app's copy, so a browser tab opens and works without a
+  connection: `client/src/lib/offlineCache.js` keeps, per person, every file as
+  the server last confirmed it in IndexedDB (unsent edits stay in the store's
+  pending list, apart), and who was signed in. A service worker
+  (`client/public/sw.js`) keeps the page and its scripts, styles and fonts
+  (never data: `api/`, the socket and the catalog always go to the server).
+  When the server doesn't answer, the app opens from the copy, marked
+  offline; edits queue; every 15 s, and when the browser says it's online, it
+  tries again, takes in what changed on the server meanwhile, and sends the
+  queued edits (rebased as usual). Signing out clears this browser's copy.
+
+Phase 3 is done.
 
 ### Phase 4: the GitHub mirror
 

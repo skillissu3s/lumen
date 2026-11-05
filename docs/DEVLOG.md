@@ -470,3 +470,31 @@ settable right on a card; drop the calendar's New button.
   screen, signing in, the account's workspace arriving, "Synced" in the
   sidebar, Settings → Account, and the offline state when the server stopped.
 
+### Phase 3: the browser offline
+- `lib/offlineCache.js`: IndexedDB store `workspaces`, one record per scope
+  (`mode:handle`) with the files as last confirmed by the server, and the last
+  signed-in session in localStorage. The workspace store saves the copy 1.5 s
+  after changes, fills in files not loaded at the start (docs, plugin data) in
+  the background, and on a failed first load with no connection opens the
+  copy. `reconnect()` lists the server, turns differences into the same change
+  notices the socket gives (`handleRemoteChange` already merges them with
+  queued edits), starts the live connection and flushes.
+- `session.boot()` tells "no Lumen server here" (a static copy: no-server)
+  from "nothing answered" (offline: open the last session's copy, or an error
+  if there is none). The backend's `list`/`readMany` now report network
+  failures as `OfflineError`, 502–504 from a proxy count as offline, and every
+  API call gives up after 20 s.
+- `public/sw.js`: precaches the files the build lists in `sw-assets.json`
+  (written by a small Vite plugin, which also stamps the worker so each build
+  installs afresh and drops older caches); the page is network-first with a
+  1.5 s limit, everything else cache-first; `api/`, `ws`, `catalog` are never
+  touched. Registered in production builds, not in the desktop app.
+- Checked in a real Chromium (Electron, a fresh profile; the preview pane
+  can't register service workers): signed in, the worker kept 52 files; with
+  the dev server stopped, a reload opened Today from the copy, marked offline;
+  a task ticked offline reached the database once the server was back. The
+  first runs took up to 10 s to open offline: Windows takes ~2 s to refuse each
+  connection to a stopped server, and the page and the file list each paid it.
+  Fixed with the 1.5 s page limit and by opening the copy straight away when
+  the session already knows it's offline.
+

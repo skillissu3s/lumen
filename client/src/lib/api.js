@@ -19,7 +19,7 @@ export async function api(method, path, body) {
   if (method !== 'GET' && method !== 'HEAD') opts.headers['X-Lumen'] = '1'
   let res
   try {
-    res = await fetch('api' + path, opts)
+    res = await fetch('api' + path, { ...opts, signal: AbortSignal.timeout(20000) })
   } catch {
     throw new ApiError(0, 'Could not reach the server', null)
   }

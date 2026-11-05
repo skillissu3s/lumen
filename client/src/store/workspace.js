@@ -1,11 +1,17 @@
 // The workspace store: every file as local text + the remote sha it was based on,
 // with an operation queue per file so edits are optimistic, debounced, and
 // re-applied (rebased) onto newer remote versions after a conflict.
+//
+// It also keeps this browser's copy of the workspace (lib/offlineCache.js): when
+// the server can't be reached, the app opens from the copy, edits queue up, and
+// once the server answers again it catches up (remote changes in, queued edits
+// out, rebased).
 
 import { create } from 'zustand'
 import { rebaseText } from '../../../shared/merge.js'
 import { createEmitter } from '../lib/emitter.js'
-import { ConflictError, AuthError } from '../storage/errors.js'
+import { readCopy, writeCopy } from '../lib/offlineCache.js'
+import { ConflictError, AuthError, OfflineError } from '../storage/errors.js'
 
 const LIST_RE = /^lists\/[^/]+\.md$/
 const CALENDAR_RE = /^calendars\/[^/]+\.md$/
@@ -24,6 +30,9 @@ export function onProblem(fn) {
 let backend = null
 let unsubRemote = null
 let offline = false
+let connected = false // the server has answered since the workspace opened
+let reconnectTimer = null
+let copyTimer = null
 let saveError = null
 let lastSaved = null
 const queues = new Map() // path → { base, ops, inflight, deleted, conflicts, timer, retryTimer, retryDelay }
@@ -53,6 +62,8 @@ export const useWorkspace = create((set, get) => ({
     unsubRemote?.()
     unsubRemote = null
     offline = false
+    connected = false
+    clearTimeout(reconnectTimer)
     saveError = null
     lastSaved = null
     setupLifecycle()
@@ -67,9 +78,11 @@ export const useWorkspace = create((set, get) => ({
     })
   },
 
-  async load() {
+  /** `offline`: the server didn't answer a moment ago; open the copy without asking it again */
+  async load({ offline: knownOffline = false } = {}) {
     set({ status: 'loading', error: null })
     try {
+      if (knownOffline) throw new OfflineError()
       const list = await backend.list()
       const paths = list.map((f) => f.path)
       const handle = get().user?.handle
@@ -81,12 +94,20 @@ export const useWorkspace = create((set, get) => ({
         if (f) files[p] = { text: f.text, sha: f.sha }
       }
       set({ status: 'ready', files, paths, error: null })
-      backend.start()
-      unsubRemote = backend.subscribe(handleRemoteChange)
+      goOnline()
       restorePending()
       if (queues.size) get().flushNow()
+      saveCopySoon()
+      fillCopy()
     } catch (e) {
-      set({ status: 'error', error: e.message || 'Failed to load the workspace' })
+      // no answer from the server: open this browser's copy, if there is one
+      const copy = e instanceof OfflineError ? await readCopy(scopeKey()) : null
+      if (!copy) return set({ status: 'error', error: e.message || 'Failed to load the workspace' })
+      offline = true
+      set({ status: 'ready', files: copy.files || {}, paths: copy.paths || [], error: null })
+      restorePending()
+      updateSaving()
+      reconnectSoon()
     }
   },
 
@@ -146,7 +167,14 @@ export const useWorkspace = create((set, get) => ({
   async ensure(path) {
     const file = get().files[path]
     if (file) return file
-    const result = await backend.readMany([path])
+    if (offline) return null
+    let result
+    try {
+      result = await backend.readMany([path])
+    } catch (e) {
+      if (e instanceof OfflineError) return null
+      throw e
+    }
     const got = result[path]
     if (got) setFile(path, got.text, got.sha)
     return got || null
@@ -188,12 +216,92 @@ function setFile(path, text, sha) {
   const files = { ...getState().files, [path]: { text, sha } }
   const paths = getState().paths.includes(path) ? getState().paths : [...getState().paths, path]
   setState({ files, paths })
+  saveCopySoon()
 }
 
 function removePath(path) {
   const files = { ...getState().files }
   delete files[path]
   setState({ files, paths: getState().paths.filter((p) => p !== path) })
+  saveCopySoon()
+}
+
+// ---------- this browser's copy ----------
+
+// every file as the server last confirmed it; edits not sent yet stay in the
+// pending list (persistPending), so a copy never passes them off as saved
+function saveCopySoon() {
+  if (getState().status !== 'ready') return
+  clearTimeout(copyTimer)
+  copyTimer = setTimeout(() => {
+    const files = {}
+    for (const [p, f] of Object.entries(getState().files)) {
+      const base = queues.get(p)?.base ?? f
+      if (base?.sha) files[p] = { text: base.text, sha: base.sha }
+    }
+    const paths = getState().paths.filter((p) => !queues.get(p)?.deleted)
+    writeCopy(scopeKey(), { paths, files })
+    if (offline) persistPending()
+  }, 1500)
+}
+
+// the files not loaded at the start (docs, plugin data) come in quietly, so the
+// copy has them too
+async function fillCopy() {
+  const missing = getState().paths.filter((p) => !getState().files[p])
+  for (let i = 0; i < missing.length && !offline; i += 100) {
+    let got
+    try {
+      got = await backend.readMany(missing.slice(i, i + 100))
+    } catch {
+      return
+    }
+    const files = { ...getState().files }
+    for (const [p, f] of Object.entries(got)) if (f && !files[p]) files[p] = { text: f.text, sha: f.sha }
+    setState({ files })
+  }
+  saveCopySoon()
+}
+
+// ---------- the connection ----------
+
+function goOnline() {
+  offline = false
+  connected = true
+  clearTimeout(reconnectTimer)
+  backend.start()
+  unsubRemote ||= backend.subscribe(handleRemoteChange)
+}
+
+function reconnectSoon() {
+  clearTimeout(reconnectTimer)
+  reconnectTimer = setTimeout(reconnect, 15000)
+}
+
+// opened from the copy: once the server answers, take in what changed there
+// meanwhile, then send what was queued here
+async function reconnect() {
+  if (connected || !backend) return
+  let list
+  try {
+    list = await backend.list()
+  } catch (e) {
+    if (e instanceof AuthError) return problems.emit('problem', { message: 'Sign in again to send your changes. They are kept in this browser.' })
+    return reconnectSoon()
+  }
+  const remote = new Map(list.map((f) => [f.path, f.sha]))
+  const changes = []
+  for (const [p, sha] of remote) {
+    const have = queues.get(p)?.base?.sha ?? getState().files[p]?.sha ?? null
+    if (have !== sha) changes.push({ path: p, sha, deleted: false })
+  }
+  for (const [p, f] of Object.entries(getState().files)) if (f.sha && !remote.has(p)) changes.push({ path: p, sha: null, deleted: true })
+  goOnline()
+  setState({ paths: [...new Set([...getState().paths.filter((p) => remote.has(p) || queues.has(p)), ...remote.keys()])] })
+  await handleRemoteChange(changes)
+  await getState().flushNow()
+  updateSaving()
+  fillCopy()
 }
 
 function isCore(path, handle) {
@@ -206,7 +314,7 @@ function isCore(path, handle) {
 function updateSaving() {
   let pending = 0
   for (const q of queues.values()) if (isDirty(q)) pending++
-  const state = pending > 0 ? (offline ? 'offline' : saveError ? 'error' : 'saving') : 'saved'
+  const state = offline ? 'offline' : pending > 0 ? (saveError ? 'error' : 'saving') : 'saved'
   // everything is saved: nothing to replay after a reload
   if (!pending && typeof localStorage !== 'undefined') {
     try {
@@ -447,6 +555,7 @@ function setupLifecycle() {
     if (document.visibilityState === 'hidden') getState().flushNow()
   })
   window.addEventListener('online', () => {
+    if (!connected) return reconnect()
     offline = false
     for (const [path, q] of queues) if (isDirty(q)) doWrite(path, q)
     updateSaving()

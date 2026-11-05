@@ -11,7 +11,7 @@ function mapError(e) {
       return new ConflictError(current)
     }
     if (e.status === 401 || e.status === 403) return new AuthError(e.message)
-    if (e.status === 0) return new OfflineError()
+    if (e.status === 0 || (e.status >= 502 && e.status <= 504)) return new OfflineError()
   }
   return e
 }
@@ -33,7 +33,12 @@ export function createServerBackend() {
     kind: 'server',
 
     async list() {
-      const data = await api('GET', '/files')
+      let data
+      try {
+        data = await api('GET', '/files')
+      } catch (e) {
+        throw mapError(e)
+      }
       const files = (data && data.files) || []
       known = new Map(files.map((f) => [f.path, f.sha]))
       return files.map((f) => ({ path: f.path, sha: f.sha }))
@@ -43,7 +48,12 @@ export function createServerBackend() {
       if (!paths.length) return {}
       const out = {}
       for (let i = 0; i < paths.length; i += 200) {
-        const data = await api('POST', '/files/read', { paths: paths.slice(i, i + 200) })
+        let data
+        try {
+          data = await api('POST', '/files/read', { paths: paths.slice(i, i + 200) })
+        } catch (e) {
+          throw mapError(e)
+        }
         const files = (data && data.files) || {}
         for (const [p, f] of Object.entries(files)) out[p] = f
       }

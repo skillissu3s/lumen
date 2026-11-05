@@ -15,6 +15,10 @@
   keep both, or use only your account's (this computer's is backed up first).
 - The sidebar shows Synced, Syncing…, Offline or Sign in again; Settings →
   Account has Sync now and Sign out of the server.
+- **The web app works offline too.** A browser you've signed in on keeps a copy
+  of your workspace and of the app, so it opens without a connection (the
+  sidebar says Offline), keeps your changes, and sends them when your server
+  answers again. Signing out removes the copy from that browser.
 
 ## 0.4.0 — your data in a database, and a sign-in wall
 

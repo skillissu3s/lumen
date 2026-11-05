@@ -36,7 +36,10 @@ Three ideas shape everything below:
 | Computer-usage tracking (plugin) | — | ✅ (on this computer) |
 | Hosting | Docker | installers built by GitHub Actions |
 
-Nothing shows before signing in. The client asks `/api/info` where it is: a
+Nothing shows before signing in. A browser that has signed in keeps a copy of
+the workspace (IndexedDB) and of the app itself (a service worker), so it opens
+and works offline and catches up when the server answers again; signing out
+clears it. The client asks `/api/info` where it is: a
 Lumen server (sign in), or the desktop app's embedded server (the first-run
 choice, then the local app). A static copy of the app with no server behind it
 (GitHub Pages) asks for your server's address. The old GitHub-token mode is

@@ -31,7 +31,7 @@ export default function App() {
     if (status !== 'ready') return
     const ws = useWorkspace.getState()
     ws.initWorkspace({ backend: useSession.getState().backend(), user, mode })
-    ws.load()
+    ws.load({ offline: useSession.getState().offline })
     if (mode === 'server' || mode === 'desktop') connectSocket()
     // the desktop app's syncing with a Lumen server, as it goes
     const off = mode === 'desktop' ? onSocket('cloud', (msg) => useSession.setState({ cloud: msg.status })) : null
