@@ -226,7 +226,7 @@ Phase 3 is done.
 
 ### Phase 4: the GitHub mirror
 
-The GitHub App connection flow, the sync worker and scheduler (manual, after
+Connecting a repository (with a token), the sync worker and scheduler (manual, after
 changes, interval, daily, weekly), *Rebuild the mirror*, the drift report,
 Settings → GitHub, and **Restore from a repository**. Replaces today's git sync.
 
@@ -246,10 +246,12 @@ Progress:
   version and is named in the status.
 - [x] Scope: *the whole workspace* (admins) or *what I own* (no chat, and for
   an admin also the workspace's own files).
-- [x] The GitHub App (`server/github/app.js`): the App's JWT signed with
-  node:crypto, installation tokens limited to one repository and kept until
-  near expiry, and the connect check: the OAuth code proves which
-  installations the person can reach, then that user token is revoked.
+- [x] Access with a fine-grained token per connection (the protocol's
+  docs/tokens.md), chosen over a GitHub App to keep setup to one step: the
+  person makes a token for one repository with Contents: Read and write.
+  `server/github/api.js` checks it before keeping it (accepted, sees the
+  repository, may write) and it is stored encrypted with the server's secret,
+  never sent back. A replacement must open the same repository id.
   `server/github/repo.js` writes through the Git Data API (one tree, one
   commit, a ref update that is never forced; the first commit of an empty
   repository goes through the contents API).
@@ -258,22 +260,24 @@ Progress:
   a time in the person's time zone (kept across daylight saving), spread over
   two minutes; `next_run_at` survives restarts; failures back off 1, 2, 4 …
   minutes up to 6 hours; GitHub losing access (401/403/404) pauses with a
-  message. Tables `sync_connections`, `sync_drift`, `sync_runs` (the last 20).
-- [x] Settings → GitHub (server only): connect, choose repository, branch,
-  folder, scope and schedule; status, last commit, Sync now, Check every file,
-  Try again / Take it over / Allow a public mirror, Disconnect.
+  message (for a token: add a new one). Tables `sync_connections`,
+  `sync_drift`, `sync_runs` (the last 20).
+- [x] Settings → GitHub (server only): repository, token, branch, folder,
+  scope and schedule; status, last commit, Sync now, Check every file, Change
+  token, Try again / Add a new token / Take it over / Allow a public mirror,
+  Disconnect (which deletes the stored token).
 - [x] Restore (`server/mirror/restore.js`, admins): reads the files the
   mirror's index lists (or, for a repository from before the protocol, every
   Lumen file), refuses another app's or a newer profile's mirror, shows what
   it found, and takes files in by id. Nothing is deleted; a record changed
   here since the mirror was written keeps this workspace's version unless the
   person chooses the repository's.
-- [x] Checked against a local stand-in for GitHub (OAuth redirects and the Git
-  Data API): connect, first sync into an empty repository, one changed task
-  giving a one-file commit, a wiped repository rebuilt by *Check every file*,
-  an edit on GitHub reported as drift, and a restore of a GitHub edit.
-- [ ] Checked against real GitHub with a real App (needs the App created and
-  its settings on the server).
+- [x] Checked against a local stand-in for GitHub (tokens and the Git Data
+  API): a read-only or wrong token refused with a clear reason, first sync
+  into an empty repository, one changed task giving a one-file commit, a
+  wiped repository rebuilt by *Check every file*, an edit on GitHub reported
+  as drift, a restore of a GitHub edit, the token stored encrypted.
+- [ ] Checked against real GitHub with a real token.
 - [ ] Git sync retired. It stays for now: the desktop app on this computer
   only has no server to run the mirror, so git sync is still its way to
   GitHub; on a server it shows as *Git sync* beside the new *GitHub* page.

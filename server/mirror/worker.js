@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS sync_connections (
   id TEXT PRIMARY KEY,
   owner TEXT NOT NULL,
   scope TEXT NOT NULL,
-  installation_id INTEGER NOT NULL,
+  token TEXT NOT NULL,
   repo_id INTEGER NOT NULL,
   repo_name TEXT NOT NULL,
   branch TEXT NOT NULL DEFAULT 'main',
@@ -59,14 +59,15 @@ CREATE TABLE IF NOT EXISTS sync_runs (
 CREATE INDEX IF NOT EXISTS sync_runs_conn ON sync_runs (connection_id, started_at);
 `
 
-// failures that only the person can fix: GitHub says the App can't reach the repository
+// failures that only the person can fix: GitHub refuses the token for this repository
 const LOST = new Set([401, 403, 404])
-const lostMessage = 'Lumen can no longer reach this repository. The GitHub App may have been uninstalled, or the repository removed from it or deleted. Connect it again.'
+const lostMessage = 'GitHub refused the token for this repository. It may have expired or been revoked, or the repository was deleted. Add a new token.'
 
 /**
  * `ctx`: { db, store, units, events, users: { get(id) → { handle, role } },
  *          source, app, clock }
- * `repoFor(conn)` → the gh interface for a connection (github/repo.js).
+ * `repoFor(conn)` → the gh interface for a connection (github/repo.js). The
+ * connection's `token` is stored as given (the routes encrypt it).
  */
 export function createWorker(ctx, repoFor) {
   const { db, store, units, events, clock = () => Date.now() } = ctx
@@ -114,13 +115,13 @@ export function createWorker(ctx, repoFor) {
 
   // ---------- connections ----------
 
-  function create(owner, { installationId, repo, branch, prefix, scope, mode, schedule, allowPublic, adopt }) {
+  function create(owner, { token, repo, branch, prefix, scope, mode, schedule, allowPublic, adopt }) {
     const id = `gh_${crypto.randomBytes(8).toString('hex')}`
     const now = clock()
     db.prepare(
-      `INSERT INTO sync_connections (id, owner, scope, installation_id, repo_id, repo_name, branch, prefix, mode, schedule, allow_public, adopt, next_run_at, created_at)
+      `INSERT INTO sync_connections (id, owner, scope, token, repo_id, repo_name, branch, prefix, mode, schedule, allow_public, adopt, next_run_at, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(id, owner, scope, Number(installationId), Number(repo.id), repo.fullName, branch, prefix, mode, schedule ? JSON.stringify(schedule) : null, allowPublic ? 1 : 0, adopt ? 1 : 0, now, now)
+    ).run(id, owner, scope, token, Number(repo.id), repo.fullName, branch, prefix, mode, schedule ? JSON.stringify(schedule) : null, allowPublic ? 1 : 0, adopt ? 1 : 0, now, now)
     // due now: the first run is a full pass, whatever the mode
     return get(id)
   }
@@ -137,10 +138,11 @@ export function createWorker(ctx, repoFor) {
     }
     if (patch.allowPublic !== undefined) f.allow_public = patch.allowPublic ? 1 : 0
     if (patch.adopt) f.adopt = 1
+    if (patch.token) f.token = patch.token
     if ((patch.branch !== undefined && patch.branch !== c.branch) || (patch.prefix !== undefined && patch.prefix !== c.prefix)) {
       Object.assign(f, { branch: patch.branch ?? c.branch, prefix: patch.prefix ?? c.prefix, index_json: null, cursor: 0, last_full_at: null, next_run_at: clock() })
     }
-    if (patch.resume || patch.allowPublic || patch.adopt) Object.assign(f, { paused: null, failures: 0, last_error: null, next_run_at: clock() })
+    if (patch.resume || patch.allowPublic || patch.adopt || patch.token) Object.assign(f, { paused: null, failures: 0, last_error: null, next_run_at: clock() })
     set(id, f)
     const after = get(id)
     if (!after.paused && f.mode !== undefined && after.index_json) {

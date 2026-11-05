@@ -535,7 +535,7 @@ function Sync() {
           </p>
         )}
       </Section>
-      <ImportGitHub />
+      {mode === 'desktop' && <ImportGitHub />}
     </>
   )
 }

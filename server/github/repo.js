@@ -4,7 +4,7 @@
 // update is never forced, so if someone pushed in the meantime GitHub refuses it
 // and the run starts again from the new head.
 
-import { GitHubError, ghFetch } from './app.js'
+import { GitHubError, ghFetch } from './api.js'
 
 const enc = (p) => p.split('/').map(encodeURIComponent).join('/')
 

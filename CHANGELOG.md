@@ -2,8 +2,8 @@
 
 ## Unreleased
 
-- **A readable copy of your data on GitHub.** In Settings → GitHub, connect a
-  repository through the server's GitHub App and choose when to sync: after
+- **A readable copy of your data on GitHub.** In Settings → GitHub, add a
+  repository and a token for it, and choose when to sync: after
   you make changes, every few hours, once a day or week at a time you pick, or
   only when you ask. Each sync is one commit with only the files that changed,
   in formats you can read (boards and calendars as Markdown task lists, docs as
@@ -14,9 +14,12 @@
 - **Restore from a repository**: see what a mirror holds, then bring it in.
   Nothing is deleted, and anything you changed here since keeps your version
   unless you choose the repository's.
-- Syncing pauses with a clear reason when it needs you: the repository became
-  public, the app lost access to it, or another Lumen server writes there (you
-  can take it over).
+- Syncing pauses with a clear reason when it needs you: the token expired or
+  was revoked (add a new one), the repository became public, or another Lumen
+  server writes there (you can take it over).
+- The token is kept encrypted on the server and never shown again;
+  disconnecting deletes it. *Bring in from GitHub* moved into Settings →
+  GitHub as *Restore from it*.
 
 ## 0.5.0 — works offline, in the app and in the browser
 

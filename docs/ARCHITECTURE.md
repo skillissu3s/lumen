@@ -69,8 +69,8 @@ server/           Express + ws. Auth, invites, file API with access control,
   mirror/         The GitHub mirror: run.js (one sync run), schedule.js,
                   worker.js (connections and the timer), restore.js, and the
                   lumen/ file formats (profile lumen/1)
-  github/         The GitHub App (app.js), one repository over the Git Data
-                  API (repo.js), the /api/github routes
+  github/         GitHub's API with a person's token (api.js), one repository
+                  over the Git Data API (repo.js), the /api/github routes
 desktop/          Electron shell: embedded server, folder picker, activity tracker
 plugins/          Source of the starter plugins + registry.json (the catalog)
 docs/             This file, STORAGE.md (formats), PLUGINS.md (plugin API), DEVLOG.md

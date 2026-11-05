@@ -40,7 +40,7 @@ with it).
 | Usage monitor plugin | — | ✅ |
 
 Used Lumen's old GitHub mode? Your data is still in that repository: an admin
-can bring it in from **Settings → Sync → Bring in from GitHub**.
+can bring it in from **Settings → GitHub → Restore from it**.
 
 ### Self-hosted (Docker)
 
@@ -50,11 +50,10 @@ docker compose up -d --build
 ```
 
 Open `http://your-host:3000`. Sign in as the admin, then **Settings → Members**
-to create invite links. To keep a readable copy on GitHub, create a GitHub App
-for the server (see `.env.example` and the Repo Sync Protocol's
-`docs/github-app.md`), set the `GITHUB_APP_*` settings, and each person connects
-a repository in **Settings → GitHub**: it syncs on the schedule they choose and
-can restore from there.
+to create invite links. To keep a readable copy on GitHub, each person makes a
+private repository and a fine-grained token for it (Contents: Read and write),
+and adds both in **Settings → GitHub**: the server syncs on the schedule they
+choose and can restore from there.
 Without `ADMIN_EMAIL`/`ADMIN_PASSWORD`, the first visit shows a setup screen.
 Everything lives in the `lumen-data` volume (`/data`).
 

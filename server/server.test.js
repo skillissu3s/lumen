@@ -167,18 +167,20 @@ test('info → setup → info shows user and seeded files', async () => {
   }
 })
 
-test('github: without a GitHub App the page says so and nothing else answers', async () => {
+test('github: connections need a repository and a token, and a signed-in person', async () => {
   let res = await api(adminJar, 'GET', '/api/github')
   assert.equal(res.status, 200)
-  assert.deepEqual(await res.json(), { available: false })
-  res = await api(adminJar, 'POST', '/api/github/connect', {})
+  assert.deepEqual(await res.json(), { canWorkspace: true, connections: [] })
+  res = await api(adminJar, 'POST', '/api/github/connections', { repo: 'not a repository', token: 'x' })
+  assert.equal(res.status, 400)
+  assert.match((await res.json()).error, /owner\/name/)
+  res = await api(adminJar, 'POST', '/api/github/connections', { repo: 'ada/data' })
+  assert.equal(res.status, 400)
+  assert.match((await res.json()).error, /Add a token/)
+  res = await api(adminJar, 'POST', '/api/github/connections/nope/run', {})
   assert.equal(res.status, 404)
   res = await api(new CookieJar(), 'GET', '/api/github')
   assert.equal(res.status, 401)
-  // GitHub coming back without a connect started here goes to the app, with a message
-  res = await fetch(`${base}/api/github/callback?code=x&state=y`, { redirect: 'manual', headers: { cookie: adminJar.header() } })
-  assert.equal(res.status, 302)
-  assert.match(res.headers.get('location'), /^\/app\.html#\/settings\/github\?error=/)
 })
 
 test('CSRF: PUT without X-Lumen is rejected', async () => {

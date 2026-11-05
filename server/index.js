@@ -64,7 +64,7 @@ await initChat()
 await git.start()
 // the desktop app signed in to a server keeps its copy in step
 if (DESKTOP) replica.start()
-// the GitHub mirror's schedules, on a server with a GitHub App
+// the GitHub mirror's schedules (servers only)
 mirror?.start()
 
 // ---------- listen ----------

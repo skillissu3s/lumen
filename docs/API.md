@@ -46,20 +46,20 @@ otherwise the server answers 403. Sessions are the httpOnly cookie
 
 `status` is `{ state: "off"|"idle"|"syncing"|"error", lastSync, lastError, ahead, pending }`.
 
-## GitHub mirror (server only, with a GitHub App set up)
+## GitHub mirror (server only)
 
-Each person's own connections; restore is for admins. See DATABASE.md, phase 4.
+Each person's own connections, each a repository and a fine-grained token that
+can write to it (kept encrypted, never sent back); restore is for admins. See
+DATABASE.md, phase 4.
 
 | | | |
 |---|---|---|
-| `GET /api/github` | — | `{ available: false }` without an App, else `{ available, appUrl, canWorkspace, connections: [..], picks: [{ id, fullName, private, defaultBranch, installationId }] \| null }` |
-| `POST /api/github/connect` | `{ installed? }` | `{ url }`: GitHub's install page (or, `installed`, its authorize page), with a state tied to this session for 10 minutes |
-| `GET /api/github/callback` | GitHub's `code`, `installation_id`, `state` | checks the installation is one this GitHub user can reach, keeps the repositories they may choose (30 minutes) and redirects to `/app.html#/settings/github` |
-| `POST /api/github/connections` | `{ repoId, branch?, prefix?, scope?, mode, schedule?, allowPublic?, adopt? }` | `repoId` from `picks`; starts the first run (a full pass) → `{ connection }` |
-| `PATCH /api/github/connections/:id` | `{ mode?, schedule?, branch?, prefix?, allowPublic?, resume?, adopt? }` | a new branch or folder starts the mirror afresh there → `{ connection }` |
+| `GET /api/github` | — | `{ canWorkspace, connections: [..] }` |
+| `POST /api/github/connections` | `{ repo: 'owner/name', token, branch?, prefix?, scope?, mode, schedule?, allowPublic?, adopt? }` | checks the token can see and write to the repository (and that it's private, unless `allowPublic`), then starts the first run (a full pass) → `{ connection }` |
+| `PATCH /api/github/connections/:id` | `{ mode?, schedule?, branch?, prefix?, allowPublic?, resume?, adopt?, token? }` | a new branch or folder starts the mirror afresh there; a new token must open the same repository → `{ connection }` |
 | `DELETE /api/github/connections/:id` | — | `{ ok }`; the repository keeps what was written |
 | `POST /api/github/connections/:id/run` | `{ full? }` | runs now and waits → `{ connection }` |
-| `POST /api/github/restore` | `{ connectionId } \| { repoId, branch?, prefix? }`, `repoWins?`, `confirm?` | admin. Without `confirm` only reports `{ found, take, same, kept, skipped, legacy, writtenAt }`; with it also `taken` |
+| `POST /api/github/restore` | `{ connectionId } \| { repo, token?, branch?, prefix? }`, `repoWins?`, `confirm?` | admin. A token given here only needs to read and isn't kept. Without `confirm` only reports `{ found, take, same, kept, skipped, legacy, writtenAt }`; with it also `taken` |
 
 A connection: `{ id, repo, url, branch, prefix, scope: 'owner'|'workspace', mode:
 'manual'|'after-changes'|'interval'|'daily'|'weekly', schedule, allowPublic,

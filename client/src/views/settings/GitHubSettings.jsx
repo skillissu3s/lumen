@@ -1,14 +1,16 @@
 // Settings → GitHub: the server writes a readable copy of your data to a GitHub
-// repository through its GitHub App, on the schedule you choose, and can bring
-// it back from there. Everything happens on the server; this page only asks it.
+// repository with a token you give it, on the schedule you choose, and can
+// bring it back from there. Everything happens on the server; this page only
+// asks it.
 import { useEffect, useState } from 'react'
 import { ExternalLink, RefreshCw, RotateCcw } from 'lucide-react'
 import { Button, Checkbox, Dialog, Field, Input, Segmented, Select, Spinner } from '../../components/ui/index.js'
 import { api } from '../../lib/api.js'
-import { navigate, useRoute } from '../../lib/router.js'
 import { useUI } from '../../store/ui.js'
 import { relativeDay, isoOf, timeOf } from '../../../../shared/dates.js'
 import { Row, Section } from './parts.jsx'
+
+const NEW_TOKEN = 'https://github.com/settings/personal-access-tokens/new'
 
 // "today at 14:43", "Mon 2 Nov at 03:00": read in the middle of a sentence
 const when = (ms) => {
@@ -25,7 +27,7 @@ const MODES = [
   { value: 'manual', label: 'Only when I ask' },
 ]
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((label, value) => ({ value: String(value), label }))
-const QUIET = [5, 10, 30, 60].map((m) => ({ value: String(m), label: `${m} minutes` }))
+const QUIET = [5, 10, 30, 60].map((m) => ({ value: String(m), label: `${m} minutes after the last` }))
 const HOURS = [1, 2, 3, 6, 12, 24].map((h) => ({ value: String(h), label: h === 1 ? 'Every hour' : `Every ${h} hours` }))
 
 const KIND_LABELS = {
@@ -44,11 +46,20 @@ const KIND_LABELS = {
 const kinds = (found) =>
   Object.keys(KIND_LABELS)
     .filter((k) => found[k])
-    .map((k) => [k, found[k]])
-    .map(([k, n]) => `${n} ${(KIND_LABELS[k] || KIND_LABELS.other)[n === 1 ? 0 : 1]}`)
+    .map((k) => `${found[k]} ${KIND_LABELS[k][found[k] === 1 ? 0 : 1]}`)
     .join(', ') || 'nothing'
 
 const defaultSchedule = (mode) => ({ 'after-changes': { quiet: 10, max: 60 }, interval: { every: 6 }, daily: { at: '03:00', tz: zone() }, weekly: { at: '03:00', tz: zone(), day: 0 } })[mode] || null
+
+const tokenHint = (
+  <>
+    A{' '}
+    <a href={NEW_TOKEN} target="_blank" rel="noreferrer">
+      fine-grained token
+    </a>{' '}
+    with access to only this repository and Contents: Read and write. It’s kept encrypted on the server.
+  </>
+)
 
 // the mode and its one or two details, as a value { mode, schedule }
 function ScheduleFields({ value, onChange }) {
@@ -57,7 +68,7 @@ function ScheduleFields({ value, onChange }) {
   return (
     <div className="gh-when">
       <Select aria-label="When to sync" value={mode} options={MODES} onChange={(e) => onChange({ mode: e.target.value, schedule: defaultSchedule(e.target.value) })} />
-      {mode === 'after-changes' && <Select aria-label="Quiet for" value={String(s.quiet)} options={QUIET.map((o) => ({ ...o, label: `${o.label} after the last` }))} onChange={(e) => set({ quiet: +e.target.value })} />}
+      {mode === 'after-changes' && <Select aria-label="Quiet for" value={String(s.quiet)} options={QUIET} onChange={(e) => set({ quiet: +e.target.value })} />}
       {mode === 'interval' && <Select aria-label="How often" value={String(s.every)} options={HOURS} onChange={(e) => set({ every: +e.target.value })} />}
       {mode === 'weekly' && <Select aria-label="Day" value={String(s.day)} options={DAYS} onChange={(e) => set({ day: +e.target.value })} />}
       {(mode === 'daily' || mode === 'weekly') && <Input type="time" aria-label="Time" value={s.at} onChange={(e) => e.target.value && set({ at: e.target.value, tz: zone() })} />}
@@ -75,10 +86,51 @@ function statusOf(c) {
   return { text: parts.join(', ') }
 }
 
+// a new token for a connection, when the old one expired or was revoked
+function TokenDialog({ c, onClose, onSaved }) {
+  const [token, setToken] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const save = async (e) => {
+    e.preventDefault()
+    setBusy(true)
+    setError('')
+    try {
+      await api('PATCH', `/github/connections/${c.id}`, { token })
+      onSaved()
+    } catch (err) {
+      setError(err.message)
+      setBusy(false)
+    }
+  }
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title={`A new token for ${c.repo}`}
+      footer={
+        <>
+          <Button onClick={onClose}>Cancel</Button>
+          <Button variant="primary" type="submit" form="gh-token" loading={busy} disabled={!token.trim()}>
+            Save and sync
+          </Button>
+        </>
+      }
+    >
+      <form id="gh-token" className="set-form" onSubmit={save}>
+        <Field label="Token" hint={tokenHint}>
+          <Input type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="github_pat_…" autoComplete="off" autoFocus />
+        </Field>
+        {error && <p className="auth-error">{error}</p>}
+      </form>
+    </Dialog>
+  )
+}
+
 function Connection({ c, canRestore, onChange, onRestore }) {
   const toast = useUI((s) => s.toast)
   const [busy, setBusy] = useState('')
-  const [leaving, setLeaving] = useState(false)
+  const [dialog, setDialog] = useState(null) // 'token' | 'leave'
   const act = async (what, fn) => {
     setBusy(what)
     try {
@@ -93,6 +145,7 @@ function Connection({ c, canRestore, onChange, onRestore }) {
   const patch = (body) => act('patch', () => api('PATCH', `/github/connections/${c.id}`, body))
   const status = statusOf(c)
   const where = [`branch ${c.branch}`, c.prefix && `folder ${c.prefix}`].filter(Boolean).join(', ')
+  const tokenTrouble = /token/.test(c.paused || '')
   return (
     <Section
       title={
@@ -108,7 +161,11 @@ function Connection({ c, canRestore, onChange, onRestore }) {
           <span className={`sync-line is-${status.tone || 'ok'}`}>{status.text}</span>
           {c.paused && (
             <div className="set-inline">
-              {/another Lumen server/.test(c.paused) ? (
+              {tokenTrouble ? (
+                <Button size="sm" onClick={() => setDialog('token')}>
+                  Add a new token
+                </Button>
+              ) : /another Lumen server/.test(c.paused) ? (
                 <Button size="sm" loading={busy === 'patch'} onClick={() => patch({ adopt: true })}>
                   Take it over
                 </Button>
@@ -145,25 +202,41 @@ function Connection({ c, canRestore, onChange, onRestore }) {
       </Row>
       <Row label="Repository" hint={canRestore ? 'Restoring brings its files into this workspace. Disconnecting leaves them on GitHub.' : 'Disconnecting leaves everything on GitHub.'}>
         <div className="set-inline">
+          {!tokenTrouble && (
+            <Button variant="ghost" onClick={() => setDialog('token')}>
+              Change token
+            </Button>
+          )}
           {canRestore && (
             <Button variant="ghost" icon={RotateCcw} onClick={() => onRestore({ connectionId: c.id, repo: c.repo })}>
               Restore
             </Button>
           )}
-          <Button variant="ghost" onClick={() => setLeaving(true)}>
+          <Button variant="ghost" onClick={() => setDialog('leave')}>
             Disconnect
           </Button>
         </div>
       </Row>
+      {dialog === 'token' && (
+        <TokenDialog
+          c={c}
+          onClose={() => setDialog(null)}
+          onSaved={() => {
+            setDialog(null)
+            toast('Token saved')
+            onChange()
+          }}
+        />
+      )}
       <Dialog
-        open={leaving}
-        onClose={() => setLeaving(false)}
+        open={dialog === 'leave'}
+        onClose={() => setDialog(null)}
         title={`Stop syncing to ${c.repo}?`}
-        description="Everything already in the repository stays there. You can connect it again later."
+        description="Everything already in the repository stays there, and the token is deleted from this server. You can connect it again later."
         footer={
           <>
-            <Button onClick={() => setLeaving(false)}>Cancel</Button>
-            <Button variant="danger" onClick={() => act('delete', () => api('DELETE', `/github/connections/${c.id}`)).then(() => setLeaving(false))}>
+            <Button onClick={() => setDialog(null)}>Cancel</Button>
+            <Button variant="danger" loading={busy === 'delete'} onClick={() => act('delete', () => api('DELETE', `/github/connections/${c.id}`))}>
               Disconnect
             </Button>
           </>
@@ -173,29 +246,23 @@ function Connection({ c, canRestore, onChange, onRestore }) {
   )
 }
 
-// after GitHub: which repository, where in it, what and when
-function Choose({ picks, canWorkspace, restored, onDone, onRestore }) {
+// a repository, a token for it, and where, what and when
+function ConnectForm({ first, canWorkspace, restored, onDone, onRestore }) {
   const toast = useUI((s) => s.toast)
-  const first = picks.find((r) => r.private) || picks[0]
-  const [form, setForm] = useState({ repoId: first?.id, branch: first?.defaultBranch || 'main', prefix: '', scope: canWorkspace ? 'workspace' : 'owner', allowPublic: false })
+  const [form, setForm] = useState({ repo: '', token: '', branch: '', prefix: '', scope: canWorkspace ? 'workspace' : 'owner', allowPublic: false })
   const [timing, setTiming] = useState({ mode: 'daily', schedule: defaultSchedule('daily') })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const repo = picks.find((r) => r.id === form.repoId)
-  if (!picks.length) {
-    return (
-      <Section title="No repositories yet" description="The GitHub App has no repository to write to. On GitHub, give it access to one (a new private repository is best), then connect again.">
-        <ConnectButtons />
-      </Section>
-    )
-  }
+  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
+  const ready = form.repo.trim() && form.token.trim()
   const submit = async (e) => {
     e.preventDefault()
     setBusy(true)
     setError('')
     try {
-      await api('POST', '/github/connections', { ...form, ...timing, adopt: restored.has(form.repoId) })
-      toast(`Syncing to ${repo.fullName}`, { tone: 'success' })
+      const r = await api('POST', '/github/connections', { ...form, ...timing, adopt: restored.has(form.repo.trim().toLowerCase()) })
+      toast(`Syncing to ${r.connection.repo}`, { tone: 'success' })
+      setForm({ ...form, repo: '', token: '', branch: '', prefix: '', allowPublic: false })
       await onDone()
     } catch (err) {
       setError(err.message)
@@ -204,24 +271,27 @@ function Choose({ picks, canWorkspace, restored, onDone, onRestore }) {
     }
   }
   return (
-    <Section title="Choose the repository" description="Lumen writes your data there as readable files, one commit per sync. Files you add to the repository yourself are left alone.">
+    <Section
+      title={first ? 'Keep a copy on GitHub' : 'Add a repository'}
+      description={
+        first
+          ? 'Your boards, calendars, docs and idea boards, written to a GitHub repository as files you can read, on a schedule you choose. If this server is ever gone, your data is still yours, and Lumen can bring it back from there. A new private repository is best; files you add to it yourself are left alone.'
+          : undefined
+      }
+    >
       <form className="set-form" onSubmit={submit}>
-        <Field label="Repository">
-          <Select
-            value={String(form.repoId)}
-            options={picks.map((r) => ({ value: String(r.id), label: `${r.fullName}${r.private ? '' : ' (public)'}` }))}
-            onChange={(e) => {
-              const r = picks.find((x) => x.id === +e.target.value)
-              setForm({ ...form, repoId: r.id, branch: r.defaultBranch, allowPublic: false })
-            }}
-          />
+        <Field label="Repository" hint="you/lumen-data, or its address on GitHub">
+          <Input value={form.repo} onChange={set('repo')} placeholder="you/lumen-data" spellCheck={false} autoCapitalize="off" />
+        </Field>
+        <Field label="Token" hint={tokenHint}>
+          <Input type="password" value={form.token} onChange={set('token')} placeholder="github_pat_…" autoComplete="off" />
         </Field>
         <div className="set-grid2">
-          <Field label="Branch">
-            <Input value={form.branch} onChange={(e) => setForm({ ...form, branch: e.target.value })} spellCheck={false} autoCapitalize="off" />
+          <Field label="Branch" hint="Empty for the repository’s default.">
+            <Input value={form.branch} onChange={set('branch')} placeholder="main" spellCheck={false} autoCapitalize="off" />
           </Field>
           <Field label="Folder" hint="Empty for the whole repository.">
-            <Input value={form.prefix} onChange={(e) => setForm({ ...form, prefix: e.target.value })} placeholder="lumen" spellCheck={false} autoCapitalize="off" />
+            <Input value={form.prefix} onChange={set('prefix')} placeholder="lumen" spellCheck={false} autoCapitalize="off" />
           </Field>
         </div>
         {canWorkspace && (
@@ -239,14 +309,14 @@ function Choose({ picks, canWorkspace, restored, onDone, onRestore }) {
         <Field label="When">
           <ScheduleFields value={timing} onChange={setTiming} />
         </Field>
-        {repo && !repo.private && <Checkbox checked={form.allowPublic} onChange={(e) => setForm({ ...form, allowPublic: e.target.checked })} label="This repository is public. Sync to it anyway, where anyone can read it." />}
+        {/public/.test(error) && <Checkbox checked={form.allowPublic} onChange={(e) => setForm({ ...form, allowPublic: e.target.checked })} label="Sync to this public repository anyway, where anyone can read it" />}
         {error && <p className="auth-error">{error}</p>}
         <div className="set-inline">
-          <Button type="submit" variant="primary" loading={busy} disabled={!repo || (!repo.private && !form.allowPublic)}>
+          <Button type="submit" variant="primary" loading={busy} disabled={!ready}>
             Start syncing
           </Button>
           {onRestore && (
-            <Button variant="ghost" icon={RotateCcw} onClick={() => onRestore({ repoId: form.repoId, branch: form.branch, prefix: form.prefix, repo: repo.fullName })}>
+            <Button variant="ghost" icon={RotateCcw} disabled={!form.repo.trim()} onClick={() => onRestore({ repo: form.repo.trim(), token: form.token.trim(), branch: form.branch.trim(), prefix: form.prefix.trim() })}>
               Restore from it
             </Button>
           )}
@@ -256,36 +326,13 @@ function Choose({ picks, canWorkspace, restored, onDone, onRestore }) {
   )
 }
 
-function ConnectButtons({ again }) {
-  const [busy, setBusy] = useState('')
-  const go = async (installed) => {
-    setBusy(installed ? 'installed' : 'install')
-    try {
-      const r = await api('POST', '/github/connect', { installed })
-      window.location.href = r.url
-    } catch {
-      setBusy('')
-    }
-  }
-  return (
-    <div className="set-inline">
-      <Button variant={again ? 'secondary' : 'primary'} loading={busy === 'install'} onClick={() => go(false)}>
-        {again ? 'Connect another repository' : 'Connect GitHub'}
-      </Button>
-      <Button variant="ghost" loading={busy === 'installed'} onClick={() => go(true)}>
-        I’ve installed the app already
-      </Button>
-    </div>
-  )
-}
-
 function RestoreDialog({ target, onClose, onRestored }) {
   const toast = useUI((s) => s.toast)
   const [repoWins, setRepoWins] = useState(false)
   const [report, setReport] = useState(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const body = { connectionId: target.connectionId, repoId: target.repoId, branch: target.branch, prefix: target.prefix, repoWins }
+  const body = { connectionId: target.connectionId, repo: target.repo, token: target.token, branch: target.branch, prefix: target.prefix, repoWins }
   useEffect(() => {
     setReport(null)
     setError('')
@@ -348,24 +395,17 @@ function RestoreDialog({ target, onClose, onRestored }) {
 }
 
 export default function GitHubSettings() {
-  const route = useRoute()
-  const toast = useUI((s) => s.toast)
   const [data, setData] = useState(null)
   const [restore, setRestore] = useState(null)
   const [restored, setRestored] = useState(() => new Set())
   const load = () =>
     api('GET', '/github')
       .then(setData)
-      .catch((e) => setData({ available: false, error: e.message }))
+      .catch((e) => setData({ error: e.message }))
 
   useEffect(() => {
     load()
   }, [])
-  // back from GitHub: say what happened once, then tidy the address
-  useEffect(() => {
-    if (route.query.error) toast(route.query.error, { tone: 'danger' })
-    if (route.query.error || route.query.connected) navigate('/settings/github', { replace: true })
-  }, [route.query.error, route.query.connected, toast])
   // while a sync runs, look again every few seconds
   const running = data?.connections?.some((c) => c.running)
   useEffect(() => {
@@ -375,44 +415,21 @@ export default function GitHubSettings() {
   }, [running])
 
   if (!data) return <Spinner size={16} />
-  if (!data.available) {
-    return (
-      <Section
-        title="Not set up on this server"
-        description={data.error || 'Syncing to GitHub needs a GitHub App made for this server. Whoever runs the server sets it up once (the GITHUB_APP_ settings); then everyone here can connect their own repository.'}
-      />
-    )
-  }
+  if (data.error) return <Section description={data.error} />
   const canRestore = data.canWorkspace
   return (
     <>
       {data.connections.map((c) => (
         <Connection key={c.id} c={c} canRestore={canRestore} onChange={load} onRestore={setRestore} />
       ))}
-      {data.picks ? (
-        <Choose picks={data.picks} canWorkspace={data.canWorkspace} restored={restored} onDone={load} onRestore={canRestore ? setRestore : null} />
-      ) : (
-        <Section
-          title={data.connections.length ? 'Add a repository' : 'Keep a copy on GitHub'}
-          description={data.connections.length ? undefined : 'Your boards, calendars, docs and idea boards, written to a GitHub repository as files you can read, on a schedule you choose. If this server is ever gone, your data is still yours, and Lumen can bring it back from there.'}
-        >
-          <Row label="Repository" hint="Install Lumen’s GitHub App on one repository (a new private one is best), then choose it here.">
-            <ConnectButtons again={data.connections.length > 0} />
-          </Row>
-          <Row label="The app on GitHub">
-            <a className="gh-repo" href={data.appUrl} target="_blank" rel="noreferrer">
-              {data.appUrl.split('/').pop()}
-              <ExternalLink size={13} aria-hidden="true" />
-            </a>
-          </Row>
-        </Section>
-      )}
+      <ConnectForm first={!data.connections.length} canWorkspace={data.canWorkspace} restored={restored} onDone={load} onRestore={canRestore ? setRestore : null} />
       {restore && (
         <RestoreDialog
           target={restore}
           onClose={() => setRestore(null)}
           onRestored={() => {
-            if (restore.repoId) setRestored(new Set([...restored, restore.repoId]))
+            // connecting to it afterwards takes over the mirror the old server wrote
+            if (restore.repo && !restore.connectionId) setRestored(new Set([...restored, restore.repo.toLowerCase()]))
             setRestore(null)
             load()
           }}

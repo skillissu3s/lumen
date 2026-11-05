@@ -1,19 +1,17 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import crypto from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
-import { appConfig, appJwt, createGitHubApp } from './app.js'
+import { checkToken } from './api.js'
 import { githubRepo } from './repo.js'
 import { gitBlob, runMirror } from '../mirror/run.js'
 import { createStore } from '../store/records.js'
 import { createUnits } from '../store/units.js'
 
-const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 })
-const pem = privateKey.export({ type: 'pkcs1', format: 'pem' })
 
-// GitHub, as far as the App and the Git Data API go, for one repository
+// GitHub's REST API, as far as Lumen uses it, for one repository and these tokens
+const TOKENS = { good: { push: true, pull: true }, readonly: { push: false, pull: true } }
+
 function fakeGitHub({ empty = true } = {}) {
-  const calls = []
   const objects = new Map() // tree sha → Map path → text; commit sha → { tree, parent }
   const refs = new Map()
   let n = 0
@@ -32,14 +30,12 @@ function fakeGitHub({ empty = true } = {}) {
   async function fetchImpl(url, { method = 'GET', headers = {}, body } = {}) {
     const u = new URL(url)
     const data = body ? JSON.parse(body) : null
-    calls.push({ method, path: u.pathname + u.search, auth: headers.Authorization, body: data })
     const p = u.pathname
-    if (u.host === 'github.com' && p === '/login/oauth/access_token') return reply(200, data.code === 'good' ? { access_token: 'user-token' } : { error: 'bad_verification_code' })
-    if (p === '/user/installations') return reply(200, { installations: [{ id: 41 }] })
-    if (p === '/user/installations/41/repositories') return reply(200, { repositories: [{ id: 7, full_name: 'ada/data', private: true, default_branch: 'main' }] })
-    if (p === '/applications/client-1/token') return reply(204)
-    if (p === '/app/installations/41/access_tokens') return reply(201, { token: `inst-${n++}`, expires_at: new Date(Date.now() + 3600000).toISOString() })
-    if (p === '/repositories/7') return reply(200, { id: 7, full_name: 'ada/data', private: true, default_branch: 'main' })
+    const token = headers.Authorization?.replace(/^Bearer /, '')
+    if (token && !TOKENS[token]) return reply(401, { message: 'Bad credentials' })
+    if (!token) return reply(404, { message: 'Not Found' })
+    if (p === '/repositories/7' || p === '/repos/ada/data') return reply(200, { id: 7, full_name: 'ada/data', private: true, default_branch: 'main', permissions: TOKENS[token] })
+    if (p.startsWith('/repos/') && !p.startsWith('/repos/ada/data/')) return reply(404, { message: 'Not Found' })
     const r = '/repos/ada/data'
     if (p === `${r}/git/refs` && method === 'GET') return refs.size ? reply(200, []) : reply(409, { message: 'Git Repository is empty.' })
     let m = /^\/repos\/ada\/data\/git\/ref\/heads\/(.+)$/.exec(p)
@@ -92,7 +88,6 @@ function fakeGitHub({ empty = true } = {}) {
   }
   return {
     fetchImpl,
-    calls,
     files: (b = 'main') => objects.get(objects.get(refs.get(b)).tree),
     // someone else pushing to the branch
     push(change, b = 'main') {
@@ -103,46 +98,16 @@ function fakeGitHub({ empty = true } = {}) {
   }
 }
 
-const config = { id: '123', slug: 'lumen-sync', clientId: 'client-1', clientSecret: 'secret-1', privateKey: pem }
-
-test('the App is configured from the environment, or not at all', () => {
-  assert.equal(appConfig({}), null)
-  assert.equal(appConfig({ GITHUB_APP_ID: '1', GITHUB_APP_SLUG: 's', GITHUB_APP_CLIENT_ID: 'c' }), null)
-  const c = appConfig({ GITHUB_APP_ID: '1', GITHUB_APP_SLUG: 's', GITHUB_APP_CLIENT_ID: 'c', GITHUB_APP_CLIENT_SECRET: 'x', GITHUB_APP_PRIVATE_KEY: pem.replace(/\n/g, '\\n') })
-  assert.equal(c.privateKey, pem.trim())
-})
-
-test('the App’s JWT is signed with its key and short-lived', () => {
-  const now = Date.parse('2026-11-05T10:00:00Z')
-  const [h, b, s] = appJwt('123', pem, now).split('.')
-  assert.ok(crypto.createVerify('RSA-SHA256').update(`${h}.${b}`).verify(publicKey, Buffer.from(s, 'base64url')))
-  const body = JSON.parse(Buffer.from(b, 'base64url'))
-  assert.equal(body.iss, '123')
-  assert.equal(body.exp - body.iat, 600)
-})
-
-test('connecting lists the repositories the person can reach, and checks the installation', async () => {
-  const gh = fakeGitHub()
-  const app = createGitHubApp(config, { callbackUrl: 'https://lumen.test/api/github/callback', fetchImpl: gh.fetchImpl })
-  assert.match(app.installUrl('st'), /^https:\/\/github\.com\/apps\/lumen-sync\/installations\/new\?state=st$/)
-  assert.deepEqual(await app.reposFor('good', '41'), [{ id: 7, fullName: 'ada/data', private: true, defaultBranch: 'main', installationId: 41 }])
-  await assert.rejects(app.reposFor('good', '99'), /isn’t one your GitHub account can reach/)
-  await assert.rejects(app.reposFor('bad'), /didn’t confirm/)
-  // the user token is handed back, with the App's client credentials
-  const revoke = gh.calls.find((c) => c.path === '/applications/client-1/token')
-  assert.equal(revoke.method, 'DELETE')
-  assert.equal(revoke.auth, `Basic ${Buffer.from('client-1:secret-1').toString('base64')}`)
-})
-
-test('installation tokens open one repository and are reused until near expiry', async () => {
-  const gh = fakeGitHub()
-  const app = createGitHubApp(config, { fetchImpl: gh.fetchImpl })
-  const a = await app.installationToken(41, 7)
-  assert.equal(await app.installationToken(41, 7), a)
-  const asks = gh.calls.filter((c) => c.path === '/app/installations/41/access_tokens')
-  assert.equal(asks.length, 1)
-  assert.deepEqual(asks[0].body, { repository_ids: [7], permissions: { contents: 'write', metadata: 'read' } })
-  assert.match(asks[0].auth, /^Bearer [\w-]+\.[\w-]+\.[\w-]+$/)
+test('a token is kept only if it can write to the repository', async () => {
+  const { fetchImpl } = fakeGitHub()
+  assert.deepEqual(await checkToken('ada/data', 'good', { fetchImpl }), { id: 7, fullName: 'ada/data', private: true, defaultBranch: 'main' })
+  assert.deepEqual((await checkToken('https://github.com/ada/data.git', ' good ', { fetchImpl })).id, 7)
+  await assert.rejects(checkToken('ada/data', 'readonly', { fetchImpl }), /not write/)
+  assert.equal((await checkToken('ada/data', 'readonly', { fetchImpl, write: false })).id, 7)
+  await assert.rejects(checkToken('ada/data', 'typo', { fetchImpl }), /didn’t accept that token/)
+  await assert.rejects(checkToken('ada/other', 'good', { fetchImpl }), /can’t see the repository/)
+  await assert.rejects(checkToken('not a repo', 'good', { fetchImpl }), /owner\/name/)
+  await assert.rejects(checkToken('ada/data', '', { fetchImpl }), /Add a token/)
 })
 
 function world() {
@@ -157,8 +122,7 @@ const board = (cards) => `---\nid: b_launch00000\nname: Launch\nowner: ada\nkanb
 for (const empty of [true, false]) {
   test(`a mirror run writes to ${empty ? 'an empty' : 'an existing'} repository through the Git Data API`, async () => {
     const gh = fakeGitHub({ empty })
-    const app = createGitHubApp(config, { fetchImpl: gh.fetchImpl })
-    const repo = githubRepo({ repoId: 7, token: () => app.installationToken(41, 7), fetchImpl: gh.fetchImpl })
+    const repo = githubRepo({ repoId: 7, token: async () => 'good', fetchImpl: gh.fetchImpl })
     const { units, ctx } = world()
     units.save('lists/launch.md', board('- [ ] Pricing 🆔 aaaaaa'))
     const conn = { owner: 'u_ada', ownerHandle: 'ada', admin: true, scope: 'workspace', branch: 'main', prefix: '', repoId: 7, allowPublic: false, cursor: 0, index: null }
@@ -186,7 +150,7 @@ for (const empty of [true, false]) {
       }
       return orig(url, opts)
     }
-    r = await runMirror(ctx, conn, githubRepo({ repoId: 7, token: () => app.installationToken(41, 7), fetchImpl: racing }))
+    r = await runMirror(ctx, conn, githubRepo({ repoId: 7, token: async () => 'good', fetchImpl: racing }))
     assert.match(gh.files().get('lists/launch.md'), /- \[x\] Pricing/)
     assert.equal(gh.files().get('notes.txt'), 'meanwhile\n')
   })

@@ -32,7 +32,7 @@ function world() {
 }
 
 const connect = (worker, mode, schedule) =>
-  worker.create('u_ada', { installationId: 41, repo: { id: 7, fullName: 'ada/data' }, branch: 'main', prefix: '', scope: 'owner', mode, schedule })
+  worker.create('u_ada', { token: 'sealed', repo: { id: 7, fullName: 'ada/data' }, branch: 'main', prefix: '', scope: 'owner', mode, schedule })
 
 test('a new connection runs on the next tick and keeps its place', async () => {
   const w = world()
@@ -75,7 +75,7 @@ test('daily: the next run is tomorrow’s slot', async () => {
   assert.ok(next >= Date.parse('2026-11-06T03:00:00Z') && next < Date.parse('2026-11-06T03:02:00Z'))
 })
 
-test('a failed run backs off; GitHub losing the repository pauses it until resumed', async () => {
+test('a failed run backs off; GitHub refusing the token pauses it until resumed', async () => {
   const w = world()
   w.save(board('- [ ] Pricing 🆔 aaaaaa'))
   const c = connect(w.worker, 'manual', null)
@@ -90,7 +90,7 @@ test('a failed run backs off; GitHub losing the repository pauses it until resum
   w.later(MIN)
   await w.worker.tick()
   after = w.worker.get(c.id)
-  assert.match(after.paused, /can no longer reach/)
+  assert.match(after.paused, /refused the token/)
   assert.equal(after.next_run_at, null)
   w.use(w.gh)
   w.worker.update(c.id, { resume: true })

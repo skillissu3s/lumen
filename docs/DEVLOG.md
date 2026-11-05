@@ -520,5 +520,12 @@ settable right on a card; drop the calendar's New button.
   `.sync/manifest.json` failed and an existing mirror looked foreign. Raw
   answers are now returned as text, with a test. `GITHUB_URL`/`GITHUB_API_URL`
   stay as settings: they are also how GitHub Enterprise Server is reached.
-- Tests: run (11), GitHub App and Git Data client (6), schedules (7), worker
-  (6), restore (4), and the server's no-App behaviour.
+- Tests: run (11), token check and Git Data client (3), schedules (7), worker
+  (6), restore (4), and the server routes' checks.
+- First built on a GitHub App (JWT, installation tokens, the OAuth check that
+  an installation is the person's). Replaced with a fine-grained token per
+  connection at the user's request: one step to set up and nothing for the
+  server's owner to configure. The token is checked before it's kept
+  (`permissions.push` from `GET /repos/{owner}/{name}`), stored encrypted, and
+  a replacement must open the same repository id. The App route stays
+  documented in the protocol repo for servers with many users.
