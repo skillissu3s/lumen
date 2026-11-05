@@ -22,7 +22,7 @@ otherwise the server answers 403. Sessions are the httpOnly cookie
 | `POST /api/password/reset` | `{ email, code, password }` | verifies the reset code, sets the password, ends that user's sessions. Members → `{ user }`; admins → `{ ok: true }` |
 | `POST /api/logout` | — | `{ ok: true }` |
 | `GET /api/me` | — | `{ user }` (401 if signed out) |
-| `PATCH /api/me` | `{ name? }` | `{ user }` |
+| `PATCH /api/me` | `{ name?, handle? }` | `{ user }`. A new handle (username: 2–24 lowercase letters, digits or dashes) is 409 if taken; sharing lists, channel members and message authors follow it, and files named after it move |
 | `POST /api/me/password` | `{ current, next }` | `{ ok: true }` |
 | `GET /api/invites/:token` | — | `{ email \| null, role }` or 410 |
 | `POST /api/invites/:token/accept` | `{ name, password, email? }` | makes the account, signs in → `{ user }` |

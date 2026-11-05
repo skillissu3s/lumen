@@ -269,6 +269,42 @@ export async function openWorkspace(dir) {
   return root
 }
 
+/**
+ * Someone's handle changed. Owners are user ids, so what they own renders with
+ * the new handle by itself (and files named after it, like
+ * users/<handle>/settings.json, move); the places that keep handles as text
+ * follow here: sharing lists, channel members and creators, message authors.
+ * `apply` changes the account, in the same transaction.
+ */
+export async function renameHandle(from, to, apply) {
+  const before = new Map(index)
+  const swap = (list) => (Array.isArray(list) && list.map(String).includes(from) ? list.map((h) => (String(h) === from ? to : h)) : null)
+  store.tx(() => {
+    apply()
+    for (const type of ['board', 'calendar', 'doc', 'idea_board']) {
+      for (const r of store.all(type)) {
+        const share = swap(r.share)
+        if (share) store.write(type, { id: r.id, share })
+      }
+    }
+    for (const c of store.all('channel')) {
+      const members = swap(c.members)
+      if (members || c.created_by === from) store.write('channel', { id: c.id, ...(members ? { members } : {}), ...(c.created_by === from ? { created_by: to } : {}) })
+    }
+    for (const m of store.where('message', 'author', from)) store.write('message', { id: m.id, author: to })
+  })
+  reindex()
+  const changes = []
+  for (const [p, e] of index) if (before.get(p)?.sha !== e.sha) changes.push({ path: p, sha: e.sha, deleted: false })
+  for (const p of before.keys()) if (!index.has(p)) changes.push({ path: p, sha: null, deleted: true })
+  if (mirror) {
+    for (const c of changes) await (c.deleted ? removeFromFolder(c.path) : writeToFolder(c.path, units.render(c.path)))
+  }
+  if (changes.length) events.emit('change', changes, { external: true })
+  events.emit('renamed', { from, to })
+  return changes
+}
+
 export function closeWorkspace() {
   watcher?.close()
   watcher = null

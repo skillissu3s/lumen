@@ -135,8 +135,10 @@ export async function createDm(user, handle) {
   if (!other) throw new HttpError(400, 'Say who to message.')
   if (other === user.handle) throw new HttpError(400, 'You can’t message yourself.')
   const id = dmId(user.handle, other)
+  const pair = [user.handle, other].sort().join('\n')
   const channel = await withChannels((list) => {
-    const found = list.find((x) => x.id === id)
+    // by who's in it: a DM made before a rename keeps its old id
+    const found = list.find((x) => x.id === id || (x.dm && Array.isArray(x.members) && [...x.members].map(String).sort().join('\n') === pair))
     if (found) return { value: found, changed: false }
     const c = { id, dm: true, members: [user.handle, other].sort(), created: nowIso(), by: user.handle }
     list.push(c)

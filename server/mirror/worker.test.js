@@ -28,7 +28,7 @@ function world() {
     units.save('lists/launch.md', text)
     events.emit('change', [{ path: 'lists/launch.md', deleted: false }])
   }
-  return { worker, gh, units, save, later: (ms) => (now += ms), now: () => now, use: (r) => (repo = r) }
+  return { worker, gh, units, events, save, later: (ms) => (now += ms), now: () => now, use: (r) => (repo = r) }
 }
 
 const connect = (worker, mode, schedule) =>
@@ -118,4 +118,19 @@ test('two runs of one connection at once are one run', async () => {
   const [a, b] = await Promise.all([w.worker.run(c.id), w.worker.run(c.id)])
   assert.equal(a.last_commit, b.last_commit)
   assert.equal(w.worker.runs(c.id).length, 1)
+})
+
+test('a username change makes every connection check every file, now', async (t) => {
+  const w = world()
+  w.worker.start()
+  t.after(() => w.worker.stop())
+  w.save(board('- [ ] Pricing 🆔 aaaaaa'))
+  const c = connect(w.worker, 'daily', { at: '03:00', tz: 'UTC' })
+  await w.worker.tick()
+  assert.ok(w.worker.get(c.id).last_full_at)
+  w.later(MIN)
+  w.events.emit('renamed', { from: 'ada', to: 'ada-l' })
+  const after = w.worker.get(c.id)
+  assert.equal(after.last_full_at, null)
+  assert.equal(after.next_run_at, w.now())
 })

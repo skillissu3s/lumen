@@ -56,6 +56,15 @@ export const userByHandle = (h) => db.prepare('SELECT * FROM users WHERE handle 
 export const allUsers = () => db.prepare('SELECT * FROM users ORDER BY created_at').all()
 export const countUsers = () => db.prepare('SELECT COUNT(*) AS n FROM users').get().n
 
+/** A handle someone chose: 2–24 lowercase letters, digits or dashes, not taken */
+export function checkHandle(input, userId) {
+  const h = String(input || '').trim().replace(/^@/, '').toLowerCase()
+  if (!/^[a-z0-9][a-z0-9-]{1,23}$/.test(h) || h.endsWith('-')) throw new HttpError(400, 'Use 2 to 24 lowercase letters, digits or dashes, starting with a letter or digit.')
+  const other = userByHandle(h)
+  if (h === 'everyone' || (other && other.id !== userId)) throw new HttpError(409, 'That username is taken.')
+  return h
+}
+
 /** A handle (shown as @handle, used in files) made from a name or email, unique */
 export function makeHandle(name, email) {
   const base =

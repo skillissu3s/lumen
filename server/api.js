@@ -3,7 +3,7 @@ import crypto from 'node:crypto'
 import express from 'express'
 import { APP_NAME, VERSION, DESKTOP, PUBLIC_URL, INVITE_DAYS } from './config.js'
 import { db, getSetting } from './db.js'
-import { HttpError, userFromRequest, countUsers, createUser, login, getUser, allUsers, changePassword, createInvite, listInvites, revokeInvite, findInvite, acceptInvite, createSession, setSessionCookie, endSession, endUserSessions, cleanEmail, hashPassword, validPassword, userByEmail } from './auth.js'
+import { HttpError, checkHandle, userFromRequest, countUsers, createUser, login, getUser, allUsers, changePassword, createInvite, listInvites, revokeInvite, findInvite, acceptInvite, createSession, setSessionCookie, endSession, endUserSessions, cleanEmail, hashPassword, validPassword, userByEmail } from './auth.js'
 import * as files from './files.js'
 import { canRead, writeProblem, metaOf } from './access.js'
 import * as chat from './chat.js'
@@ -179,9 +179,13 @@ router.post('/logout', (req, res) => {
 
 router.get('/me', requireUser, (req, res) => res.json({ user: toUser(req.user) }))
 
-router.patch('/me', requireUser, (req, res) => {
+router.patch('/me', requireUser, async (req, res) => {
   const name = String(req.body?.name ?? '').trim().slice(0, 80)
   if (name) db.prepare('UPDATE users SET name = ? WHERE id = ?').run(name, req.user.id)
+  if (req.body?.handle !== undefined) {
+    const handle = checkHandle(req.body.handle, req.user.id)
+    if (handle !== req.user.handle) await files.renameHandle(req.user.handle, handle, () => db.prepare('UPDATE users SET handle = ? WHERE id = ?').run(handle, req.user.id))
+  }
   res.json({ user: toUser(getUser(req.user.id)) })
 })
 

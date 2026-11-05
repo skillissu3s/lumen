@@ -317,6 +317,37 @@ test('chat: post, edit, permissions, delete, DM isolation', async () => {
   assert.ok(!carolChannels.includes(dm.id), 'outsider does not see the DM channel')
 })
 
+test('a username change follows into shared lists, chat and the files', async () => {
+  const old = member.handle
+  let res = await api(memberJar, 'PATCH', '/api/me', { handle: admin.handle })
+  assert.equal(res.status, 409, 'taken')
+  res = await api(memberJar, 'PATCH', '/api/me', { handle: 'Not ok' })
+  assert.equal(res.status, 400)
+  res = await api(memberJar, 'PATCH', '/api/me', { handle: '@Robert' })
+  assert.equal(res.status, 200)
+  assert.equal((await res.json()).user.handle, 'robert')
+  member = { ...member, handle: 'robert' }
+
+  // the list shared with the old name is shared with the new one, and still readable
+  res = await api(memberJar, 'POST', '/api/files/read', { paths: ['lists/private.md', 'lists/mine.md'] })
+  const got = (await res.json()).files
+  assert.ok(got['lists/private.md'], 'still shared')
+  assert.match(got['lists/private.md'].text, /robert/)
+  assert.ok(!new RegExp(`\\b${old}\\b`).test(got['lists/private.md'].text))
+  assert.match(got['lists/mine.md'].text, /owner: robert/)
+
+  // the DM is still theirs, and asking for it again doesn't make a second one
+  res = await api(memberJar, 'GET', '/api/chat/channels')
+  const dms = (await res.json()).channels.filter((c) => c.dm)
+  assert.equal(dms.length, 1)
+  res = await api(adminJar, 'POST', '/api/chat/channels', { dm: 'robert' })
+  assert.equal((await res.json()).channel.id, dms[0].id)
+
+  res = await api(memberJar, 'GET', '/api/chat/messages?channel=general')
+  const from = (await res.json()).messages.map((m) => m.from)
+  assert.ok(from.includes('robert') && !from.includes(old))
+})
+
 test('git sync to a local bare repo', { skip: !hasGit }, async () => {
   const bare = fs.mkdtempSync(path.join(os.tmpdir(), 'lumen-bare-'))
   execFileSync('git', ['init', '--bare', bare])

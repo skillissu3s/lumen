@@ -137,6 +137,7 @@ function Account() {
   const user = useSession((s) => s.user)
   const toast = useUI((s) => s.toast)
   const [name, setName] = useState(user?.name || '')
+  const [handle, setHandle] = useState(user?.handle || '')
   const [pw, setPw] = useState({ current: '', next: '', confirm: '' })
   const [error, setError] = useState('')
 
@@ -172,8 +173,25 @@ function Account() {
         <Row label="Email">
           <span className="set-value">{user?.email}</span>
         </Row>
-        <Row label="Handle" hint="How people mention you in chat.">
-          <span className="set-value">@{user?.handle}</span>
+        <Row label="Username" hint="Shown as @username in chat, and as the owner in your files and their copy on GitHub.">
+          <div className="set-inline">
+            <Input value={handle} onChange={(e) => setHandle(e.target.value)} aria-label="Username" spellCheck={false} autoCapitalize="off" />
+            <Button
+              disabled={!handle.trim() || handle.trim().replace(/^@/, '').toLowerCase() === user?.handle}
+              onClick={async () => {
+                try {
+                  await api('PATCH', '/me', { handle })
+                  // files named after you moved: start again from the server's view
+                  toast('Username saved')
+                  setTimeout(() => location.reload(), 600)
+                } catch (err) {
+                  toast(err.message, { tone: 'danger' })
+                }
+              }}
+            >
+              Save
+            </Button>
+          </div>
         </Row>
       </Section>
       <Section title="Password">

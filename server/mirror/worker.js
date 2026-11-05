@@ -254,9 +254,16 @@ export function createWorker(ctx, repoFor) {
     }
   }
 
+  // someone's handle changed: files moved without journal rows, so every
+  // connection checks every file at its next run, which is now
+  function onRenamed() {
+    db.prepare('UPDATE sync_connections SET last_full_at = NULL, next_run_at = ? WHERE paused IS NULL').run(clock())
+  }
+
   function start() {
     if (timer) return
     events?.on('change', onChange)
+    events?.on('renamed', onRenamed)
     timer = setInterval(() => tick().catch((e) => console.error('[mirror]', e)), MIN)
     timer.unref?.()
     // anything that fell due while the server was down runs once now
@@ -267,6 +274,7 @@ export function createWorker(ctx, repoFor) {
     clearInterval(timer)
     timer = null
     events?.off('change', onChange)
+    events?.off('renamed', onRenamed)
     await Promise.allSettled([...running.values()])
   }
 

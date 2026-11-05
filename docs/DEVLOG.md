@@ -529,3 +529,15 @@ settable right on a card; drop the calendar's New button.
   (`permissions.push` from `GET /repos/{owner}/{name}`), stored encrypted, and
   a replacement must open the same repository id. The App route stays
   documented in the protocol repo for servers with many users.
+
+### Usernames
+- An admin made from ADMIN_EMAIL without ADMIN_NAME is "Admin", @admin, and
+  that handle is what files and the GitHub mirror show. Handles can now be
+  changed (`PATCH /api/me { handle }`). Owners are user ids in the database,
+  so owned files render with the new handle by themselves; `files.renameHandle`
+  rewrites the places that keep handles as text (sharing lists, channel
+  members and creators, message authors) in the same transaction as the
+  account change, reindexes, and reports moved paths as changes. A DM keeps
+  its id (`dm-a-b` from the old handles) and is now found by its members, so
+  it isn't doubled. The rename writes no journal rows for the paths that
+  moved, so it asks every mirror connection for a full pass at once.

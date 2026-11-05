@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **Choose your username** in Settings → Account. It's how you're shown in
+  chat (@username) and as the owner in your files and their GitHub copy. Lists
+  shared with you, your chats and DMs follow the new name; your GitHub copy
+  moves your files at its next sync, which starts straight away.
+
 ## 0.6.0 — a readable copy of your data on GitHub
 
 - **A readable copy of your data on GitHub.** In Settings → GitHub, add a
