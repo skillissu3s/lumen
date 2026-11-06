@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.8.0 — your own candle, and workspaces you share
 
 - **Your own candle, and workspaces you share.** Everyone now has a private
   candle of their own: boards, calendars, docs, idea boards and plugins that
