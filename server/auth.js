@@ -141,6 +141,12 @@ export function userFromRequest(req) {
   return row
 }
 
+/** The stored hash of this request's session, to tell it apart from the account's others */
+export function sessionHashOf(req) {
+  const token = parseCookies(req.headers.cookie)[COOKIE]
+  return token ? sha(token) : null
+}
+
 export function setSessionCookie(res, token) {
   res.cookie(COOKIE, token, { httpOnly: true, sameSite: 'lax', secure: SECURE_COOKIES, maxAge: SESSION_DAYS * DAY, path: '/' })
 }

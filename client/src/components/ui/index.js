@@ -1,4 +1,4 @@
-export { Avatar } from './Avatar.jsx'
+export { Avatar, AVATAR_COLORS, UserAvatar } from './Avatar.jsx'
 export { Badge } from './Badge.jsx'
 export { Button } from './Button.jsx'
 export { Chip } from './Chip.jsx'

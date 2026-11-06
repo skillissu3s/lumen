@@ -3,7 +3,7 @@ import crypto from 'node:crypto'
 import express from 'express'
 import { APP_NAME, VERSION, DESKTOP, PUBLIC_URL, INVITE_DAYS } from './config.js'
 import { db, getSetting } from './db.js'
-import { HttpError, checkHandle, userFromRequest, countUsers, createUser, login, getUser, allUsers, changePassword, createInvite, listInvites, revokeInvite, findInvite, acceptInvite, createSession, setSessionCookie, endSession, endUserSessions, cleanEmail, hashPassword, validPassword, userByEmail } from './auth.js'
+import { HttpError, checkHandle, userFromRequest, countUsers, createUser, login, getUser, allUsers, changePassword, createInvite, listInvites, revokeInvite, findInvite, acceptInvite, createSession, setSessionCookie, endSession, endUserSessions, sessionHashOf, cleanEmail, hashPassword, validPassword, userByEmail } from './auth.js'
 import * as files from './files.js'
 import { canRead, writeProblem, metaOf } from './access.js'
 import * as chat from './chat.js'
@@ -43,7 +43,19 @@ export function requireAdmin(req, res, next) {
   next()
 }
 
-const toUser = (u) => u && { id: u.id, email: u.email, handle: u.handle, name: u.name, role: u.role }
+const toUser = (u) => u && { id: u.id, email: u.email, handle: u.handle, name: u.name, role: u.role, color: u.color || null, avatar: u.avatar || null }
+
+// the colours an avatar can take (the item colours), and a photo small enough
+// to send with every list of people
+const AVATAR_COLORS = ['gray', 'red', 'orange', 'amber', 'green', 'teal', 'blue', 'indigo', 'violet', 'pink']
+const AVATAR_MAX = 200_000
+function checkAvatar(v) {
+  if (v === null || v === '') return null
+  const s = String(v)
+  if (!/^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(s)) throw new HttpError(400, 'A photo must be a PNG, JPEG or WebP image.')
+  if (s.length > AVATAR_MAX) throw new HttpError(413, 'That photo is too large.')
+  return s
+}
 const adminUser = (u) => ({ ...toUser(u), disabled: !!u.disabled, createdAt: u.created_at })
 const maskEmail = (email) => {
   const [user, domain] = String(email).split('@')
@@ -180,13 +192,30 @@ router.post('/logout', (req, res) => {
 router.get('/me', requireUser, (req, res) => res.json({ user: toUser(req.user) }))
 
 router.patch('/me', requireUser, async (req, res) => {
-  const name = String(req.body?.name ?? '').trim().slice(0, 80)
+  const body = req.body || {}
+  const name = String(body.name ?? '').trim().slice(0, 80)
+  // check everything before changing anything
+  const color = body.color === undefined ? undefined : body.color === null ? null : String(body.color)
+  if (color && !AVATAR_COLORS.includes(color)) throw new HttpError(400, 'Unknown colour.')
+  const avatar = body.avatar === undefined ? undefined : checkAvatar(body.avatar)
+  const handle = body.handle === undefined ? undefined : checkHandle(body.handle, req.user.id)
   if (name) db.prepare('UPDATE users SET name = ? WHERE id = ?').run(name, req.user.id)
-  if (req.body?.handle !== undefined) {
-    const handle = checkHandle(req.body.handle, req.user.id)
-    if (handle !== req.user.handle) await files.renameHandle(req.user.handle, handle, () => db.prepare('UPDATE users SET handle = ? WHERE id = ?').run(handle, req.user.id))
-  }
+  if (color !== undefined) db.prepare('UPDATE users SET color = ? WHERE id = ?').run(color, req.user.id)
+  if (avatar !== undefined) db.prepare('UPDATE users SET avatar = ? WHERE id = ?').run(avatar, req.user.id)
+  if (handle !== undefined && handle !== req.user.handle) await files.renameHandle(req.user.handle, handle, () => db.prepare('UPDATE users SET handle = ? WHERE id = ?').run(handle, req.user.id))
   res.json({ user: toUser(getUser(req.user.id)) })
+})
+
+// the places this account is signed in, and signing out of all but this one
+router.get('/me/sessions', requireUser, (req, res) => {
+  const current = sessionHashOf(req)
+  const rows = db.prepare('SELECT token_hash, created_at, agent FROM sessions WHERE user_id = ? AND expires_at > ? ORDER BY created_at DESC').all(req.user.id, Date.now())
+  res.json({ sessions: rows.map((r) => ({ id: r.token_hash.slice(0, 12), createdAt: r.created_at, agent: r.agent || '', current: r.token_hash === current })) })
+})
+
+router.delete('/me/sessions', requireUser, (req, res) => {
+  const r = db.prepare('DELETE FROM sessions WHERE user_id = ? AND token_hash != ?').run(req.user.id, sessionHashOf(req) || '')
+  res.json({ ended: Number(r.changes) })
 })
 
 router.post('/me/password', requireUser, async (req, res, next) => {
@@ -214,7 +243,7 @@ router.post('/invites/:token/accept', async (req, res, next) => {
 })
 
 router.get('/users', requireUser, (req, res) => {
-  res.json({ users: allUsers().filter((u) => !u.disabled).map((u) => ({ handle: u.handle, name: u.name, role: u.role })) })
+  res.json({ users: allUsers().filter((u) => !u.disabled).map((u) => ({ handle: u.handle, name: u.name, role: u.role, color: u.color || null, avatar: u.avatar || null })) })
 })
 
 // ---------- admin ----------
@@ -442,6 +471,14 @@ router.post('/chat/channels', chatOnly, requireUser, async (req, res, next) => {
     const body = req.body || {}
     const channel = body.dm ? await chat.createDm(req.user, body.dm) : await chat.createChannel(req.user, { name: body.name, members: body.members })
     res.json({ channel })
+  } catch (e) {
+    next(e)
+  }
+})
+
+router.delete('/chat/channels/:id', chatOnly, requireUser, async (req, res, next) => {
+  try {
+    res.json(await chat.deleteChannel(req.user, req.params.id))
   } catch (e) {
     next(e)
   }

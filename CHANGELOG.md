@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+- **The sidebar is easier to read.** The top is your workspace: its settings,
+  inviting people, plugins and its copy on GitHub. The bottom is you: your
+  profile, the theme, settings, shortcuts and signing out.
+- **Make the sidebar wider or narrower** by dragging its edge. Lumen remembers
+  the width; double-click the edge to put it back.
+- **A profile that looks like you.** In Settings → Account, add a photo, pick
+  the colour behind your initials, and change your name and username, each
+  saved as you go. Others see your photo and colour in chat and in the members
+  list.
+- **See where you're signed in**, and sign out of every other device at once.
+- **Delete a chat channel** you made (admins can delete any channel).
+- In the desktop app on Windows, the title bar and the sidebar are one surface,
+  with no line where they meet the page.
+
 ## 0.6.1 — choose your username
 
 - **Choose your username** in Settings → Account. It's how you're shown in

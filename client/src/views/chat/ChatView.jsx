@@ -2,8 +2,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import MarkdownIt from 'markdown-it'
 import DOMPurify from 'dompurify'
-import { ArrowDown, CornerUpLeft, Hash, MessagesSquare, Pencil, Plus, Trash2, X } from 'lucide-react'
-import { Avatar, Button, Dialog, EmptyState, Input, Segmented, Spinner } from '../../components/ui/index.js'
+import { ArrowDown, CornerUpLeft, Hash, MessagesSquare, MoreHorizontal, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { Button, Dialog, EmptyState, Input, Menu, Segmented, Spinner, UserAvatar } from '../../components/ui/index.js'
 import { api } from '../../lib/api.js'
 import { onSocket, sendSocket } from '../../lib/socket.js'
 import { navigate } from '../../lib/router.js'
@@ -82,7 +82,7 @@ function Message({ m, first, me, people, h12, onReply, onEdit, onDelete, editing
   useEffect(() => setDraft(m.text), [m.text, editing])
   return (
     <div className={`msg${first ? ' is-first' : ''}${m.pending ? ' is-pending' : ''}${m.failed ? ' is-failed' : ''}`} data-id={m.id}>
-      <div className="msg-gutter">{first ? <Avatar name={person?.name || m.from} size={30} /> : <span className="msg-time-hover tabular">{formatTime(timeOf(at), h12)}</span>}</div>
+      <div className="msg-gutter">{first ? <UserAvatar user={person || { name: m.from }} size={30} /> : <span className="msg-time-hover tabular">{formatTime(timeOf(at), h12)}</span>}</div>
       <div className="msg-main">
         {first && (
           <div className="msg-head">
@@ -148,6 +148,7 @@ function Message({ m, first, me, people, h12, onReply, onEdit, onDelete, editing
 export default function ChatView({ route }) {
   const mode = useSession((s) => s.mode)
   const me = useSession((s) => s.user?.handle)
+  const role = useSession((s) => s.user?.role)
   const prefs = usePrefs()
   const h12 = prefs.timeFormat === '12h'
   const [channels, setChannels] = useState(null)
@@ -162,6 +163,7 @@ export default function ChatView({ route }) {
   const [typing, setTyping] = useState({})
   const [newOpen, setNewOpen] = useState(false)
   const [dmOpen, setDmOpen] = useState(false)
+  const [removing, setRemoving] = useState(null)
   const [mention, setMention] = useState(null) // { q, index }
   const [atBottom, setAtBottom] = useState(true)
   const [unseen, setUnseen] = useState(false)
@@ -389,7 +391,7 @@ export default function ChatView({ route }) {
             return (
               <a key={c.id} href={`#/chat/${c.id}`} className={`nav-item${c.id === channelId ? ' is-active' : ''}${c.unread ? ' has-unread' : ''}`}>
                 <span className="nav-icon chat-dm-avatar">
-                  <Avatar name={titleOf(c)} size={18} />
+                  <UserAvatar user={peopleMap.get(other) || { name: titleOf(c) }} size={18} />
                   {online.includes(other) && <span className="presence" aria-label="online" />}
                 </span>
                 <span className="nav-label">{titleOf(c)}</span>
@@ -418,6 +420,19 @@ export default function ChatView({ route }) {
             <span className="view-subtitle">
               {channel.members === 'everyone' ? 'Everyone' : `${(channel.members || []).length} people`}
             </span>
+          )}
+          {channel && !channel.dm && (channel.by === me || role === 'admin') && (
+            <div className="view-actions">
+              <Menu
+                align="end"
+                items={[{ label: 'Delete channel…', icon: Trash2, danger: true, onSelect: () => setRemoving(channel) }]}
+                trigger={
+                  <button type="button" className="ui-icon-button" aria-label="Channel options">
+                    <MoreHorizontal size={16} />
+                  </button>
+                }
+              />
+            </div>
           )}
         </header>
         <div
@@ -481,7 +496,7 @@ export default function ChatView({ route }) {
               <div className="mention-list" role="listbox" aria-label="Mention someone">
                 {candidates.map((p, i) => (
                   <button key={p.handle} type="button" role="option" aria-selected={i === mention.index} className="mention-option" onMouseDown={(e) => e.preventDefault()} onClick={() => pickMention(p)}>
-                    <Avatar name={p.name} size={18} /> {p.name} <span className="faint">@{p.handle}</span>
+                    <UserAvatar user={p} size={18} /> {p.name} <span className="faint">@{p.handle}</span>
                   </button>
                 ))}
               </div>
@@ -504,6 +519,35 @@ export default function ChatView({ route }) {
           navigate(`/chat/${c.id}`)
         }}
       />
+      <Dialog
+        open={!!removing}
+        onClose={() => setRemoving(null)}
+        size="sm"
+        title={`Delete #${removing?.name}?`}
+        description="The channel and all its messages are removed for everyone."
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setRemoving(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={async () => {
+                try {
+                  await api('DELETE', `/chat/channels/${encodeURIComponent(removing.id)}`)
+                  setRemoving(null)
+                  const list = await refreshChannels()
+                  navigate(list.length ? `/chat/${list.find((c) => c.id === 'general')?.id || list[0].id}` : '/chat', { replace: true })
+                } catch (err) {
+                  useUI.getState().toast(err.message, { tone: 'danger' })
+                }
+              }}
+            >
+              Delete channel
+            </Button>
+          </>
+        }
+      />
       <Dialog open={dmOpen} onClose={() => setDmOpen(false)} size="sm" title="Message someone">
         <div className="chat-form">
           {people.filter((p) => p.handle !== me).map((p) => (
@@ -518,7 +562,7 @@ export default function ChatView({ route }) {
                 navigate(`/chat/${c.id}`)
               }}
             >
-              <Avatar name={p.name} size={20} /> {p.name} <span className="faint">@{p.handle}</span>
+              <UserAvatar user={p} size={20} /> {p.name} <span className="faint">@{p.handle}</span>
             </button>
           ))}
           {people.length < 2 && <p className="muted">No one else is here yet. Invite people from Settings → Members.</p>}

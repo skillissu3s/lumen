@@ -348,6 +348,56 @@ test('a username change follows into shared lists, chat and the files', async ()
   assert.ok(from.includes('robert') && !from.includes(old))
 })
 
+test('profile: an avatar colour and photo, sessions, and deleting a channel', async () => {
+  let res = await api(memberJar, 'PATCH', '/api/me', { color: 'pink' })
+  assert.equal((await res.json()).user.color, 'pink')
+  res = await api(memberJar, 'PATCH', '/api/me', { color: 'plaid', name: 'Not saved' })
+  assert.equal(res.status, 400, 'an unknown colour is refused')
+  res = await api(memberJar, 'GET', '/api/me')
+  assert.notEqual((await res.json()).user.name, 'Not saved', 'nothing changes when part of it is refused')
+
+  const photo = 'data:image/png;base64,iVBORw0KGgo='
+  res = await api(memberJar, 'PATCH', '/api/me', { avatar: photo })
+  assert.equal((await res.json()).user.avatar, photo)
+  res = await api(memberJar, 'PATCH', '/api/me', { avatar: 'javascript:alert(1)' })
+  assert.equal(res.status, 400)
+  res = await api(adminJar, 'GET', '/api/users')
+  const listed = (await res.json()).users.find((u) => u.handle === member.handle)
+  assert.equal(listed.color, 'pink', 'others see the colour')
+  assert.equal(listed.avatar, photo, 'and the photo')
+  res = await api(memberJar, 'PATCH', '/api/me', { avatar: null })
+  assert.equal((await res.json()).user.avatar, null)
+
+  // a second sign-in, then signing out everywhere else
+  const other = new CookieJar()
+  res = await api(other, 'POST', '/api/login', { email: 'member@example.com', password: 'password123' })
+  assert.equal(res.status, 200)
+  res = await api(memberJar, 'GET', '/api/me/sessions')
+  const { sessions } = await res.json()
+  assert.ok(sessions.length >= 2)
+  assert.equal(sessions.filter((x) => x.current).length, 1)
+  res = await api(memberJar, 'DELETE', '/api/me/sessions')
+  assert.ok((await res.json()).ended >= 1)
+  res = await api(other, 'GET', '/api/me')
+  assert.equal(res.status, 401, 'the other sign-in ended')
+  res = await api(memberJar, 'GET', '/api/me')
+  assert.equal(res.status, 200, 'this one stays')
+
+  res = await api(memberJar, 'POST', '/api/chat/channels', { name: 'Short lived' })
+  const ch = (await res.json()).channel
+  await api(memberJar, 'POST', '/api/chat/messages', { channel: ch.id, text: 'hello' })
+  res = await api(memberJar, 'POST', '/api/chat/channels', { dm: admin.handle })
+  const dm = (await res.json()).channel
+  res = await api(memberJar, 'DELETE', `/api/chat/channels/${dm.id}`)
+  assert.equal(res.status, 400, 'a DM stays')
+  res = await api(memberJar, 'DELETE', `/api/chat/channels/${ch.id}`)
+  assert.equal(res.status, 200)
+  res = await api(memberJar, 'GET', '/api/chat/channels')
+  assert.ok(!(await res.json()).channels.some((c) => c.id === ch.id), 'gone from the list')
+  res = await api(adminJar, 'GET', '/api/files')
+  assert.ok(!(await res.json()).files.some((f) => f.path.startsWith(`chat/${ch.id}/`)), 'and its messages with it')
+})
+
 test('git sync to a local bare repo', { skip: !hasGit }, async () => {
   const bare = fs.mkdtempSync(path.join(os.tmpdir(), 'lumen-bare-'))
   execFileSync('git', ['init', '--bare', bare])

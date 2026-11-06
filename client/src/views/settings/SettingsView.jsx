@@ -1,7 +1,7 @@
 // Settings: one page per topic, saved as you change them.
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { CalendarDays, Copy, Database, ExternalLink, FolderGit2, FolderOpen, GitBranch, Info, Kanban, Keyboard, Palette, Puzzle, RefreshCw, Trash2, UserRound, Users, X } from 'lucide-react'
-import { Avatar, Button, Dialog, Field, Input, Kbd, Segmented, Select, Spinner, Switch } from '../../components/ui/index.js'
+import { Button, UserAvatar, Dialog, Field, Input, Kbd, Segmented, Select, Spinner, Switch } from '../../components/ui/index.js'
 import { useSession } from '../../store/session.js'
 import { useWorkspace } from '../../store/workspace.js'
 import { useUI } from '../../store/ui.js'
@@ -14,6 +14,7 @@ import { shortcutList, comboKeys } from '../../shell/shortcuts.js'
 import { Customize } from '../calendar/CalendarView.jsx'
 import { useUpdateState } from '../../shell/UpdateNotice.jsx'
 import { Row, Section } from './parts.jsx'
+import Account from './AccountSettings.jsx'
 import './settings.css'
 
 const PluginSettings = lazy(() => import('./PluginSettings.jsx'))
@@ -31,204 +32,6 @@ const THEMES = [
 const ACCENT_HEX = { indigo: '#5b5bd6', blue: '#0b6bcb', teal: '#0d7f72', green: '#18794e', orange: '#c2410c', rose: '#c62a5a', violet: '#7c3aed', graphite: '#3a3a37' }
 
 const when = (ms) => (ms ? `${relativeDay(isoOf(new Date(ms)))} at ${timeOf(new Date(ms))}` : 'never')
-
-// back to the welcome screen, to sign in to a server (or again)
-async function askWhere() {
-  await api('POST', '/desktop/mode', { mode: 'ask' })
-  await useSession.getState().boot()
-}
-
-function cloudLine(cloud) {
-  if (cloud.state === 'syncing') return 'Syncing…'
-  if (cloud.state === 'offline') return 'Offline. Your changes are kept here and sent when you’re back online.'
-  if (cloud.state === 'signed-out' || cloud.state === 'error') return cloud.lastError || 'Not synced'
-  return cloud.lastSync ? `Up to date, last synced ${when(Date.parse(cloud.lastSync))}` : 'Not synced yet'
-}
-
-// the desktop app: this computer only, or a copy of an account on a Lumen server
-function DesktopAccount({ user }) {
-  const cloud = useSession((s) => s.cloud)
-  const [busy, setBusy] = useState(false)
-  const [confirm, setConfirm] = useState(false)
-  if (!cloud?.linked)
-    return (
-      <Section description="Lumen keeps everything on this computer, with no account.">
-        <Row label="Name">
-          <span className="set-value">{user?.name}</span>
-        </Row>
-        <Row label="Lumen server" hint="Use your account on a Lumen server here too. What is on this computer can come with you.">
-          <Button onClick={askWhere}>Sign in to a server</Button>
-        </Row>
-      </Section>
-    )
-  const host = cloud.server.replace(/^https?:\/\//, '')
-  return (
-    <Section description={`Signed in to ${host}. Your account’s work is kept on this computer too, so Lumen works offline.`}>
-      <Row label="Account">
-        <span className="set-value">
-          <Avatar name={cloud.user?.name} size={22} /> {cloud.user?.name} <span className="faint">@{cloud.user?.handle}</span>
-        </span>
-      </Row>
-      <Row label="Syncing" hint={cloudLine(cloud)}>
-        {cloud.state === 'signed-out' ? (
-          <Button onClick={askWhere}>Sign in again</Button>
-        ) : (
-          <Button
-            icon={RefreshCw}
-            loading={busy || cloud.state === 'syncing'}
-            onClick={async () => {
-              setBusy(true)
-              try {
-                useSession.setState({ cloud: await api('POST', '/desktop/cloud/sync') })
-              } finally {
-                setBusy(false)
-              }
-            }}
-          >
-            Sync now
-          </Button>
-        )}
-      </Row>
-      {cloud.conflicts?.length > 0 && (
-        <Row label="Changed in both places" hint="These were changed here and on the server at once; where the same thing changed, the server’s version was kept.">
-          <span className="set-value faint">{cloud.conflicts.join(', ')}</span>
-        </Row>
-      )}
-      {cloud.refused?.length > 0 && (
-        <Row label="Kept on this computer" hint="The server didn’t take these changes, so they are only here.">
-          <span className="set-value faint">{cloud.refused.map((r) => `${r.path}: ${r.reason}`).join('; ')}</span>
-        </Row>
-      )}
-      <Row label="Sign out" hint="This computer keeps a copy of your work, on its own.">
-        <Button variant="danger" onClick={() => setConfirm(true)}>
-          Sign out of the server
-        </Button>
-      </Row>
-      <Dialog
-        open={confirm}
-        onClose={() => setConfirm(false)}
-        size="sm"
-        title={`Sign out of ${host}?`}
-        description="Changes not sent yet stay on this computer only. Your account and everything on the server stay as they are."
-        footer={
-          <>
-            <Button variant="ghost" onClick={() => setConfirm(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="danger"
-              onClick={async () => {
-                await api('POST', '/desktop/cloud/logout')
-                setConfirm(false)
-                await useSession.getState().boot()
-              }}
-            >
-              Sign out
-            </Button>
-          </>
-        }
-      />
-    </Section>
-  )
-}
-
-function Account() {
-  const mode = useSession((s) => s.mode)
-  const user = useSession((s) => s.user)
-  const toast = useUI((s) => s.toast)
-  const [name, setName] = useState(user?.name || '')
-  const [handle, setHandle] = useState(user?.handle || '')
-  const [pw, setPw] = useState({ current: '', next: '', confirm: '' })
-  const [error, setError] = useState('')
-
-  if (mode === 'desktop') return <DesktopAccount user={user} />
-  return (
-    <>
-      <Section title="Profile">
-        <div className="settings-summary">
-          <Avatar name={user?.name} size={48} />
-          <div className="settings-summary-text">
-            <div className="settings-summary-title">{user?.name}</div>
-            <div className="settings-summary-meta">
-              <span className="faint">@{user?.handle}</span>
-              {user?.role === 'admin' && <span className="set-badge">Admin</span>}
-            </div>
-          </div>
-        </div>
-        <Row label="Name">
-          <div className="set-inline">
-            <Input value={name} onChange={(e) => setName(e.target.value)} aria-label="Name" />
-            <Button
-              disabled={!name.trim() || name === user?.name}
-              onClick={async () => {
-                const r = await api('PATCH', '/me', { name })
-                useSession.setState({ user: { ...user, ...r.user } })
-                toast('Name saved')
-              }}
-            >
-              Save
-            </Button>
-          </div>
-        </Row>
-        <Row label="Email">
-          <span className="set-value">{user?.email}</span>
-        </Row>
-        <Row label="Username" hint="Shown as @username in chat, and as the owner in your files and their copy on GitHub.">
-          <div className="set-inline">
-            <Input value={handle} onChange={(e) => setHandle(e.target.value)} aria-label="Username" spellCheck={false} autoCapitalize="off" />
-            <Button
-              disabled={!handle.trim() || handle.trim().replace(/^@/, '').toLowerCase() === user?.handle}
-              onClick={async () => {
-                try {
-                  await api('PATCH', '/me', { handle })
-                  // files named after you moved: start again from the server's view
-                  toast('Username saved')
-                  setTimeout(() => location.reload(), 600)
-                } catch (err) {
-                  toast(err.message, { tone: 'danger' })
-                }
-              }}
-            >
-              Save
-            </Button>
-          </div>
-        </Row>
-      </Section>
-      <Section title="Password">
-        <form
-          className="set-form"
-          onSubmit={async (e) => {
-            e.preventDefault()
-            setError('')
-            if (pw.next !== pw.confirm) return setError('The new passwords don’t match.')
-            try {
-              await api('POST', '/me/password', { current: pw.current, next: pw.next })
-              setPw({ current: '', next: '', confirm: '' })
-              toast('Password changed')
-            } catch (err) {
-              setError(err.message)
-            }
-          }}
-        >
-          <Field label="Current password">
-            <Input type="password" autoComplete="current-password" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} />
-          </Field>
-          <Field label="New password" hint="At least 8 characters.">
-            <Input type="password" autoComplete="new-password" value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} />
-          </Field>
-          <Field label="Confirm new password" error={error}>
-            <Input type="password" autoComplete="new-password" value={pw.confirm} onChange={(e) => setPw({ ...pw, confirm: e.target.value })} />
-          </Field>
-          <div>
-            <Button type="submit" disabled={!pw.current || !pw.next}>
-              Change password
-            </Button>
-          </div>
-        </form>
-      </Section>
-    </>
-  )
-}
 
 function Appearance() {
   const prefs = usePrefs()
@@ -393,7 +196,7 @@ function Members() {
           {users.map((u) => (
             <div key={u.id} className={`set-table-row member${u.disabled ? ' is-disabled' : ''}`}>
               <span className="member-who">
-                <Avatar name={u.name} size={26} />
+                <UserAvatar user={u} size={26} />
                 <span>
                   <span className="member-name">{u.name}</span>
                   <span className="faint">

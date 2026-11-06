@@ -3,7 +3,7 @@
 // slides it shut while the rail slides open, so neither has to rearrange itself.
 import { useRef, useState } from 'react'
 import { CalendarDays, FileText, Kanban, Lightbulb, MessagesSquare, PanelLeftOpen, Plus, Search, Sun } from 'lucide-react'
-import { Avatar, IconBadge, Tooltip } from '../components/ui/index.js'
+import { IconBadge, Tooltip } from '../components/ui/index.js'
 import { useSession } from '../store/session.js'
 import { useUI } from '../store/ui.js'
 import { useConfig, useLists, usePlugins } from '../store/hooks.js'
@@ -13,6 +13,7 @@ import { navigate } from '../lib/router.js'
 import { ListEditor } from './ListEditor.jsx'
 import { iconByName } from './icons.js'
 import { AccountMenu } from './AccountMenu.jsx'
+import { WorkspaceMenu } from './WorkspaceMenu.jsx'
 import { SyncStatus } from './Sidebar.jsx'
 
 function RailItem({ href, icon: Icon, tint, label, active, children }) {
@@ -26,7 +27,6 @@ function RailItem({ href, icon: Icon, tint, label, active, children }) {
 }
 
 export function Rail({ route, closed }) {
-  const user = useSession((s) => s.user)
   const mode = useSession((s) => s.mode)
   const config = useConfig()
   const lists = useLists()
@@ -42,7 +42,7 @@ export function Rail({ route, closed }) {
   return (
     <nav className={`app-rail${closed ? ' is-closed' : ''}`} aria-label="Main" inert={closed || undefined}>
       <div className="app-rail-top">
-        <AccountMenu workspace={config.name} compact />
+        <WorkspaceMenu workspace={config.name} compact />
         <Tooltip label="Expand the sidebar  Ctrl+\" side="right">
           <button type="button" className="app-rail-item" aria-label="Expand the sidebar" onClick={() => setPrefs({ sidebar: { collapsed: false } })}>
             <PanelLeftOpen size={16} />
@@ -80,11 +80,7 @@ export function Rail({ route, closed }) {
       </div>
 
       <div className="app-rail-bottom">
-        <Tooltip label="Settings" side="right">
-          <a href="#/settings" className="me" aria-label="Settings">
-            <Avatar name={user?.name || user?.handle} size={22} />
-          </a>
-        </Tooltip>
+        <AccountMenu compact />
         <SyncStatus />
       </div>
 

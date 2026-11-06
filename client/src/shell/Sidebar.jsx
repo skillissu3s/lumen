@@ -1,8 +1,9 @@
-// The left column: workspace, search, the main places, your boards, plugins,
-// and at the bottom whether everything is saved.
+// The left column: the workspace at the top, search, the main places, your
+// boards, plugins, and at the bottom you (your account) and whether everything
+// is saved.
 import { useMemo, useRef, useState } from 'react'
 import { CalendarDays, CircleAlert, CloudOff, FileText, Kanban, Lightbulb, MessagesSquare, PanelLeftClose, Plus, Search, Sun } from 'lucide-react'
-import { Avatar, Button, ContextMenu, Dialog, IconBadge, Spinner, Tooltip } from '../components/ui/index.js'
+import { Button, ContextMenu, Dialog, IconBadge, Spinner, Tooltip } from '../components/ui/index.js'
 import { useSession } from '../store/session.js'
 import { useWorkspace } from '../store/workspace.js'
 import { useUI } from '../store/ui.js'
@@ -17,6 +18,7 @@ import { ListEditor } from './ListEditor.jsx'
 import { iconByName } from './icons.js'
 import { UpdateNotice } from './UpdateNotice.jsx'
 import { AccountMenu } from './AccountMenu.jsx'
+import { WorkspaceMenu } from './WorkspaceMenu.jsx'
 
 const countOpen = (list) => list.items.filter((i) => i.kind === 'task' && isOpen(i.status)).length
 
@@ -84,7 +86,6 @@ export function SyncStatus() {
 }
 
 export function Sidebar({ route, onNavigate, closed }) {
-  const user = useSession((s) => s.user)
   const mode = useSession((s) => s.mode)
   const config = useConfig()
   const lists = useLists()
@@ -116,7 +117,7 @@ export function Sidebar({ route, onNavigate, closed }) {
     <nav className={`sidebar${closed ? ' is-closed' : ''}`} aria-label="Main" inert={closed || undefined}>
       <div className="sidebar-top">
         <div className="sidebar-head">
-          <AccountMenu workspace={config.name} />
+          <WorkspaceMenu workspace={config.name} />
           <Tooltip label="Collapse the sidebar  Ctrl+\" side="right">
             <button type="button" className="sidebar-collapse" aria-label="Collapse the sidebar" onClick={() => setPrefs({ sidebar: { collapsed: true } })}>
               <PanelLeftClose size={16} />
@@ -183,10 +184,7 @@ export function Sidebar({ route, onNavigate, closed }) {
           </div>
         )}
         <div className="sidebar-footer">
-          <a href="#/settings" className="me" aria-label="Settings">
-            <Avatar name={user?.name || user?.handle} size={22} />
-            <span className="me-name">{user?.name || user?.handle}</span>
-          </a>
+          <AccountMenu />
           <SyncStatus />
         </div>
       </div>

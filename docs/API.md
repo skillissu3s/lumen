@@ -22,7 +22,9 @@ otherwise the server answers 403. Sessions are the httpOnly cookie
 | `POST /api/password/reset` | `{ email, code, password }` | verifies the reset code, sets the password, ends that user's sessions. Members → `{ user }`; admins → `{ ok: true }` |
 | `POST /api/logout` | — | `{ ok: true }` |
 | `GET /api/me` | — | `{ user }` (401 if signed out) |
-| `PATCH /api/me` | `{ name?, handle? }` | `{ user }`. A new handle (username: 2–24 lowercase letters, digits or dashes) is 409 if taken; sharing lists, channel members and message authors follow it, and files named after it move |
+| `PATCH /api/me` | `{ name?, handle?, color?, avatar? }` | `{ user }`. A new handle (username: 2–24 lowercase letters, digits or dashes) is 409 if taken; sharing lists, channel members and message authors follow it, and files named after it move. `color` is an item colour name or `null`; `avatar` a `data:image/(png\|jpeg\|webp);base64,…` URL of at most 200 kB, or `null` to remove it. Everything is checked before anything is saved |
+| `GET /api/me/sessions` | — | `{ sessions: [{ id, createdAt, agent, current }] }`, newest first |
+| `DELETE /api/me/sessions` | — | ends every session but this one → `{ ended }` |
 | `POST /api/me/password` | `{ current, next }` | `{ ok: true }` |
 | `GET /api/invites/:token` | — | `{ email \| null, role }` or 410 |
 | `POST /api/invites/:token/accept` | `{ name, password, email? }` | makes the account, signs in → `{ user }` |
@@ -84,6 +86,7 @@ includes files the user may read (see access rules in ARCHITECTURE.md).
 |---|---|---|
 | `GET /api/chat/channels` | — | `{ channels: [{ id, name, dm, members, unread, lastAt }] }` |
 | `POST /api/chat/channels` | `{ name, members: "everyone" \| [handles] }` or `{ dm: handle }` | `{ channel }` (a DM that exists is returned as is) |
+| `DELETE /api/chat/channels/:id` | — | whoever made the channel, or an admin; removes it and its messages → `{ ok }`. A DM can't be deleted (400) |
 | `GET /api/chat/messages?channel=&before=` | — | up to 100 messages before the ISO time `before` (default now), oldest first, edits and deletes applied: `{ messages: [{ id, at, from, text, reply?, edited?, deleted? }], more }` |
 | `POST /api/chat/messages` | `{ channel, text, reply? }` | `{ message }` |
 | `PATCH /api/chat/messages` | `{ channel, id, text }` | own messages only → `{ message }` |

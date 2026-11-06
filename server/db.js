@@ -61,6 +61,11 @@ CREATE TABLE IF NOT EXISTS codes (
 );
 `)
 
+// columns added after the first release: older databases get them here
+const userColumns = new Set(db.prepare('PRAGMA table_info(users)').all().map((c) => c.name))
+if (!userColumns.has('color')) db.exec('ALTER TABLE users ADD COLUMN color TEXT')
+if (!userColumns.has('avatar')) db.exec('ALTER TABLE users ADD COLUMN avatar TEXT')
+
 export function getSetting(key, fallback = null) {
   const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key)
   if (!row) return fallback

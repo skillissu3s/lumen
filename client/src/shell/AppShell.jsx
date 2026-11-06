@@ -13,6 +13,7 @@ import { Rail } from './Rail.jsx'
 import { CommandPalette } from './CommandPalette.jsx'
 import PluginFrames from '../plugins/PluginFrames.jsx'
 import { useShortcut, shortcutList, comboKeys } from './shortcuts.js'
+import { SidebarResizer, SIDEBAR_DEFAULT } from './SidebarResizer.jsx'
 
 const TasksView = lazy(() => import('../views/tasks/TasksView.jsx'))
 const AllTasks = lazy(() => import('../views/tasks/AllTasks.jsx'))
@@ -121,6 +122,8 @@ export function AppShell({ route }) {
   const narrow = useNarrow()
   const closed = !!collapsed && !narrow
   const [drawer, setDrawer] = useState(false)
+  const frame = useRef(null)
+  const width = prefs.sidebar?.width || SIDEBAR_DEFAULT
   // Settings open over the page you were on, as a dialog
   const settings = route.parts[0] === 'settings'
   const behind = useRef(parseHash('#/today'))
@@ -158,7 +161,7 @@ export function AppShell({ route }) {
   )
 
   return (
-    <div className={`app${closed ? ' is-collapsed' : ''}${drawer ? ' has-drawer' : ''}`}>
+    <div ref={frame} className={`app${closed ? ' is-collapsed' : ''}${drawer ? ' has-drawer' : ''}`} style={narrow ? undefined : { '--sidebar-w': `${width}px` }}>
       <a className="skip-link" href="#main" onClick={(e) => {
         e.preventDefault()
         document.getElementById('main')?.focus()
@@ -167,6 +170,7 @@ export function AppShell({ route }) {
       </a>
       {!narrow && <Rail route={route} closed={!closed} />}
       <Sidebar route={route} closed={closed} onNavigate={() => setDrawer(false)} />
+      {!narrow && !closed && <SidebarResizer frameRef={frame} width={width} onCommit={(w) => setPrefs({ sidebar: { width: w } })} />}
       <div className="drawer-scrim" onClick={() => setDrawer(false)} aria-hidden="true" />
       <main id="main" className="main" tabIndex={-1}>
         <button type="button" className="drawer-toggle" aria-label="Open menu" onClick={() => setDrawer(true)}>

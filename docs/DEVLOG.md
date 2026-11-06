@@ -541,3 +541,22 @@ settable right on a card; drop the calendar's New button.
   its id (`dm-a-b` from the old handles) and is now found by its members, so
   it isn't doubled. The rename writes no journal rows for the paths that
   moved, so it asks every mirror connection for a full pass at once.
+
+### Polish: the sidebar, accounts
+- The crease in the desktop app: the main area drew its own 34 px strip with a
+  bottom border, while the sidebar ran up into the title bar with none, so the
+  line stopped at the sidebar's edge. Now one drag strip spans the window
+  (`.app::before`), the sidebar has no right border there, and `.main` is a
+  sheet under the strip with a top and left border and a rounded corner.
+- Workspace and account are two menus (`WorkspaceMenu.jsx` at the top,
+  `AccountMenu.jsx` at the bottom, both with a compact form for the rail).
+- `SidebarResizer.jsx`, after obi's `Resizer`: while dragging it sets
+  `--sidebar-w` on `.app` once a frame with the slide transition off, and saves
+  `prefs.sidebar.width` on release (200–420 px; arrows and double-click work).
+- Users have `color` and `avatar` columns (added by `ALTER TABLE` when
+  missing). The photo is cropped and shrunk to 160 px WebP in the browser, and
+  the server takes only PNG/JPEG/WebP data URLs under 200 kB, since every list
+  of people carries it. `PATCH /api/me` now checks every field before writing
+  any. `GET/DELETE /api/me/sessions` list and end the account's other
+  sessions; `DELETE /api/chat/channels/:id` removes a channel and its month
+  files (creator or admin, never a DM).

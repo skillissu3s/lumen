@@ -1,25 +1,29 @@
-// What the workspace button at the top of the sidebar opens: who you are and
-// where Lumen keeps your work, the look in one tap, and the places you go from
-// here: settings, your account, shortcuts, and signing out.
+// The bottom of the sidebar: you. Your avatar and name open who you are, the
+// look in one tap, and the places you go from here: your profile, settings,
+// shortcuts, and signing out. The workspace has its own menu at the top.
 import { useState } from 'react'
-import { ChevronDown, Info, Keyboard, LogOut, Monitor, Moon, Settings, Sun, UserRound } from 'lucide-react'
-import { Avatar, Kbd, Popover } from '../components/ui/index.js'
+import { ChevronsUpDown, Info, Keyboard, LogOut, Monitor, Moon, Settings, Sun, UserRound } from 'lucide-react'
+import { Kbd, Popover, UserAvatar } from '../components/ui/index.js'
 import { useSession } from '../store/session.js'
 import { useUI } from '../store/ui.js'
 import { setPrefs, usePrefs } from '../store/prefs.js'
 import { navigate } from '../lib/router.js'
 
-const WHERE = {
-  desktop: () => 'On this computer',
-  server: (s) => s.user?.email || 'Lumen server',
+const mod = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform) ? '⌘' : 'Ctrl'
+
+function whoLine(session) {
+  const { user, mode, cloud } = session
+  if (mode === 'desktop') return cloud?.linked && cloud.user ? `@${cloud.user.handle}` : 'On this computer'
+  return [user?.handle && `@${user.handle}`, user?.email].filter(Boolean).join(' · ')
 }
 
-/** `compact`: just the workspace's mark, for the rail */
-export function AccountMenu({ workspace, compact = false }) {
+/** `compact`: just the avatar, for the rail */
+export function AccountMenu({ compact = false }) {
   const session = useSession()
   const prefs = usePrefs()
   const [anchor, setAnchor] = useState(null)
   const { user, mode } = session
+  const name = user?.name || user?.handle
   const close = () => setAnchor(null)
   const go = (fn) => () => {
     close()
@@ -34,21 +38,21 @@ export function AccountMenu({ workspace, compact = false }) {
   )
   return (
     <>
-      <button type="button" className={`workspace-button${compact ? ' is-compact' : ''}${anchor ? ' is-open' : ''}`} aria-haspopup="menu" aria-expanded={!!anchor} aria-label={compact ? workspace : undefined} onClick={(e) => setAnchor(anchor ? null : { current: e.currentTarget })}>
-        <span className="workspace-mark">{(workspace || 'L').trim()[0]?.toUpperCase()}</span>
+      <button type="button" className={`account-button${compact ? ' is-compact' : ''}`} aria-haspopup="menu" aria-expanded={!!anchor} aria-label={compact ? `${name}: account` : undefined} onClick={(e) => setAnchor(anchor ? null : { current: e.currentTarget })}>
+        <UserAvatar user={user} size={compact ? 26 : 24} />
         {!compact && (
           <>
-            <span className="workspace-name">{workspace}</span>
-            <ChevronDown size={14} className="workspace-chevron" />
+            <span className="account-name">{name}</span>
+            <ChevronsUpDown size={13} className="account-chevron" />
           </>
         )}
       </button>
-      <Popover open={!!anchor} onOpenChange={(o) => !o && close()} anchor={anchor} placement="bottom-start" className="acct" aria-label="Account">
+      <Popover open={!!anchor} onOpenChange={(o) => !o && close()} anchor={anchor} placement={compact ? 'right-end' : 'top-start'} className="acct" aria-label="Account">
         <div className="acct-who">
-          <Avatar name={user?.name || user?.handle} size={36} />
+          <UserAvatar user={user} size={36} />
           <div className="acct-who-text">
-            <b>{user?.name || user?.handle}</b>
-            <span>{(WHERE[mode] || WHERE.server)(session)}</span>
+            <b>{name}</b>
+            <span>{whoLine(session)}</span>
           </div>
         </div>
         <div className="acct-theme" role="radiogroup" aria-label="Theme">
@@ -64,8 +68,8 @@ export function AccountMenu({ workspace, compact = false }) {
           ))}
         </div>
         <div className="acct-items" role="menu">
-          {item(Settings, 'Settings', () => navigate('/settings/appearance'), ['Ctrl', ','])}
-          {mode !== 'desktop' && item(UserRound, 'Your account', () => navigate('/settings/account'))}
+          {item(UserRound, 'Profile and account', () => navigate('/settings/account'))}
+          {item(Settings, 'Settings', () => navigate('/settings/appearance'), [mod, ','])}
           {item(Keyboard, 'Keyboard shortcuts', () => useUI.setState({ shortcutsOpen: true }), ['?'])}
           {item(Info, 'About Lumen', () => navigate('/settings/about'))}
         </div>

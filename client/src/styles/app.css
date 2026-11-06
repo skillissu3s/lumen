@@ -122,9 +122,52 @@
 /* ---------- frame ---------- */
 
 .app {
+  position: relative;
   display: flex;
   height: 100%;
   overflow: hidden;
+}
+/* the sidebar's edge: a hairline that lights up when you can drag it */
+.sidebar-resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--sidebar-w) - 4px);
+  z-index: 6;
+  width: 8px;
+  cursor: col-resize;
+  touch-action: none;
+}
+.sidebar-resizer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 2px;
+  background: var(--accent);
+  opacity: 0;
+  transition: opacity 120ms var(--ease);
+}
+.sidebar-resizer:hover::after {
+  opacity: 0.5;
+  transition-delay: 150ms;
+}
+.sidebar-resizer.is-dragging::after,
+.sidebar-resizer:focus-visible::after {
+  opacity: 1;
+  transition-delay: 0ms;
+}
+.sidebar-resizer:focus-visible {
+  box-shadow: none;
+}
+.app.is-resizing .sidebar {
+  transition: none;
+}
+body.is-col-resizing,
+body.is-col-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
 }
 .sidebar-head {
   display: flex;
@@ -258,12 +301,6 @@
   justify-content: center;
   padding: 8px 8px 10px;
   border-top: 1px solid var(--border);
-}
-.app-rail-bottom .me {
-  flex: none;
-  justify-content: center;
-  width: 36px;
-  padding: 0;
 }
 .app-rail-bottom .sync-status {
   position: absolute;
@@ -533,26 +570,40 @@
   align-items: center;
   gap: 6px;
 }
-.me {
+.account-button {
   display: flex;
   align-items: center;
   gap: 8px;
   flex: 1;
   min-width: 0;
-  height: 30px;
-  padding: 0 4px;
+  height: 34px;
+  padding: 0 6px 0 5px;
   border-radius: var(--radius);
   color: var(--text);
+  text-align: left;
+  transition: background var(--dur) var(--ease);
 }
-.me:hover {
+.account-button:hover,
+.account-button[aria-expanded='true'] {
   background: var(--bg-hover);
-  text-decoration: none;
 }
-.me-name {
+.account-name {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 500;
+}
+.account-chevron {
+  flex: none;
+  color: var(--text-faint);
+}
+.account-button.is-compact {
+  flex: none;
+  justify-content: center;
+  width: 36px;
+  padding: 0;
 }
 .sync-status {
   display: flex;
@@ -880,9 +931,22 @@
   }
 }
 
-/* the desktop app on Windows draws its own title bar: a strip across the top,
-   in the sidebar's colour, that holds the window's buttons and drags the window;
-   every page starts below it */
+/* the desktop app on Windows draws its own title bar: one strip across the
+   top, in the sidebar's colour, that holds the window's buttons and drags the
+   window. The sidebar runs up into it with no line; the page sits under it as
+   one sheet, its edge turning the corner, so the two meet without a seam. */
+.is-desktop-titlebar .app {
+  background: var(--bg-subtle);
+}
+.is-desktop-titlebar .app::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 34px;
+  -webkit-app-region: drag;
+}
 .is-desktop-titlebar :is(.sidebar-top, .app-rail-top) {
   padding-top: 40px;
   -webkit-app-region: drag;
@@ -890,25 +954,24 @@
 .is-desktop-titlebar :is(.sidebar-top, .app-rail-top) > * {
   -webkit-app-region: no-drag;
 }
+.is-desktop-titlebar :is(.sidebar, .app-rail) {
+  border-right-color: transparent;
+}
 .is-desktop-titlebar .main {
-  padding-top: 34px;
-  background: var(--bg-subtle);
+  height: calc(100% - 34px);
+  margin-top: 34px;
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  border-top-left-radius: 10px;
 }
-.is-desktop-titlebar .main > * {
-  background: var(--bg);
+.is-desktop-titlebar .sidebar-resizer {
+  top: 34px;
 }
-.is-desktop-titlebar .main::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 34px;
-  border-bottom: 1px solid var(--border);
-  -webkit-app-region: drag;
-}
-.is-desktop-titlebar .app {
-  background: var(--bg-subtle);
+@media (max-width: 760px) {
+  .is-desktop-titlebar .main {
+    border-left: 0;
+    border-top-left-radius: 0;
+  }
 }
 
 .view-error {

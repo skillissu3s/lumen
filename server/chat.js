@@ -104,6 +104,7 @@ export async function listChannels(user) {
     name: c.name ?? (c.dm ? c.members.find((h) => h !== user.handle) : null),
     dm: !!c.dm,
     members: c.members,
+    by: c.by || null,
     unread: await unread(user, c),
     lastAt: await lastActivity(c),
   })
@@ -146,6 +147,21 @@ export async function createDm(user, handle) {
   })
   chatEvents.emit('channels')
   return channel
+}
+
+/** Removes a channel and its messages: whoever made it, or an admin. A DM stays. */
+export async function deleteChannel(user, id) {
+  const c = await getChannelForUser(user, id)
+  if (c.dm) throw new HttpError(400, 'Direct messages can’t be deleted.')
+  if (c.by !== user.handle && user.role !== 'admin') throw new HttpError(403, 'Only whoever made the channel, or an admin, can delete it.')
+  await withChannels((list) => {
+    const at = list.findIndex((x) => x.id === id)
+    if (at >= 0) list.splice(at, 1)
+    return { value: null, changed: at >= 0 }
+  })
+  for (const p of listMonthFiles(id)) await files.remove(p, { by: 'chat' })
+  chatEvents.emit('channels')
+  return { ok: true }
 }
 
 // ---------- messages ----------

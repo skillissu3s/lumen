@@ -621,3 +621,114 @@
 .gh-report p {
   margin: 0;
 }
+
+/* Account: the profile card, its photo and colour, and where you're signed in */
+.profile-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 0 16px;
+  border-bottom: 1px solid var(--border);
+}
+.profile-card-text {
+  flex: 1;
+  min-width: 0;
+}
+.profile-card-actions {
+  margin-top: 10px;
+}
+.profile-photo {
+  position: relative;
+  flex: none;
+  border-radius: 50%;
+}
+.profile-photo:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+.profile-photo-edit {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text-muted);
+  box-shadow: 0 0 0 1px var(--border), var(--shadow-sm, 0 1px 2px rgb(0 0 0 / 0.12));
+  transition: color var(--dur) var(--ease);
+}
+.profile-photo:hover .profile-photo-edit {
+  color: var(--text);
+}
+.avatar-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.avatar-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--sw);
+  transition: box-shadow var(--dur) var(--ease);
+}
+.avatar-swatch:hover {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--border-strong);
+}
+.avatar-swatch[aria-checked='true'] {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--sw);
+}
+.set-saved {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--success);
+  font-size: var(--fs-xs);
+  animation: set-saved-in 160ms var(--ease);
+}
+@keyframes set-saved-in {
+  from {
+    opacity: 0;
+  }
+}
+.set-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+  color: var(--text-faint);
+  font-size: var(--fs-sm);
+}
+.set-actions {
+  padding-top: 12px;
+}
+.session-who {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.session-who > span:last-child {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  min-width: 0;
+}
+.session-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
+  background: var(--bg-muted);
+  color: var(--text-muted);
+}
+.session-when {
+  flex-basis: 100%;
+  font-size: var(--fs-xs);
+}

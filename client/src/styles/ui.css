@@ -787,6 +787,12 @@
   background: var(--avatar-bg, var(--bg-muted));
   color: var(--avatar-fg, var(--text-muted));
   user-select: none;
+  overflow: hidden;
+}
+.ui-avatar > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .ui-badge {
