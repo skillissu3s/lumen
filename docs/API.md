@@ -68,10 +68,29 @@ A connection: `{ id, repo, url, branch, prefix, scope: 'owner'|'workspace', mode
 lastRunAt, lastCommit, commitUrl, nextRunAt, lastError, paused, running,
 waiting, drift: [path], runs: [{ at, written, removed, commit, error, full }] }`.
 
+## Spaces (docs/CANDLES.md)
+
+| | | |
+|---|---|---|
+| `GET /api/spaces` | — | `{ spaces: [{ id, kind: 'candle'\|'workspace', name, slug, role, prefix }], shared: [{ prefix, path, owner, can }] }`: your candle first |
+| `POST /api/spaces` | `{ name }` | a new workspace, owned by you, with starter files → `{ space }` |
+| `PATCH /api/spaces/:id` | `{ name?, slug? }` | owner and admins; a new slug moves everyone's paths → `{ space }` |
+| `DELETE /api/spaces/:id` | — | the owner deletes a workspace → `{ ok }` |
+| `GET /api/spaces/:id/members` | — | members → `{ members: [{ id, handle, name, role, joinedAt }] }` |
+| `PATCH /api/spaces/:id/members/:userId` | `{ role: 'admin'\|'member'\|'owner' }` | owner and admins; only the owner hands over ownership |
+| `DELETE /api/spaces/:id/members/:userId` | — | remove someone, or with your own id, leave (not the owner) |
+| `GET/POST /api/spaces/:id/invites`, `DELETE …/invites/:id` | `{ role?, days? }` | owner and admins; POST → `{ token, url, role, expiresAt }` (`url` is `/app.html#/join/<token>`) |
+| `GET /api/join/:token` | — | `{ space: { name, role }, signedIn, member }` (410 if expired or revoked) |
+| `POST /api/join/:token` | — | signed in: join → `{ space }` |
+| `POST /api/join/:token/signup` | `{ name, email, password }` | no account yet: make one (with its candle), join, sign in → `{ user, space }` |
+
 ## Files
 
-Paths are workspace-relative with forward slashes. Every response only ever
-includes files the user may read (see access rules in ARCHITECTURE.md).
+Paths are in the person's own tree: their candle at the top
+(`lists/inbox.md`), each workspace under `workspaces/<slug>/`, each thing
+shared with them under `shared/<owner>/`. Every response only ever includes
+files the user may read (see access rules in ARCHITECTURE.md); a path that
+leads nowhere they may go is 404.
 
 | | | |
 |---|---|---|

@@ -8,13 +8,14 @@ import express from 'express'
 import { APP_NAME, DESKTOP, PUBLIC_URL, VERSION, decrypt, encrypt } from '../config.js'
 import { db, getSetting, setSetting } from '../db.js'
 import { getUser } from '../auth.js'
+import * as spaces from '../spaces.js'
 import * as files from '../files.js'
 import { GitHubError, WEB, checkToken } from './api.js'
 import { githubRepo } from './repo.js'
 import { createWorker } from '../mirror/worker.js'
 import { cleanSchedule } from '../mirror/schedule.js'
 import { countKinds, planRestore, readMirror } from '../mirror/restore.js'
-import { apiErrors, csrf, jsonBody, loadUser, requireAdmin, requireUser } from '../api.js'
+import { apiErrors, csrf, jsonBody, loadUser, requireUser } from '../api.js'
 
 // this server, as the mirrors it writes name it; kept so a moved database is still "this server"
 function source() {
@@ -28,7 +29,7 @@ const repoFor = (repoId, token) => githubRepo({ repoId, token: async () => token
 export const worker = DESKTOP
   ? null
   : createWorker(
-      { db, store: files.store, units: files.units, events: files.events, users: { get: getUser }, source: source(), app: { name: APP_NAME, version: VERSION } },
+      { db, store: files.store, unitsFor: (space) => files.space(space).units, events: files.events, users: { get: getUser }, source: source(), app: { name: APP_NAME, version: VERSION } },
       (c) => repoFor(c.repo_id, decrypt(c.token)),
     )
 
@@ -40,6 +41,7 @@ function view(c) {
     branch: c.branch,
     prefix: c.prefix,
     scope: c.scope,
+    space: c.space ? { id: c.space, name: spaces.get(c.space)?.name || '', kind: spaces.isCandle(c.space) ? 'candle' : 'workspace' } : null,
     mode: c.mode,
     schedule: c.schedule,
     allowPublic: !!c.allow_public,
@@ -68,6 +70,20 @@ const cleanPrefix = (p) => {
   return s
 }
 
+// the space a connection or a restore is for: one the person may manage (their
+// candle, or a workspace they own or administer); by default their candle, or
+// for an admin asking for the whole workspace, the home workspace
+function spaceFor(user, b) {
+  const may = (id) => (spaces.isCandle(id) ? id === spaces.candleId(user.id) : ['owner', 'admin'].includes(spaces.roleIn(user.id, id)))
+  if (b.space) {
+    if (!may(String(b.space))) throw Object.assign(new Error('You can only sync your candle, or a workspace you own or administer.'), { status: 403 })
+    return String(b.space)
+  }
+  const home = files.homeSpaceId()
+  if (b.scope === 'workspace' && home && may(home)) return home
+  return spaces.ensureCandle(user).space.id
+}
+
 const mine = (req) => {
   const c = worker.get(req.params.id)
   if (!c || c.owner !== req.user.id) throw Object.assign(new Error('Not found.'), { status: 404 })
@@ -82,7 +98,8 @@ githubRouter.use(jsonBody, csrf, loadUser, requireUser, (req, res, next) => {
 })
 
 githubRouter.get('/', (req, res) => {
-  res.json({ canWorkspace: req.user.role === 'admin', connections: worker.list(req.user.id).map(view) })
+  const home = files.homeSpaceId()
+  res.json({ canWorkspace: !!home && ['owner', 'admin'].includes(spaces.roleIn(req.user.id, home)), connections: worker.list(req.user.id).map(view) })
 })
 
 githubRouter.post('/connections', async (req, res) => {
@@ -96,7 +113,8 @@ githubRouter.post('/connections', async (req, res) => {
     repo,
     branch: cleanBranch(b.branch || repo.defaultBranch),
     prefix: cleanPrefix(b.prefix),
-    scope: b.scope === 'workspace' && req.user.role === 'admin' ? 'workspace' : 'owner',
+    scope: 'workspace',
+    space: spaceFor(req.user, b),
     mode,
     schedule: cleanSchedule(mode, b.schedule),
     allowPublic: !!b.allowPublic,
@@ -142,19 +160,19 @@ githubRouter.post('/connections/:id/run', async (req, res) => {
 })
 
 // Restore: read a repository's mirror and take it in. Without `confirm`, only
-// says what it would do. Admins only: it writes into the whole workspace. The
+// says what it would do. It writes into a space the person manages. The
 // repository is a connection's, or any one with a token that can read it (used
 // for this request only, never kept).
-githubRouter.post('/restore', requireAdmin, async (req, res) => {
+githubRouter.post('/restore', async (req, res) => {
   const b = req.body || {}
   let target = null
   if (b.connectionId) {
     const c = worker.get(String(b.connectionId))
-    if (c && c.owner === req.user.id) target = { id: c.repo_id, fullName: c.repo_name, token: decrypt(c.token), branch: c.branch, prefix: c.prefix }
+    if (c && c.owner === req.user.id) target = { id: c.repo_id, fullName: c.repo_name, token: decrypt(c.token), branch: c.branch, prefix: c.prefix, space: c.space || spaceFor(req.user, { scope: c.scope }) }
   } else if (b.repo) {
     const token = String(b.token || '').trim() || null
     const info = await checkToken(b.repo, token, { write: false })
-    target = { id: info.id, fullName: info.fullName, token, branch: cleanBranch(b.branch || info.defaultBranch), prefix: cleanPrefix(b.prefix) }
+    target = { id: info.id, fullName: info.fullName, token, branch: cleanBranch(b.branch || info.defaultBranch), prefix: cleanPrefix(b.prefix), space: spaceFor(req.user, b) }
   }
   if (!target) throw Object.assign(new Error('Choose a repository first.'), { status: 400 })
   let m
@@ -165,19 +183,20 @@ githubRouter.post('/restore', requireAdmin, async (req, res) => {
     throw Object.assign(new Error([401, 403, 404].includes(e.status) ? 'GitHub refused the token for that repository.' : e.message), { status: e.status === 413 ? 400 : 502 })
   }
   const ours = m.manifest?.source?.id === source().id
-  const plan = planRestore(m.files, { units: files.units, store: files.store, since: ours ? m.manifest.cursor : null, repoWins: !!b.repoWins })
+  const into = files.space(target.space)
+  const plan = planRestore(m.files, { units: into.units, store: files.store, since: ours ? m.manifest.cursor : null, repoWins: !!b.repoWins })
   const report = {
     repo: target.fullName,
     branch: target.branch,
     legacy: m.legacy,
     writtenAt: m.manifest?.written || null,
-    found: countKinds(m.files.map(([p]) => p), files.units),
+    found: countKinds(m.files.map(([p]) => p), into.units),
     take: plan.take.length,
     same: plan.same.length,
     kept: plan.kept,
     skipped: m.skipped,
   }
-  if (b.confirm) report.taken = files.importTexts(plan.take)
+  if (b.confirm) report.taken = into.importTexts(plan.take)
   res.json(report)
 })
 

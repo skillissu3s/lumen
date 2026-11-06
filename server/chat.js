@@ -85,7 +85,8 @@ export function membersOf(id) {
 export async function initChat() {
   setCache(await readChannels())
   // keep the cache fresh if git sync (or anything) rewrites channels.json
-  files.events.on('change', (changes) => {
+  files.events.on('change', (changes, opts) => {
+    if (opts?.space && opts.space !== files.homeSpaceId()) return
     if (changes.some((c) => c.path === CHANNELS)) readChannels().then(setCache).catch(() => {})
   })
 }

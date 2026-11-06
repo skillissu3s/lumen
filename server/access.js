@@ -1,6 +1,8 @@
-// Who may read and write which file of the workspace (server mode). See
-// docs/ARCHITECTURE.md → Access control. On the desktop there is one person and
-// everything is theirs.
+// Who may read and write which file (docs/CANDLES.md → Access rules). A path a
+// person sends is first resolved in their own tree (view.js) to a target: their
+// candle, a workspace they're in (with their role), or one thing someone shared
+// with them (view or edit). These rules then say what they may do there. On the
+// desktop there is one person and everything is theirs.
 import { splitFrontMatter } from '../shared/frontmatter.js'
 
 export const SHARED_KINDS = /^(lists\/[^/]+\.md|calendars\/[^/]+\.md|docs\/.+\.md|ideas\/[^/]+\.canvas)$/
@@ -13,7 +15,7 @@ export function metaOf(path, text) {
     try {
       lumen = JSON.parse(text || '{}').lumen || {}
     } catch {
-      /* unreadable: no owner, so admins only */
+      /* unreadable: no owner, no sharing */
     }
     return { owner: lumen.owner ? String(lumen.owner) : null, share: lumen.share ?? null }
   }
@@ -21,59 +23,58 @@ export function metaOf(path, text) {
   return { owner: meta.owner ? String(meta.owner) : null, share: meta.share ?? null }
 }
 
-export function sharedWith(meta, handle) {
-  if (!meta) return false
-  const s = meta.share
-  if (s === 'everyone' || s === true) return true
-  return Array.isArray(s) && s.map(String).includes(handle)
+/**
+ * What a share gives `handle`: 'edit', 'view' or null. A share is a list like
+ * [sam, ana:view]: a bare handle may edit, `:view` may only look.
+ */
+export function shareFor(share, handle) {
+  if (!Array.isArray(share) || !handle) return null
+  for (const entry of share.map(String)) {
+    const [h, can = 'edit'] = entry.split(':')
+    if (h === handle) return can === 'view' ? 'view' : 'edit'
+  }
+  return null
 }
 
-const isAdmin = (u) => u?.role === 'admin'
+const isManager = (role) => role === 'owner' || role === 'admin'
+const personal = /^(users|data)\//
 
-/** May `user` see this file? `meta` from metaOf (null for files without one) */
-export function canRead(user, path, meta) {
-  if (!user) return false
-  if (user.desktop) return true
-  if (path === 'lumen.json' || path === '.gitattributes' || path.startsWith('plugins/')) return true
-  if (path.startsWith('chat/')) return false // through the chat API only
-  let m = /^users\/([^/]+)\//.exec(path)
-  if (m) return m[1] === user.handle
-  m = /^data\/plugins\/[^/]+\/([^/]+)\//.exec(path)
-  if (m) return m[1] === user.handle
-  if (SHARED_KINDS.test(path)) {
-    if (!meta?.owner) return isAdmin(user)
-    return meta.owner === user.handle || sharedWith(meta, user.handle)
-  }
-  return isAdmin(user)
+/** May the person see `path` at `target`? (targets come from view.resolve) */
+export function canReadAt(target, path) {
+  if (!target) return false
+  if (target.shared) return true
+  // chat goes through the chat API only
+  if (path.startsWith('chat/')) return false
+  if (target.kind === 'workspace' && personal.test(path)) return false
+  return true
 }
 
 /**
- * May `user` change the file from `before` (meta of the current version, null
- * if it doesn't exist) to `after` (meta of the new text; null for a delete)?
- * Returns null if so, or the reason not.
+ * May `user` change `path` at `target` from `before` (meta of the current
+ * version, null if it doesn't exist) to `after` (meta of the new text; null for
+ * a delete)? Returns null if so, or the reason not.
  */
-export function writeProblem(user, path, before, after, exists) {
+export function writeProblemAt(user, target, path, before, after, exists) {
   if (!user) return 'Sign in first.'
-  if (user.desktop) return null
-  if (path === 'lumen.json' || path === '.gitattributes' || path.startsWith('plugins/')) return isAdmin(user) ? null : 'Only an admin can change this.'
+  if (!target) return 'You don’t have access to this.'
   if (path.startsWith('chat/')) return 'Chat is written through the chat API.'
-  let m = /^users\/([^/]+)\//.exec(path)
-  if (m) return m[1] === user.handle ? null : 'That belongs to someone else.'
-  m = /^data\/plugins\/[^/]+\/([^/]+)\//.exec(path)
-  if (m) return m[1] === user.handle ? null : 'That belongs to someone else.'
-  if (SHARED_KINDS.test(path)) {
-    if (exists && !canRead(user, path, before)) return 'You don’t have access to this.'
-    const owner = before?.owner || null
-    const isOwner = isAdmin(user) || (owner ? owner === user.handle : false)
-    if (!exists) {
-      if (!after?.owner) return 'New files need an owner.'
-      if (after.owner !== user.handle && !isAdmin(user)) return 'New files must be owned by you.'
-      return null
-    }
-    if (!after) return isOwner ? null : 'Only the owner can delete this.'
-    const changedAccess = (after.owner || null) !== owner || JSON.stringify(after.share ?? null) !== JSON.stringify(before?.share ?? null)
-    if (changedAccess && !isOwner) return 'Only the owner can change who has access.'
+  if (user.desktop) return null
+  if (target.shared) {
+    if (target.can !== 'edit') return 'You can view this, not change it.'
+    if (!exists) return 'You can’t add files there.'
+    if (!after) return 'Only its owner can delete this.'
+    if (JSON.stringify(after.share ?? null) !== JSON.stringify(before?.share ?? null)) return 'Only its owner can change who has access.'
     return null
   }
-  return isAdmin(user) ? null : 'Only an admin can change this.'
+  if (target.kind === 'candle') {
+    if (/^(workspaces|shared)\//.test(path)) return 'Those folder names are kept for workspaces and shared things.'
+    const m = /^users\/([^/]+)\//.exec(path) || /^data\/plugins\/[^/]+\/([^/]+)\//.exec(path)
+    if (m && m[1] !== user.handle) return 'That belongs to someone else.'
+    return null
+  }
+  // a workspace: its members share everything in it
+  if (path === 'lumen.json' || path === '.gitattributes') return isManager(target.role) ? null : 'Only the workspace’s owner and admins can change its settings.'
+  if (path.startsWith('plugins/')) return 'Plugins are installed in your candle.'
+  if (personal.test(path)) return 'Personal files belong in your candle.'
+  return null
 }

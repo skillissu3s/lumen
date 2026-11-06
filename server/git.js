@@ -8,7 +8,7 @@ import path from 'node:path'
 import { decrypt, encrypt } from './config.js'
 import { HttpError } from './auth.js'
 import { getSetting, setSetting } from './db.js'
-import { events as fileEvents, workspaceRoot, rescan, setMirror } from './files.js'
+import { events as fileEvents, workspaceRoot, rescan, setMirror, homeSpaceId } from './files.js'
 
 export const syncEvents = new EventEmitter()
 syncEvents.setMaxListeners(100)
@@ -323,7 +323,7 @@ export async function stop() {
 
 // changes made through the API (not by git itself) queue a sync in 8 s
 fileEvents.on('change', (changes, opts) => {
-  if (opts?.external) return
+  if (opts?.external || (opts?.space && opts.space !== homeSpaceId())) return
   if (!cfg?.enabled || !cfg?.remote) return
   for (const c of changes) dirty.add(c.path)
   setState({ pending: dirty.size })

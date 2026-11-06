@@ -150,3 +150,35 @@ test('the dev workspace goes into the database and renders back as the codecs do
   }
   assert.equal(store.highWater(), seq, 'a second save of every file wrote nothing')
 })
+
+test('spaces keep their files apart, even with the same paths and channel names', () => {
+  const store = createStore(new DatabaseSync(':memory:'))
+  const ids = { nikhil: 'u_nikhil', ana: 'u_ana' }
+  const people = { idOf: (h) => ids[h] || `handle:${h}`, handleOf: (id) => Object.keys(ids).find((h) => ids[h] === id) || id }
+  const candle = createUnits(store, people, { space: 'c_nikhil', owner: 'u_nikhil' })
+  const team = createUnits(store, people, { space: 'w_team' })
+  candle.save('lists/inbox.md', '---\nname: Mine\nowner: ana\n---\n\n- [ ] Milk\n')
+  team.save('lists/inbox.md', '---\nname: Team\nowner: ana\n---\n\n- [ ] Ship\n')
+  team.save('chat/channels.json', '[{"id":"general","name":"general","members":"everyone"}]')
+  team.save('chat/general/2026-11.jsonl', '{"id":"m1","at":"2026-11-06T09:00:00.000Z","from":"ana","text":"hi"}\n')
+  candle.save('plugins/focus/manifest.json', '{"id":"focus"}')
+  candle.save('lumen.json', '{"name":"Nikhil’s candle"}')
+  team.save('lumen.json', '{"name":"Team"}')
+
+  assert.match(candle.render('lists/inbox.md'), /Milk/)
+  assert.match(team.render('lists/inbox.md'), /Ship/)
+  // in a candle everything is its person's, whatever the file says
+  assert.match(candle.render('lists/inbox.md'), /owner: nikhil/)
+  assert.match(team.render('lists/inbox.md'), /owner: ana/)
+  assert.deepEqual(candle.paths(), ['lists/inbox.md', 'lumen.json', 'plugins/focus/manifest.json'])
+  assert.deepEqual(team.paths(), ['chat/channels.json', 'chat/general/2026-11.jsonl', 'lists/inbox.md', 'lumen.json'])
+  assert.match(team.render('chat/channels.json'), /"id":"general"/)
+  assert.equal(candle.render('chat/channels.json'), null)
+  assert.match(JSON.parse(candle.render('lumen.json')).name, /candle/)
+  // the journal says which space each change was in
+  const spaces = new Set(store.changesSince(0, { limit: 1000 }).map((j) => j.space))
+  assert.deepEqual([...spaces].sort(), ['c_nikhil', 'w_team'])
+  assert.ok(store.changesSince(0, { space: 'w_team' }).every((j) => j.space === 'w_team'))
+  assert.equal(team.pathOfRoot('chat_month', 'w_team/general/2026-11'), 'chat/general/2026-11.jsonl')
+  assert.equal(team.recordOf('plugins/focus/manifest.json'), null)
+})

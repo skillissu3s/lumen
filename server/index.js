@@ -7,6 +7,9 @@ import { DESKTOP, HOST, PORT, WORKSPACE_DIR, TRUST_PROXY } from './config.js'
 import * as files from './files.js'
 import { ensureEnvAdmin, allUsers } from './auth.js'
 import { seedWorkspace } from './seed.js'
+import { prepareSpaces, finishSpaces } from './migrateSpaces.js'
+import { setUpAccount } from './accounts.js'
+import * as spaces from './spaces.js'
 import { apiRouter } from './api.js'
 import { desktopRouter, ensureDesktopUser, desktopWorkspaceDir } from './desktop.js'
 import * as git from './git.js'
@@ -15,6 +18,7 @@ import { attachWs, closeWs } from './ws.js'
 import { logMail } from './mail.js'
 import * as replica from './sync/replica.js'
 import { githubRouter, worker as mirror } from './github/routes.js'
+import { spacesRouter } from './spacesApi.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.join(here, '..')
@@ -33,6 +37,7 @@ app.use((req, res, next) => {
 })
 
 app.use('/api/github', githubRouter)
+app.use('/api', spacesRouter)
 app.use('/api', apiRouter)
 if (DESKTOP) app.use('/api', desktopRouter)
 
@@ -53,13 +58,18 @@ app.get('/', (req, res) => {
 
 logMail()
 await ensureEnvAdmin()
-if (DESKTOP) await ensureDesktopUser()
+const desktopUser = DESKTOP ? await ensureDesktopUser() : null
+// spaces (docs/CANDLES.md): the home space opens first, then the one-time split
+const plan = prepareSpaces({ desktopUser })
 const workspace = DESKTOP ? desktopWorkspaceDir() : WORKSPACE_DIR
-await files.openWorkspace(workspace)
+await files.openWorkspace(workspace, plan.home)
+await finishSpaces(plan)
 if (!files.info('lumen.json')) {
   const admin = allUsers().find((u) => u.role === 'admin')
-  if (admin) await seedWorkspace({ handle: admin.handle, name: admin.name, chat: !DESKTOP })
+  if (admin) await seedWorkspace({ handle: admin.handle, name: admin.name, title: spaces.get(plan.home)?.name, chat: !DESKTOP })
 }
+// every account has its candle
+if (!DESKTOP) for (const u of allUsers()) await setUpAccount(u)
 await initChat()
 await git.start()
 // the desktop app signed in to a server keeps its copy in step

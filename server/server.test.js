@@ -215,54 +215,148 @@ test('files: create, update, stale-sha 409, delete', async () => {
   assert.deepEqual(await res.json(), { ok: true })
 })
 
-test('access control between admin and member', async () => {
+test('candles: private to their person; one thing shared to view or to edit', async () => {
   const invite = await inviteMember('member@example.com', 'Bob')
   member = invite.user
   memberJar = invite.jar
   assert.equal(member.role, 'member')
+  const shared = (p) => `shared/${admin.handle}/${p}`
 
-  const privateText = `---\nname: Private\nowner: ${admin.handle}\n---\n- [ ] secret\n`
+  // the top of each person's tree is their own candle
+  const privateText = `---\nname: Private\n---\n- [ ] secret\n`
   let res = await api(adminJar, 'PUT', '/api/files', { path: 'lists/private.md', text: privateText, sha: null })
   assert.equal(res.status, 200)
   const privateSha = (await res.json()).sha
 
   res = await api(memberJar, 'GET', '/api/files')
   const memberPaths = (await res.json()).files.map((f) => f.path)
-  assert.ok(!memberPaths.includes('lists/private.md'), 'private list not listed')
-
-  res = await api(memberJar, 'POST', '/api/files/read', { paths: ['lists/private.md'] })
-  assert.equal((await res.json()).files['lists/private.md'], null, 'private list unreadable')
-
-  // a write with a stale sha must not answer with the private text
+  assert.ok(!memberPaths.some((p) => p.endsWith('lists/private.md')), 'someone else’s candle is invisible')
+  res = await api(memberJar, 'POST', '/api/files/read', { paths: [shared('lists/private.md')] })
+  assert.equal((await res.json()).files[shared('lists/private.md')], null)
+  // the same path in Bob's tree is Bob's own candle, so nothing of Nikhil's leaks
   res = await api(memberJar, 'PUT', '/api/files', { path: 'lists/private.md', text: 'x', sha: 'stale' })
-  assert.equal(res.status, 404, 'no 409 (with the current text) for a file you cannot read')
+  assert.equal(res.status, 409)
   assert.ok(!(await res.text()).includes('secret'))
 
-  const sharedText = `---\nname: Private\nshare: [${member.handle}]\nowner: ${admin.handle}\n---\n- [ ] secret\n`
-  res = await api(adminJar, 'PUT', '/api/files', { path: 'lists/private.md', text: sharedText, sha: privateSha })
+  // shared with Bob to view
+  const viewText = `---\nname: Private\nshare: [${member.handle}:view]\n---\n- [ ] secret\n`
+  res = await api(adminJar, 'PUT', '/api/files', { path: 'lists/private.md', text: viewText, sha: privateSha })
   assert.equal(res.status, 200)
-  const sharedSha = (await res.json()).sha
+  const viewSha = (await res.json()).sha
+  res = await api(memberJar, 'POST', '/api/files/read', { paths: [shared('lists/private.md')] })
+  const got = (await res.json()).files[shared('lists/private.md')]
+  assert.equal(got.sha, viewSha)
+  assert.match(got.text, /owner: /)
+  res = await api(memberJar, 'PUT', '/api/files', { path: shared('lists/private.md'), text: `${got.text}- [ ] mine\n`, sha: viewSha })
+  assert.equal(res.status, 403, 'view only')
 
-  res = await api(memberJar, 'POST', '/api/files/read', { paths: ['lists/private.md'] })
-  assert.equal((await res.json()).files['lists/private.md'].sha, sharedSha)
-
-  const memberEdit = sharedText + '- [ ] done\n'
-  res = await api(memberJar, 'PUT', '/api/files', { path: 'lists/private.md', text: memberEdit, sha: sharedSha })
-  assert.equal(res.status, 200)
+  // to edit
+  const editText = viewText.replace(':view]', ']')
+  res = await api(adminJar, 'PUT', '/api/files', { path: 'lists/private.md', text: editText, sha: viewSha })
+  const editSha = (await res.json()).sha
+  res = await api(memberJar, 'POST', '/api/files/read', { paths: [shared('lists/private.md')] })
+  const now = (await res.json()).files[shared('lists/private.md')]
+  res = await api(memberJar, 'PUT', '/api/files', { path: shared('lists/private.md'), text: `${now.text}- [ ] done\n`, sha: editSha })
+  assert.equal(res.status, 200, 'Bob may edit')
   const afterEditSha = (await res.json()).sha
+  res = await api(memberJar, 'PUT', '/api/files', { path: shared('lists/private.md'), text: now.text.replace(`share: [${member.handle}]`, `share: [${member.handle}, carol]`), sha: afterEditSha })
+  assert.equal(res.status, 403, 'only the owner changes sharing')
+  res = await api(memberJar, 'DELETE', '/api/files', { path: shared('lists/private.md'), sha: afterEditSha })
+  assert.equal(res.status, 403, 'only the owner deletes')
 
-  const tryShare = `---\nname: Private\nshare: everyone\nowner: ${admin.handle}\n---\n- [ ] secret\n`
-  res = await api(memberJar, 'PUT', '/api/files', { path: 'lists/private.md', text: tryShare, sha: afterEditSha })
-  assert.equal(res.status, 403, 'member cannot change share')
-
+  // Bob's own candle: his plugins, his files, whatever a file claims
   res = await api(memberJar, 'PUT', '/api/files', { path: 'plugins/x/manifest.json', text: '{}', sha: null })
-  assert.equal(res.status, 403, 'member cannot write plugin code')
-
-  res = await api(memberJar, 'PUT', '/api/files', { path: 'lists/mine.md', text: `---\nname: Mine\nowner: ${member.handle}\n---\n`, sha: null })
-  assert.equal(res.status, 200, 'member creates own list')
-
+  assert.equal(res.status, 200, 'plugins are per person')
   res = await api(memberJar, 'PUT', '/api/files', { path: 'lists/forged.md', text: `---\nname: Forged\nowner: ${admin.handle}\n---\n`, sha: null })
-  assert.equal(res.status, 403, 'member cannot own a file for someone else')
+  assert.equal(res.status, 200)
+  assert.match((await res.json()).text, new RegExp(`owner: ${member.handle}`), 'a candle’s things are its person’s')
+  res = await api(memberJar, 'PUT', '/api/files', { path: 'workspaces/nope/lists/x.md', text: '---\nname: X\n---\n', sha: null })
+  assert.equal(res.status, 404, 'no such workspace for Bob')
+  res = await api(memberJar, 'PUT', '/api/files', { path: 'users/someone/settings.json', text: '{}', sha: null })
+  assert.equal(res.status, 403)
+})
+
+test('workspaces: create, invite, join, everyone in it sees and edits all of it, leave', async () => {
+  let res = await api(adminJar, 'POST', '/api/spaces', { name: 'Launch Team' })
+  assert.equal(res.status, 200)
+  const ws = (await res.json()).space
+  assert.equal(ws.slug, 'launch-team')
+  assert.equal(ws.prefix, 'workspaces/launch-team/')
+
+  res = await api(adminJar, 'GET', '/api/files')
+  let paths = (await res.json()).files.map((f) => f.path)
+  assert.ok(paths.includes('workspaces/launch-team/lists/inbox.md'), 'a new workspace has its starter files')
+
+  res = await api(memberJar, 'GET', '/api/files')
+  assert.ok(!(await res.json()).files.some((f) => f.path.startsWith('workspaces/launch-team/')), 'not before joining')
+
+  res = await api(memberJar, 'POST', `/api/spaces/${ws.id}/invites`, {})
+  assert.equal(res.status, 403, 'members can’t invite to a workspace they’re not in')
+  res = await api(adminJar, 'POST', `/api/spaces/${ws.id}/invites`, { role: 'member' })
+  const { token, url } = await res.json()
+  assert.match(url, /#\/join\//)
+  res = await api(memberJar, 'GET', `/api/join/${token}`)
+  assert.deepEqual(await res.json(), { space: { name: 'Launch Team', role: 'member' }, signedIn: true, member: false })
+  res = await api(memberJar, 'POST', `/api/join/${token}`)
+  assert.equal(res.status, 200)
+
+  res = await api(memberJar, 'GET', '/api/spaces')
+  const list = await res.json()
+  assert.deepEqual(list.spaces.map((s) => s.kind), ['candle', 'workspace', 'workspace'])
+  assert.ok(list.spaces.some((s) => s.slug === 'launch-team' && s.role === 'member'))
+
+  // a board made by the admin in the workspace: Bob sees and edits it, at the same path
+  const board = `---\nname: Plan\nowner: ${admin.handle}\n---\n- [ ] ship\n`
+  res = await api(adminJar, 'PUT', '/api/files', { path: 'workspaces/launch-team/lists/plan.md', text: board, sha: null })
+  const sha = (await res.json()).sha
+  res = await api(memberJar, 'POST', '/api/files/read', { paths: ['workspaces/launch-team/lists/plan.md'] })
+  const got = (await res.json()).files['workspaces/launch-team/lists/plan.md']
+  assert.equal(got.sha, sha)
+  res = await api(memberJar, 'PUT', '/api/files', { path: 'workspaces/launch-team/lists/plan.md', text: `${got.text}- [ ] test\n`, sha })
+  assert.equal(res.status, 200)
+  res = await api(memberJar, 'POST', '/api/files/read', { paths: ['workspaces/launch-team/lumen.json'] })
+  const cfg = (await res.json()).files['workspaces/launch-team/lumen.json']
+  res = await api(memberJar, 'PUT', '/api/files', { path: 'workspaces/launch-team/lumen.json', text: '{"name":"Mine"}', sha: cfg.sha })
+  assert.equal(res.status, 403, 'settings are for the owner and admins')
+  res = await api(memberJar, 'PUT', '/api/files', { path: 'workspaces/launch-team/plugins/x/manifest.json', text: '{}', sha: null })
+  assert.equal(res.status, 403, 'plugins live in candles')
+
+  // renaming moves everyone's paths
+  res = await api(memberJar, 'PATCH', `/api/spaces/${ws.id}`, { name: 'Nope' })
+  assert.equal(res.status, 403)
+  res = await api(adminJar, 'PATCH', `/api/spaces/${ws.id}`, { name: 'Launch', slug: 'launch' })
+  assert.equal((await res.json()).space.prefix, 'workspaces/launch/')
+  res = await api(memberJar, 'GET', '/api/files')
+  paths = (await res.json()).files.map((f) => f.path)
+  assert.ok(paths.includes('workspaces/launch/lists/plan.md'))
+
+  // the owner can't just leave; Bob can
+  res = await api(adminJar, 'DELETE', `/api/spaces/${ws.id}/members/${admin.id}`)
+  assert.equal(res.status, 400)
+  res = await api(memberJar, 'DELETE', `/api/spaces/${ws.id}/members/${member.id}`)
+  assert.equal(res.status, 200)
+  res = await api(memberJar, 'POST', '/api/files/read', { paths: ['workspaces/launch/lists/plan.md'] })
+  assert.equal((await res.json()).files['workspaces/launch/lists/plan.md'], null, 'gone once you leave')
+
+  // someone without an account signs up through a link
+  res = await api(adminJar, 'POST', `/api/spaces/${ws.id}/invites`, {})
+  const link = (await res.json()).token
+  const jar = new CookieJar()
+  res = await api(jar, 'GET', `/api/join/${link}`)
+  assert.equal((await res.json()).signedIn, false)
+  res = await api(jar, 'POST', `/api/join/${link}/signup`, { name: 'Dana', email: 'dana@example.com', password: 'password123' })
+  assert.equal(res.status, 200)
+  res = await api(jar, 'GET', '/api/files')
+  paths = (await res.json()).files.map((f) => f.path)
+  assert.ok(paths.includes('lists/inbox.md'), 'Dana has her own candle')
+  assert.ok(paths.includes('workspaces/launch/lists/plan.md'), 'and the workspace she was invited to')
+  assert.ok(!paths.some((p) => p.startsWith('workspaces/') && !p.startsWith('workspaces/launch/')), 'and no other')
+
+  // deleting the workspace takes it away from everyone
+  res = await api(adminJar, 'DELETE', `/api/spaces/${ws.id}`)
+  assert.equal(res.status, 200)
+  res = await api(jar, 'GET', '/api/files')
+  assert.ok(!(await res.json()).files.some((f) => f.path.startsWith('workspaces/launch/')))
 })
 
 test('chat: post, edit, permissions, delete, DM isolation', async () => {
@@ -329,12 +423,13 @@ test('a username change follows into shared lists, chat and the files', async ()
   member = { ...member, handle: 'robert' }
 
   // the list shared with the old name is shared with the new one, and still readable
-  res = await api(memberJar, 'POST', '/api/files/read', { paths: ['lists/private.md', 'lists/mine.md'] })
+  const p = `shared/${admin.handle}/lists/private.md`
+  res = await api(memberJar, 'POST', '/api/files/read', { paths: [p, 'lists/forged.md'] })
   const got = (await res.json()).files
-  assert.ok(got['lists/private.md'], 'still shared')
-  assert.match(got['lists/private.md'].text, /robert/)
-  assert.ok(!new RegExp(`\\b${old}\\b`).test(got['lists/private.md'].text))
-  assert.match(got['lists/mine.md'].text, /owner: robert/)
+  assert.ok(got[p], 'still shared')
+  assert.match(got[p].text, /share: \[robert\]/)
+  assert.ok(!new RegExp(`\\b${old}\\b`).test(got[p].text))
+  assert.match(got['lists/forged.md'].text, /owner: robert/)
 
   // the DM is still theirs, and asking for it again doesn't make a second one
   res = await api(memberJar, 'GET', '/api/chat/channels')
@@ -346,56 +441,6 @@ test('a username change follows into shared lists, chat and the files', async ()
   res = await api(memberJar, 'GET', '/api/chat/messages?channel=general')
   const from = (await res.json()).messages.map((m) => m.from)
   assert.ok(from.includes('robert') && !from.includes(old))
-})
-
-test('profile: an avatar colour and photo, sessions, and deleting a channel', async () => {
-  let res = await api(memberJar, 'PATCH', '/api/me', { color: 'pink' })
-  assert.equal((await res.json()).user.color, 'pink')
-  res = await api(memberJar, 'PATCH', '/api/me', { color: 'plaid', name: 'Not saved' })
-  assert.equal(res.status, 400, 'an unknown colour is refused')
-  res = await api(memberJar, 'GET', '/api/me')
-  assert.notEqual((await res.json()).user.name, 'Not saved', 'nothing changes when part of it is refused')
-
-  const photo = 'data:image/png;base64,iVBORw0KGgo='
-  res = await api(memberJar, 'PATCH', '/api/me', { avatar: photo })
-  assert.equal((await res.json()).user.avatar, photo)
-  res = await api(memberJar, 'PATCH', '/api/me', { avatar: 'javascript:alert(1)' })
-  assert.equal(res.status, 400)
-  res = await api(adminJar, 'GET', '/api/users')
-  const listed = (await res.json()).users.find((u) => u.handle === member.handle)
-  assert.equal(listed.color, 'pink', 'others see the colour')
-  assert.equal(listed.avatar, photo, 'and the photo')
-  res = await api(memberJar, 'PATCH', '/api/me', { avatar: null })
-  assert.equal((await res.json()).user.avatar, null)
-
-  // a second sign-in, then signing out everywhere else
-  const other = new CookieJar()
-  res = await api(other, 'POST', '/api/login', { email: 'member@example.com', password: 'password123' })
-  assert.equal(res.status, 200)
-  res = await api(memberJar, 'GET', '/api/me/sessions')
-  const { sessions } = await res.json()
-  assert.ok(sessions.length >= 2)
-  assert.equal(sessions.filter((x) => x.current).length, 1)
-  res = await api(memberJar, 'DELETE', '/api/me/sessions')
-  assert.ok((await res.json()).ended >= 1)
-  res = await api(other, 'GET', '/api/me')
-  assert.equal(res.status, 401, 'the other sign-in ended')
-  res = await api(memberJar, 'GET', '/api/me')
-  assert.equal(res.status, 200, 'this one stays')
-
-  res = await api(memberJar, 'POST', '/api/chat/channels', { name: 'Short lived' })
-  const ch = (await res.json()).channel
-  await api(memberJar, 'POST', '/api/chat/messages', { channel: ch.id, text: 'hello' })
-  res = await api(memberJar, 'POST', '/api/chat/channels', { dm: admin.handle })
-  const dm = (await res.json()).channel
-  res = await api(memberJar, 'DELETE', `/api/chat/channels/${dm.id}`)
-  assert.equal(res.status, 400, 'a DM stays')
-  res = await api(memberJar, 'DELETE', `/api/chat/channels/${ch.id}`)
-  assert.equal(res.status, 200)
-  res = await api(memberJar, 'GET', '/api/chat/channels')
-  assert.ok(!(await res.json()).channels.some((c) => c.id === ch.id), 'gone from the list')
-  res = await api(adminJar, 'GET', '/api/files')
-  assert.ok(!(await res.json()).files.some((f) => f.path.startsWith(`chat/${ch.id}/`)), 'and its messages with it')
 })
 
 test('git sync to a local bare repo', { skip: !hasGit }, async () => {

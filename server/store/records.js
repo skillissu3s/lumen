@@ -4,7 +4,7 @@
 // that writes these tables any other way would be invisible to the GitHub
 // mirror and to devices syncing with the server, so there is no other way.
 
-import { COMMON, TABLES, rootOf, schemaSql } from './tables.js'
+import { COMMON, TABLES, rootOf, schemaSql, upgradeSql } from './tables.js'
 
 // JSON with keys sorted, so two objects that differ only in key order are the same value
 const canonical = (v) => JSON.stringify(v ?? null, (k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.keys(x).sort().map((key) => [key, x[key]])) : x))
@@ -13,6 +13,7 @@ const sameValue = (a, b) => (a ?? null) === (b ?? null) || canonical(a) === cano
 /** Creates the tables (if they aren't there) and returns the store for `db` (a node:sqlite DatabaseSync) */
 export function createStore(db, { clock = () => Date.now() } = {}) {
   db.exec(schemaSql())
+  for (const sql of upgradeSql((t) => db.prepare(`PRAGMA table_info(${t})`).all().map((c) => c.name))) db.exec(sql)
   const stmts = new Map()
   const prep = (sql) => stmts.get(sql) || stmts.set(sql, db.prepare(sql)).get(sql)
   let depth = 0
@@ -51,8 +52,8 @@ export function createStore(db, { clock = () => Date.now() } = {}) {
   }
   const encode = (type, col, v) => ((def(type).json || []).includes(col) ? (v == null ? null : JSON.stringify(v)) : typeof v === 'boolean' ? Number(v) : (v ?? null))
 
-  const journal = (type, id, owner, root, kind, at) =>
-    prep('INSERT INTO journal (type, id, owner, root_type, root_id, kind, at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(type, id, owner, root.type, root.id, kind, at)
+  const journal = (type, id, owner, root, kind, at, space = '') =>
+    prep('INSERT INTO journal (type, id, owner, space, root_type, root_id, kind, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(type, id, owner, space, root.type, root.id, kind, at)
 
   function get(type, id) {
     return decode(type, prep(`SELECT * FROM ${def(type).table} WHERE id = ?`).get(id))
@@ -66,7 +67,7 @@ export function createStore(db, { clock = () => Date.now() } = {}) {
    */
   function write(type, fields) {
     const d = def(type)
-    const cols = ['owner', 'extra', ...d.columns]
+    const cols = ['owner', 'space', 'extra', ...d.columns]
     for (const k of Object.keys(fields)) if (!['id', 'deleted', ...cols].includes(k)) throw new Error(`${type} has no column ${k}`)
     return tx(() => {
       const now = clock()
@@ -74,12 +75,12 @@ export function createStore(db, { clock = () => Date.now() } = {}) {
       if (!before) {
         // ('' is the workspace's own: lumen.json, plugin code, files nobody owns)
         if (fields.owner == null) throw new Error(`A new ${type} needs an owner`)
-        const row = { id: fields.id, owner: fields.owner, rev: 1, created_at: now, updated_at: now, deleted: 0, extra: fields.extra && Object.keys(fields.extra).length ? JSON.stringify(fields.extra) : null }
+        const row = { id: fields.id, owner: fields.owner, space: fields.space ?? '', rev: 1, created_at: now, updated_at: now, deleted: 0, extra: fields.extra && Object.keys(fields.extra).length ? JSON.stringify(fields.extra) : null }
         for (const c of d.columns) row[c] = encode(type, c, fields[c])
         const names = [...COMMON, ...d.columns]
         prep(`INSERT INTO ${d.table} (${names.join(', ')}) VALUES (${names.map(() => '?').join(', ')})`).run(...names.map((n) => row[n]))
         const record = get(type, fields.id)
-        journal(type, record.id, record.owner, rootOf(type, record), 'upsert', now)
+        journal(type, record.id, record.owner, rootOf(type, record), 'upsert', now, record.space)
         return { record, changed: true }
       }
       const next = { ...before }
@@ -104,10 +105,12 @@ export function createStore(db, { clock = () => Date.now() } = {}) {
       const record = get(type, before.id)
       const oldRoot = rootOf(type, before)
       const newRoot = rootOf(type, record)
-      journal(type, record.id, record.owner, newRoot, 'upsert', now)
+      journal(type, record.id, record.owner, newRoot, 'upsert', now, record.space)
       // the file it left, and the mirror it left, are rewritten too
-      if (oldRoot.type !== newRoot.type || oldRoot.id !== newRoot.id) journal(type, record.id, record.owner, oldRoot, 'upsert', now)
-      if (before.owner !== record.owner) journal(type, record.id, before.owner, oldRoot, 'delete', now)
+      if (oldRoot.type !== newRoot.type || oldRoot.id !== newRoot.id) journal(type, record.id, record.owner, oldRoot, 'upsert', now, record.space)
+      if (before.owner !== record.owner) journal(type, record.id, before.owner, oldRoot, 'delete', now, before.space)
+      // moved to another space: gone from the old one
+      if (before.space !== record.space) journal(type, record.id, before.owner, oldRoot, 'delete', now, before.space)
       return { record, changed: true }
     })
   }
@@ -119,29 +122,34 @@ export function createStore(db, { clock = () => Date.now() } = {}) {
       if (!before || before.deleted) return { changed: false }
       const now = clock()
       prep(`UPDATE ${def(type).table} SET deleted = 1, rev = rev + 1, updated_at = ? WHERE id = ?`).run(now, id)
-      journal(type, id, before.owner, rootOf(type, before), 'delete', now)
+      journal(type, id, before.owner, rootOf(type, before), 'delete', now, before.space)
       return { changed: true }
     })
   }
 
   /** Live rows of `type` whose `column` is `value` (a board's cards, a doc's blocks…) */
-  function where(type, column, value, { deleted = false } = {}) {
+  function where(type, column, value, { deleted = false, space } = {}) {
     const d = def(type)
     if (![...COMMON, ...d.columns].includes(column)) throw new Error(`${type} has no column ${column}`)
-    const rows = prep(`SELECT * FROM ${d.table} WHERE ${column} = ?${deleted ? '' : ' AND deleted = 0'}`).all(value)
+    const inSpace = space === undefined ? '' : ' AND space = ?'
+    const args = space === undefined ? [value] : [value, space]
+    const rows = prep(`SELECT * FROM ${d.table} WHERE ${column} = ?${deleted ? '' : ' AND deleted = 0'}${inSpace}`).all(...args)
     return rows.map((r) => decode(type, r))
   }
 
   /** Every live row of `type` */
-  function all(type) {
-    return prep(`SELECT * FROM ${def(type).table} WHERE deleted = 0`).all().map((r) => decode(type, r))
+  /** Live rows of `type` (in one space, if given) */
+  function all(type, { space } = {}) {
+    const rows = space === undefined ? prep(`SELECT * FROM ${def(type).table} WHERE deleted = 0`).all() : prep(`SELECT * FROM ${def(type).table} WHERE deleted = 0 AND space = ?`).all(space)
+    return rows.map((r) => decode(type, r))
   }
 
   /** Is there any live row of these types? */
   const isEmpty = (types = Object.keys(TABLES)) => types.every((t) => !prep(`SELECT 1 FROM ${def(t).table} WHERE deleted = 0 LIMIT 1`).get())
 
   /** Journal rows after `seq` (for one owner, if given), oldest first */
-  function changesSince(seq, { owner, limit = 10000 } = {}) {
+  function changesSince(seq, { owner, space, limit = 10000 } = {}) {
+    if (space !== undefined) return prep('SELECT * FROM journal WHERE space = ? AND seq > ? ORDER BY seq LIMIT ?').all(space, seq, limit)
     return owner
       ? prep('SELECT * FROM journal WHERE seq > ? AND owner = ? ORDER BY seq LIMIT ?').all(seq, owner, limit)
       : prep('SELECT * FROM journal WHERE seq > ? ORDER BY seq LIMIT ?').all(seq, limit)

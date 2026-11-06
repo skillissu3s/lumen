@@ -640,3 +640,23 @@ settable right on a card; drop the calendar's New button.
   `ResizeObserver` (the event form's "More options"); and ignores scrolls
   inside itself. The time and duration lists use it too (fixed, not
   absolute), so they flip or shorten instead of hanging off the edge.
+
+### Candles, phase 1: spaces on the server
+- Every row has a `space`. Rather than teach the file API, the offline copy,
+  the replica and the realtime notices about spaces, each person gets one tree
+  (`view.js`): candle at the top, `workspaces/<slug>/…`, `shared/<owner>/…`.
+  The server maps those paths to (space, path) and back; within a space the
+  paths are as before, so the mirror's layout (lumen/1) is unchanged.
+- The front matter parser has no nested maps, so a share is a list with an
+  optional marker (`[sam, ana:view]`); old lists stay edit-for-all.
+- Records that were named by their file, not an id (the space's settings,
+  channels, plugin files, other files) get the space in their id; the
+  migration rewrites the old ids (and the journal's) the same way.
+- Realtime: each socket keeps a map of what its person was told about; a
+  change in someone else's candle, joining or leaving, a renamed workspace or
+  username re-lists and sends the difference, so access gained or lost shows
+  as files appearing or going without the client knowing why.
+- The migration ran on a copy of the dev data (one person): everything was
+  private, so it all moved to Nikhil's candle; the workspace kept chat and got
+  fresh starter files. The app still opens and works on the candle.
+

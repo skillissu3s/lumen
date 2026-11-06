@@ -125,7 +125,6 @@ Inside a workspace the views are that workspace's only.
 spaces        (id, kind 'candle'|'workspace', slug, name, owner_id, created_at, deleted)
 space_members (space_id, user_id, role 'owner'|'admin'|'member', joined_at)
 space_invites (token_hash, space_id, role, created_by, created_at, expires_at, max_uses, uses)
-shares        (root_type, root_id, user_id, can 'view'|'edit', by, created_at)
 ```
 
 - Root tables (`boards`, `calendars`, `docs`, `idea_boards`, `workspace`,
@@ -133,9 +132,11 @@ shares        (root_type, root_id, user_id, can 'view'|'edit', by, created_at)
   root. The journal gets `space` too, so the mirror and the realtime filter can
   select by space cheaply.
 - `prefs` and `plugin_data` stay per person (they already are).
-- Shares are journaled like records, so a change of sharing reaches devices
-  and is rendered into the file (`share: { ana: view, sam: edit }` in front
-  matter) for the mirror's readers.
+- A share is the root's `share` list, journaled like everything else and
+  written into the file for the mirror's readers: `share: [sam, ana:view]`
+  (a bare name may edit, `:view` may only look; lists from before spaces are
+  all-edit). Shared things are found by asking the root tables for a `share`
+  in candles, so no separate table is needed.
 
 ## Migration of today's data
 
@@ -191,4 +192,38 @@ today, now across spaces:
    losing-access cases; then a release.
 
 Each phase ends with tests, the docs updated, a commit and a push; releases
-only when the user says so.
+only when the user says so. **Not releasable between phase 1 and phase 2**:
+after phase 1 the app shows only the candle (workspaces' files are under
+`workspaces/…`, which today's app doesn't read yet).
+
+### Phase 1 progress
+
+- [x] Every record table and the journal carry `space`; old databases get the
+  column on start (`tables.js` `upgradeSql`). The store can list, look up and
+  read the journal per space.
+- [x] Units per space (`createUnits(store, people, { space, owner })`): paths
+  are looked up inside the space, records named after their file (settings,
+  channels, plugin files, other files) get the space in their id, and in a
+  candle everything is its person's.
+- [x] `spaces.js`: spaces, members and roles (owner, admin, member), invite
+  links (reusable until they expire or are revoked), rename (a new slug moves
+  everyone's paths), leave, remove, hand over, delete.
+- [x] `files.js` per space, with a *home* space for what had one workspace
+  before (on the desktop the candle, on a server the shared workspace): chat,
+  git sync's folder and the desktop replica keep working on it.
+- [x] `view.js` and `access.js`: each person's tree and the rules above;
+  `share: [sam, ana:view]` (the front matter has no nested maps, so a share is
+  a list, and lists from before mean edit).
+- [x] Realtime per person, with access gained or lost arriving as files
+  appearing or going.
+- [x] `/api/spaces`, `/api/join` (including signing up through a link).
+- [x] The migration (`migrateSpaces.js`), tested on a database from before
+  spaces and on a copy of real data: private things to their owner's candle,
+  shared ones stay (their lists dropped), plugins installed in every candle,
+  preferences and plugin data to their person, chat with the workspace, the
+  GitHub mirror's connections mapped to a space and checked in full.
+- [x] The GitHub mirror runs per space (a connection has a `space`; its
+  journal is that space's); restore goes into a space the person manages.
+- [x] Tests: spaces kept apart in units, candle privacy and view/edit
+  sharing, workspaces (create, invite, join, edit, rename, leave, sign up by
+  link, delete), live updates for shares and membership, the migration.

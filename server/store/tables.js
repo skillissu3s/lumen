@@ -4,8 +4,9 @@
 // below both come from this list, so a column can't be added in one place and
 // forgotten in the other.
 
-// columns every user-data table has, in this order
-export const COMMON = ['id', 'owner', 'rev', 'created_at', 'updated_at', 'deleted', 'extra']
+// columns every user-data table has, in this order. `space` is the candle or
+// workspace the row belongs to (docs/CANDLES.md); children share their root's.
+export const COMMON = ['id', 'owner', 'space', 'rev', 'created_at', 'updated_at', 'deleted', 'extra']
 
 export const TABLES = {
   board: {
@@ -91,6 +92,7 @@ export function schemaSql() {
     parts.push(`CREATE TABLE IF NOT EXISTS ${def.table} (
   id TEXT PRIMARY KEY,
   owner TEXT NOT NULL,
+  space TEXT NOT NULL DEFAULT '',
   rev INTEGER NOT NULL DEFAULT 1,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
@@ -106,6 +108,7 @@ CREATE INDEX IF NOT EXISTS ${def.table}_owner ON ${def.table} (owner);`)
   type TEXT NOT NULL,
   id TEXT NOT NULL,
   owner TEXT NOT NULL,
+  space TEXT NOT NULL DEFAULT '',
   root_type TEXT NOT NULL,
   root_id TEXT NOT NULL,
   kind TEXT NOT NULL,
@@ -113,4 +116,14 @@ CREATE INDEX IF NOT EXISTS ${def.table}_owner ON ${def.table} (owner);`)
 );
 CREATE INDEX IF NOT EXISTS journal_owner ON journal (owner, seq);`)
   return parts.join('\n')
+}
+
+/** Statements that bring tables made before spaces up to date, then the space indexes */
+export function upgradeSql(columnsOf) {
+  const out = []
+  for (const table of [...Object.values(TABLES).map((d) => d.table), 'journal']) {
+    if (!columnsOf(table).includes('space')) out.push(`ALTER TABLE ${table} ADD COLUMN space TEXT NOT NULL DEFAULT ''`)
+    out.push(`CREATE INDEX IF NOT EXISTS ${table}_space ON ${table} (space${table === 'journal' ? ', seq' : ''})`)
+  }
+  return out
 }

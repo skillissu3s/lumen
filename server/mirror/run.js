@@ -102,7 +102,7 @@ function message(written, removed, from, to, runId) {
 
 /**
  * `ctx`: { store, units, app: { name, version }, source: { id, label }, clock }.
- * `conn`: { owner, ownerHandle, admin, scope, branch, prefix, repoId, allowPublic,
+ * `conn`: { owner, ownerHandle, admin, scope, space (only its journal), branch, prefix, repoId, allowPublic,
  *           cursor, index (Map or null), adopt (take over another server's mirror) }.
  * `full`: the whole pass (a new connection, a rebuild, the weekly check).
  * → { commit, cursor, index, written, removed, drift, failed }
@@ -125,7 +125,7 @@ export async function runMirror(ctx, conn, gh, { full = false } = {}) {
     for (const p of index?.keys() || []) candidates.add(p)
   } else {
     const byId = new Map([...index.values()].map((e) => [`${e.type}:${e.id}`, e.path]))
-    for (const j of store.changesSince(conn.cursor, { limit: 1e7 })) {
+    for (const j of store.changesSince(conn.cursor, conn.space !== undefined ? { space: conn.space, limit: 1e7 } : { limit: 1e7 })) {
       if (j.seq > high) break
       if (conn.scope === 'owner' && j.owner !== conn.owner && !(j.owner === '' && conn.admin)) continue
       const path = units.pathOfRoot(j.root_type, j.root_id)

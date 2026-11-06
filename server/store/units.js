@@ -8,6 +8,11 @@
 // A unit's children are stored with ids scoped to it (`<root id>/<card id>`):
 // the ids in a file only need to be unique in that file, and a card copied into
 // another file by hand can never make two files fight over one row.
+//
+// One set of units serves one space (a candle or a workspace, docs/CANDLES.md):
+// every row it writes carries the space, and every path is looked up inside it.
+// Records named after their file rather than by an id of their own (the space's
+// settings, channels, plugin files, other files) get the space in their id.
 
 import * as L from '../mirror/lumen/index.js'
 import { newId } from '../../shared/items.js'
@@ -25,21 +30,28 @@ const nullish = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v 
 
 /**
  * `store`: from records.js. `people`: { idOf(handle), handleOf(id) } — owners
- * are user ids in the database and handles in files.
+ * are user ids in the database and handles in files. `space`: the space these
+ * units serve ('' outside spaces, as in tests). `owner`: a candle's person, who
+ * then owns everything in it whatever a file says.
  */
-export function createUnits(store, people, { makeId = newId } = {}) {
-  const ownerId = (handle) => (handle ? people.idOf(String(handle)) : '')
+export function createUnits(store, people, { makeId = newId, space = '', owner: candleOwner = null } = {}) {
+  const ownerId = (handle) => (candleOwner ? candleOwner : handle ? people.idOf(String(handle)) : '')
   const ownerHandle = (id) => (id ? people.handleOf(id) : undefined)
+  const inSpace = { space }
+  // ids of records named after their file, kept apart per space
+  const sid = (x) => (space ? `${space}/${x}` : x)
+  const unsid = (x) => (space && String(x).startsWith(`${space}/`) ? String(x).slice(space.length + 1) : x)
+  const workspaceId = space || 'workspace'
 
   // the live root a path belongs to
-  const rootAt = (type, path) => store.where(type, 'path', path)[0] || null
+  const rootAt = (type, path) => store.where(type, 'path', path, inSpace)[0] || null
 
-  // which id a saved file's root gets: its own, unless another file has it
+  // which id a saved file's root gets: its own, unless another file (or space) has it
   function chooseRootId(type, path, fileId) {
     const here = rootAt(type, path)
     if (fileId) {
       const other = store.get(type, fileId)
-      if (!other || other.deleted || other.path === path) return { id: fileId, here }
+      if (!other || other.deleted || (other.path === path && other.space === space)) return { id: fileId, here }
     }
     return { id: here?.id || `${ROOT_PREFIX[type]}${makeId(10)}`, here }
   }
@@ -47,7 +59,7 @@ export function createUnits(store, people, { makeId = newId } = {}) {
   // writes `rows` as the children of a root, and tombstones the ones not among them
   function replaceChildren(type, column, rootId, rows, keep = () => true) {
     const ids = new Set(rows.map((r) => r.id))
-    for (const r of rows) store.write(type, r)
+    for (const r of rows) store.write(type, { ...r, space })
     for (const old of store.where(type, column, rootId)) if (!ids.has(old.id) && keep(old)) store.remove(type, old.id)
   }
 
@@ -65,8 +77,8 @@ export function createUnits(store, people, { makeId = newId } = {}) {
     const { id, here } = chooseRootId(type, path, parsed.root.id)
     if (here && here.id !== id) removeRoot(type, here)
     const r = parsed.root
-    const owner = r.owner ? ownerId(r.owner) : here?.owner ?? ''
-    const common = { id, owner, name: r.name ?? null, color: r.color ?? null, icon: r.icon ?? null, share: r.share ?? null, path, extra: r.extra }
+    const owner = candleOwner || (r.owner ? ownerId(r.owner) : here?.owner ?? '')
+    const common = { id, owner, space, name: r.name ?? null, color: r.color ?? null, icon: r.icon ?? null, share: r.share ?? null, path, extra: r.extra }
     if (type === 'board') store.write('board', { ...common, view_mode: r.view ?? null, column_list: r.columns || [], done: r.done ?? null, labels: r.labels || {} })
     else store.write('calendar', { ...common, is_default: r.isDefault ?? null, sections: r.sections || [] })
     // cards without an id get one; ids stay unique within the file
@@ -105,8 +117,8 @@ export function createUnits(store, people, { makeId = newId } = {}) {
     const { id, here } = chooseRootId('doc', path, parsed.root.id)
     if (here && here.id !== id) removeRoot('doc', here)
     const r = parsed.root
-    const owner = r.owner ? ownerId(r.owner) : here?.owner ?? ''
-    store.write('doc', { id, owner, title: r.title ?? null, icon: r.icon ?? null, color: r.color ?? null, cover: r.cover ?? null, width: r.width ?? null, folder: r.folder ?? '', share: r.share ?? null, path, extra: r.extra })
+    const owner = candleOwner || (r.owner ? ownerId(r.owner) : here?.owner ?? '')
+    store.write('doc', { id, owner, space, title: r.title ?? null, icon: r.icon ?? null, color: r.color ?? null, cover: r.cover ?? null, width: r.width ?? null, folder: r.folder ?? '', share: r.share ?? null, path, extra: r.extra })
     const old = store.where('block', 'doc_id', id).sort((a, b) => a.position - b.position)
     const byKey = new Map()
     for (const b of old) (byKey.get(blockKey(b)) || byKey.set(blockKey(b), []).get(blockKey(b))).push(b.id)
@@ -130,8 +142,8 @@ export function createUnits(store, people, { makeId = newId } = {}) {
     const { id, here } = chooseRootId('idea_board', path, parsed.root.id)
     if (here && here.id !== id) removeRoot('idea_board', here)
     const r = parsed.root
-    const owner = r.owner ? ownerId(r.owner) : here?.owner ?? ''
-    store.write('idea_board', { id, owner, name: r.name ?? null, color: r.color ?? null, icon: r.icon ?? null, share: r.share ?? null, path, extra: r.extra })
+    const owner = candleOwner || (r.owner ? ownerId(r.owner) : here?.owner ?? '')
+    store.write('idea_board', { id, owner, space, name: r.name ?? null, color: r.color ?? null, icon: r.icon ?? null, share: r.share ?? null, path, extra: r.extra })
     const nodes = parsed.nodes.map((n) => ({ id: scoped(id, n.id), owner, board_id: id, position: n.position, type: n.type ?? null, text: n.text ?? null, label: n.label ?? null, file_ref: n.file ?? null, url: n.url ?? null, x: n.x ?? null, y: n.y ?? null, width: n.width ?? null, height: n.height ?? null, color: n.color ?? null, style: n.style ?? null, shape: n.shape ?? null, ink: n.ink ?? null, ink_w: n.inkW ?? null, ink_h: n.inkH ?? null, extra: pickExtra(n, NODE_KNOWN) }))
     const edges = parsed.edges.map((e) => ({ id: scoped(id, e.id), owner, board_id: id, position: e.position, from_node: e.fromNode, from_side: e.fromSide ?? null, from_end: e.fromEnd ?? null, to_node: e.toNode, to_side: e.toSide ?? null, to_end: e.toEnd ?? null, color: e.color ?? null, label: e.label ?? null, extra: pickExtra(e, EDGE_KNOWN) }))
     replaceChildren('idea_node', 'board_id', id, nodes)
@@ -147,24 +159,24 @@ export function createUnits(store, people, { makeId = newId } = {}) {
   // ---- chat ----
 
   function saveChannels(text) {
-    const rows = L.channels.parse(text).channels.map((c) => ({ id: String(c.id), owner: '', name: c.name ?? null, dm: c.dm ?? null, members: c.members ?? null, created: c.created ?? null, created_by: c.by ?? null, extra: pickExtra(c, ['id', 'name', 'dm', 'members', 'created', 'by']) }))
+    const rows = L.channels.parse(text).channels.map((c) => ({ id: sid(String(c.id)), owner: '', space, name: c.name ?? null, dm: c.dm ?? null, members: c.members ?? null, created: c.created ?? null, created_by: c.by ?? null, extra: pickExtra(c, ['id', 'name', 'dm', 'members', 'created', 'by']) }))
     const keep = new Set(rows.map((r) => r.id))
     for (const r of rows) store.write('channel', r)
-    for (const old of store.all('channel')) if (!keep.has(old.id)) store.remove('channel', old.id)
+    for (const old of store.all('channel', inSpace)) if (!keep.has(old.id)) store.remove('channel', old.id)
   }
 
-  const channelsOut = () => store.all('channel').map((c) => ({ ...(c.extra || {}), ...nullish({ id: c.id, name: c.name, dm: c.dm, members: c.members, created: c.created, by: c.created_by }) }))
+  const channelsOut = () => store.all('channel', inSpace).map((c) => ({ ...(c.extra || {}), ...nullish({ id: unsid(c.id), name: c.name, dm: c.dm, members: c.members, created: c.created, by: c.created_by }) }))
 
-  const monthRows = (channel, month) => store.where('message', 'channel', channel).filter((m) => String(m.at).startsWith(month))
+  const monthRows = (channel, month) => store.where('message', 'channel', sid(channel), inSpace).filter((m) => String(m.at).startsWith(month))
 
   function saveMessages(channel, month, text) {
-    const rows = L.messages.parse(text).messages.map((m) => ({ id: scoped(channel, m.id), owner: ownerId(m.from), channel, at: m.at ?? null, author: m.from ?? null, text: m.text ?? null, reply: m.reply ?? null, edited: m.edited ?? null, extra: pickExtra(m, ['id', 'at', 'from', 'text', 'reply', 'edited']) }))
+    const rows = L.messages.parse(text).messages.map((m) => ({ id: scoped(sid(channel), m.id), owner: candleOwner ? '' : ownerId(m.from), space, channel: sid(channel), at: m.at ?? null, author: m.from ?? null, text: m.text ?? null, reply: m.reply ?? null, edited: m.edited ?? null, extra: pickExtra(m, ['id', 'at', 'from', 'text', 'reply', 'edited']) }))
     const keep = new Set(rows.map((r) => r.id))
     for (const r of rows) store.write('message', r)
     for (const old of monthRows(channel, month)) if (!keep.has(old.id)) store.remove('message', old.id)
   }
 
-  const messagesOut = (channel, month) => monthRows(channel, month).map((m) => ({ ...(m.extra || {}), ...nullish({ id: local(channel, m.id), at: m.at, from: m.author, text: m.text, reply: m.reply, edited: m.edited }) }))
+  const messagesOut = (channel, month) => monthRows(channel, month).map((m) => ({ ...(m.extra || {}), ...nullish({ id: local(sid(channel), m.id), at: m.at, from: m.author, text: m.text, reply: m.reply, edited: m.edited }) }))
 
   // ---- the whole workspace ----
 
@@ -185,19 +197,19 @@ export function createUnits(store, people, { makeId = newId } = {}) {
     }
     if (k.kind === 'prefs') {
       const row = store.get('prefs', people.idOf(k.handle))
-      return row && !row.deleted ? L.prefs.render(row.data || {}) : null
+      return row && !row.deleted && row.space === space ? L.prefs.render(row.data || {}) : null
     }
     if (k.kind === 'workspace') {
-      const row = store.get('workspace', 'workspace')
+      const row = store.get('workspace', workspaceId)
       return row && !row.deleted ? L.workspace.render({ ...(row.extra || {}), name: row.name ?? undefined, inbox: row.inbox ?? undefined, plugins: row.plugins || {} }) : null
     }
     if (k.kind === 'plugin_file') {
-      const row = store.get('plugin_file', `${k.plugin}/${k.file}`)
+      const row = store.get('plugin_file', sid(`${k.plugin}/${k.file}`))
       return row && !row.deleted ? row.content : null
     }
     if (k.kind === 'plugin_data') {
       const row = store.get('plugin_data', `${k.plugin}/${people.idOf(k.handle)}/${k.file}`)
-      return row && !row.deleted ? row.content : null
+      return row && !row.deleted && row.space === space ? row.content : null
     }
     if (k.kind === 'channels') {
       const list = channelsOut()
@@ -207,7 +219,7 @@ export function createUnits(store, people, { makeId = newId } = {}) {
       const list = messagesOut(k.channel, k.month)
       return list.length ? L.messages.render(list) : null
     }
-    const row = store.get('other_file', path)
+    const row = store.get('other_file', sid(path))
     return row && !row.deleted ? row.content : null
   }
 
@@ -220,17 +232,17 @@ export function createUnits(store, people, { makeId = newId } = {}) {
       else if (k.kind === 'idea') saveIdea(path, text)
       else if (k.kind === 'prefs') {
         const id = people.idOf(k.handle)
-        store.write('prefs', { id, owner: id, data: L.prefs.parse(text).data })
+        store.write('prefs', { id, owner: id, space, data: L.prefs.parse(text).data })
       } else if (k.kind === 'workspace') {
         const { name, inbox, plugins, version, ...rest } = L.workspace.parse(text).data
-        store.write('workspace', { id: 'workspace', owner: '', name: name ?? null, inbox: inbox ?? null, plugins: plugins || {}, extra: rest })
-      } else if (k.kind === 'plugin_file') store.write('plugin_file', { id: `${k.plugin}/${k.file}`, owner: '', plugin: k.plugin, file: k.file, content: text })
+        store.write('workspace', { id: workspaceId, owner: candleOwner || '', space, name: name ?? null, inbox: inbox ?? null, plugins: plugins || {}, extra: rest })
+      } else if (k.kind === 'plugin_file') store.write('plugin_file', { id: sid(`${k.plugin}/${k.file}`), owner: candleOwner || '', space, plugin: k.plugin, file: k.file, content: text })
       else if (k.kind === 'plugin_data') {
         const user = people.idOf(k.handle)
-        store.write('plugin_data', { id: `${k.plugin}/${user}/${k.file}`, owner: user, plugin: k.plugin, user_id: user, file: k.file, content: text })
+        store.write('plugin_data', { id: `${k.plugin}/${user}/${k.file}`, owner: user, space, plugin: k.plugin, user_id: user, file: k.file, content: text })
       } else if (k.kind === 'channels') saveChannels(text)
       else if (k.kind === 'messages') saveMessages(k.channel, k.month, text)
-      else store.write('other_file', { id: path, owner: '', content: text })
+      else store.write('other_file', { id: sid(path), owner: candleOwner || '', space, content: text })
     })
     return render(path)
   }
@@ -243,28 +255,32 @@ export function createUnits(store, people, { makeId = newId } = {}) {
       if (type) {
         const root = rootAt(type, path)
         if (root) removeRoot(type, root)
-      } else if (k.kind === 'prefs') store.remove('prefs', people.idOf(k.handle))
-      else if (k.kind === 'workspace') store.remove('workspace', 'workspace')
-      else if (k.kind === 'plugin_file') store.remove('plugin_file', `${k.plugin}/${k.file}`)
-      else if (k.kind === 'plugin_data') store.remove('plugin_data', `${k.plugin}/${people.idOf(k.handle)}/${k.file}`)
-      else if (k.kind === 'channels') for (const c of store.all('channel')) store.remove('channel', c.id)
+      } else if (k.kind === 'prefs') {
+        if (store.get('prefs', people.idOf(k.handle))?.space === space) store.remove('prefs', people.idOf(k.handle))
+      } else if (k.kind === 'workspace') store.remove('workspace', workspaceId)
+      else if (k.kind === 'plugin_file') store.remove('plugin_file', sid(`${k.plugin}/${k.file}`))
+      else if (k.kind === 'plugin_data') {
+        const id = `${k.plugin}/${people.idOf(k.handle)}/${k.file}`
+        if (store.get('plugin_data', id)?.space === space) store.remove('plugin_data', id)
+      } else if (k.kind === 'channels') for (const c of store.all('channel', inSpace)) store.remove('channel', c.id)
       else if (k.kind === 'messages') for (const m of monthRows(k.channel, k.month)) store.remove('message', m.id)
-      else store.remove('other_file', path)
+      else store.remove('other_file', sid(path))
     })
   }
 
   /** Every path the database holds */
   function paths() {
     const out = []
-    for (const type of Object.values(ROOT_TYPE)) for (const r of store.all(type)) if (r.path) out.push(r.path)
-    for (const r of store.all('prefs')) out.push(`users/${people.handleOf(r.id)}/settings.json`)
-    if (store.get('workspace', 'workspace') && !store.get('workspace', 'workspace').deleted) out.push('lumen.json')
-    for (const r of store.all('plugin_file')) out.push(`plugins/${r.plugin}/${r.file}`)
-    for (const r of store.all('plugin_data')) out.push(`data/plugins/${r.plugin}/${people.handleOf(r.user_id)}/${r.file}`)
-    if (store.all('channel').length) out.push('chat/channels.json')
-    const months = new Set(store.all('message').map((m) => `chat/${m.channel}/${String(m.at).slice(0, 7)}.jsonl`))
+    for (const type of Object.values(ROOT_TYPE)) for (const r of store.all(type, inSpace)) if (r.path) out.push(r.path)
+    for (const r of store.all('prefs', inSpace)) out.push(`users/${people.handleOf(r.id)}/settings.json`)
+    const ws = store.get('workspace', workspaceId)
+    if (ws && !ws.deleted) out.push('lumen.json')
+    for (const r of store.all('plugin_file', inSpace)) out.push(`plugins/${r.plugin}/${r.file}`)
+    for (const r of store.all('plugin_data', inSpace)) out.push(`data/plugins/${r.plugin}/${people.handleOf(r.user_id)}/${r.file}`)
+    if (store.all('channel', inSpace).length) out.push('chat/channels.json')
+    const months = new Set(store.all('message', inSpace).map((m) => `chat/${unsid(m.channel)}/${String(m.at).slice(0, 7)}.jsonl`))
     out.push(...months)
-    for (const r of store.all('other_file')) out.push(r.id)
+    for (const r of store.all('other_file', inSpace)) out.push(unsid(r.id))
     return [...new Set(out)].sort()
   }
 
@@ -275,16 +291,16 @@ export function createUnits(store, people, { makeId = newId } = {}) {
   function recordOf(path) {
     const k = kindOf(path)
     if (k.kind === 'channels') return { type: 'channels', id: 'channels', owner: '', rev: 0 }
-    if (k.kind === 'messages') return { type: 'chat_month', id: `${k.channel}/${k.month}`, owner: '', rev: 0 }
+    if (k.kind === 'messages') return { type: 'chat_month', id: `${sid(k.channel)}/${k.month}`, owner: '', rev: 0 }
     let type = ROOT_TYPE[k.kind]
     let row = null
     if (type) row = rootAt(type, path)
     else if (k.kind === 'prefs') row = store.get((type = 'prefs'), people.idOf(k.handle))
-    else if (k.kind === 'workspace') row = store.get((type = 'workspace'), 'workspace')
-    else if (k.kind === 'plugin_file') row = store.get((type = 'plugin_file'), `${k.plugin}/${k.file}`)
+    else if (k.kind === 'workspace') row = store.get((type = 'workspace'), workspaceId)
+    else if (k.kind === 'plugin_file') row = store.get((type = 'plugin_file'), sid(`${k.plugin}/${k.file}`))
     else if (k.kind === 'plugin_data') row = store.get((type = 'plugin_data'), `${k.plugin}/${people.idOf(k.handle)}/${k.file}`)
-    else row = store.get((type = 'other_file'), path)
-    return row && !row.deleted ? { type, id: row.id, owner: row.owner, rev: row.rev } : null
+    else row = store.get((type = 'other_file'), sid(path))
+    return row && !row.deleted && row.space === space ? { type, id: row.id, owner: row.owner, rev: row.rev } : null
   }
 
   /** The file a journal row's root renders to (a deleted root's too, so its file can go) */
@@ -292,17 +308,17 @@ export function createUnits(store, people, { makeId = newId } = {}) {
     if (Object.values(ROOT_TYPE).includes(type)) return store.get(type, id)?.path ?? null
     if (type === 'prefs') return `users/${people.handleOf(id)}/settings.json`
     if (type === 'workspace') return 'lumen.json'
-    if (type === 'plugin_file') return `plugins/${id}`
+    if (type === 'plugin_file') return `plugins/${unsid(id)}`
     if (type === 'plugin_data') {
       const [plugin, user, ...file] = id.split('/')
       return `data/plugins/${plugin}/${people.handleOf(user)}/${file.join('/')}`
     }
     if (type === 'channel') return 'chat/channels.json'
     if (type === 'chat_month') {
-      const [channel, month] = id.split('/')
-      return `chat/${channel}/${month}.jsonl`
+      const parts = String(unsid(id)).split('/')
+      return `chat/${parts[0]}/${parts[1]}.jsonl`
     }
-    if (type === 'other_file') return id
+    if (type === 'other_file') return unsid(id)
     return null
   }
 

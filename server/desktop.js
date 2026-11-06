@@ -6,7 +6,7 @@ import path from 'node:path'
 import { DESKTOP, WORKSPACE_DIR } from './config.js'
 import { db, getSetting, setSetting } from './db.js'
 import { HttpError, userByEmail, createUser, createSession } from './auth.js'
-import { openWorkspace, importFolder, info } from './files.js'
+import { openWorkspace, importFolder, info, homeSpaceId } from './files.js'
 import { seedWorkspace } from './seed.js'
 import * as git from './git.js'
 import { apiErrors, jsonBody, csrf, loadUser, requireUser } from './api.js'
@@ -48,7 +48,7 @@ desktopRouter.put('/desktop/workspace', async (req, res, next) => {
     const dir = String(req.body?.dir || '').trim()
     if (!dir) throw new HttpError(400, 'Choose a folder.')
     const abs = path.resolve(dir)
-    await openWorkspace(abs)
+    await openWorkspace(abs, homeSpaceId())
     // a folder picked by hand is brought in, even when the database already has data
     await importFolder(abs)
     if (!info('lumen.json')) await seedWorkspace({ handle: req.user.handle, name: req.user.name, chat: false })

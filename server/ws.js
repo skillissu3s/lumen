@@ -1,23 +1,25 @@
-// The /ws WebSocket: realtime file-change notices (filtered to what the user may
-// read), chat, typing, presence and sync status.
+// The /ws WebSocket: realtime file-change notices (in each person's own tree,
+// view.js, and only what they may read), chat, typing, presence and sync status.
+// Each socket remembers which paths its person can see, so that gaining or
+// losing access (joining or leaving a workspace, a share given or taken back)
+// arrives as files appearing or going.
 import { WebSocketServer } from 'ws'
 import { userFromRequest } from './auth.js'
 import { DESKTOP } from './config.js'
-import { events as fileEvents, info as fileInfo, list as fileList } from './files.js'
-import { canRead } from './access.js'
+import { events as fileEvents } from './files.js'
+import * as view from './view.js'
+import { spaceEvents, isCandle } from './spaces.js'
 import { chatEvents, membersOf } from './chat.js'
 import { syncEvents, status as syncStatus } from './git.js'
 import { cloudEvents } from './sync/replica.js'
 
 let wss = null
 let heartbeat = null
-const lastMeta = new Map()
 
 const OPEN = 1
 
 export function attachWs(httpServer) {
   wss = new WebSocketServer({ noServer: true })
-  for (const f of fileList()) lastMeta.set(f.path, f.meta)
 
   httpServer.on('upgrade', (req, socket, head) => {
     const url = new URL(req.url, 'http://x')
@@ -53,7 +55,8 @@ export function attachWs(httpServer) {
   }
 
   wss.on('connection', (ws, req, user) => {
-    const entry = { ws, user, alive: true }
+    // known: path → sha of every file this person was told about
+    const entry = { ws, user, alive: true, known: new Map(view.list(user).map((f) => [f.path, f.sha])) }
     sockets.add(entry)
     broadcast({ type: 'presence', online: online() })
     if (user.role === 'admin') send(ws, { type: 'sync', status: syncStatus() })
@@ -93,18 +96,45 @@ export function attachWs(httpServer) {
     }
   }, 30000)
 
-  fileEvents.on('change', (changes) => {
-    const metas = new Map()
-    for (const c of changes) {
-      const meta = c.deleted ? lastMeta.get(c.path) ?? null : fileInfo(c.path)?.meta ?? null
-      metas.set(c.path, meta)
-      if (c.deleted) lastMeta.delete(c.path)
-      else lastMeta.set(c.path, meta)
-    }
+  // what a person sees now, against what they were told: the difference goes out
+  function resync(entry) {
+    const now = new Map(view.list(entry.user).map((f) => [f.path, f.sha]))
+    const out = []
+    for (const [p, sha] of now) if (entry.known.get(p) !== sha) out.push({ path: p, sha, deleted: false })
+    for (const p of entry.known.keys()) if (!now.has(p)) out.push({ path: p, sha: null, deleted: true })
+    entry.known = now
+    if (out.length) send(entry.ws, { type: 'files', changes: out })
+  }
+
+  fileEvents.on('change', (changes, opts = {}) => {
+    const space = opts.space
     for (const s of sockets) {
-      const visible = changes.filter((c) => canRead(s.user, c.path, metas.get(c.path)))
-      if (visible.length) send(s.ws, { type: 'files', changes: visible })
+      // a change in someone's candle may share or unshare things: look again
+      if (space && isCandle(space) && !s.user.desktop && !view.mounts(s.user).some((m) => m.space === space)) {
+        resync(s)
+        continue
+      }
+      const cache = view.lookups(s.user)
+      const out = []
+      for (const c of changes) {
+        const p = view.toView(s.user, space, c.path, cache)
+        if (!p) continue
+        if (c.deleted) s.known.delete(p)
+        else s.known.set(p, c.sha)
+        out.push({ ...c, path: p })
+      }
+      if (out.length) send(s.ws, { type: 'files', changes: out })
     }
+  })
+
+  // joined, left, removed, a workspace renamed or deleted
+  spaceEvents.on('access', (userIds) => {
+    const who = new Set(userIds)
+    for (const s of sockets) if (who.has(s.user.id)) resync(s)
+  })
+  // a username changed: shared/<owner>/ paths move for everyone
+  fileEvents.on('renamed', () => {
+    for (const s of sockets) resync(s)
   })
 
   chatEvents.on('message', ({ channel, message, members }) => {

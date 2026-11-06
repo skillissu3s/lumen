@@ -5,10 +5,13 @@ import { APP_NAME, VERSION, DESKTOP, PUBLIC_URL, INVITE_DAYS } from './config.js
 import { db, getSetting } from './db.js'
 import { HttpError, checkHandle, userFromRequest, countUsers, createUser, login, getUser, allUsers, changePassword, createInvite, listInvites, revokeInvite, findInvite, acceptInvite, createSession, setSessionCookie, endSession, endUserSessions, sessionHashOf, cleanEmail, hashPassword, validPassword, userByEmail } from './auth.js'
 import * as files from './files.js'
-import { canRead, writeProblem, metaOf } from './access.js'
+import { canReadAt, writeProblemAt, metaOf } from './access.js'
+import * as view from './view.js'
 import * as chat from './chat.js'
 import * as git from './git.js'
 import { seedWorkspace } from './seed.js'
+import { setUpAccount } from './accounts.js'
+import * as spaces from './spaces.js'
 import { mailEnabled, sendMail, codeMail, inviteMail } from './mail.js'
 import { issueCode, checkCode } from './codes.js'
 import { readRepo } from './github/readRepo.js'
@@ -92,7 +95,9 @@ router.post('/setup', async (req, res, next) => {
   try {
     if (countUsers() !== 0) throw new HttpError(403, 'Setup is done — ask an admin to invite you.')
     const user = await createUser({ email: req.body?.email, name: req.body?.name, password: req.body?.password, role: 'admin' })
-    await seedWorkspace({ handle: user.handle, name: user.name, chat: true })
+    await setUpAccount(user, { joinHome: true })
+    const home = spaces.rename(files.homeSpaceId(), user, { name: `${user.name}'s workspace` })
+    await seedWorkspace({ handle: user.handle, name: user.name, title: home.name, chat: true })
     res.json({ user: signIn(req, res, user) })
   } catch (e) {
     next(e)
@@ -199,7 +204,10 @@ router.patch('/me', requireUser, async (req, res) => {
   if (color && !AVATAR_COLORS.includes(color)) throw new HttpError(400, 'Unknown colour.')
   const avatar = body.avatar === undefined ? undefined : checkAvatar(body.avatar)
   const handle = body.handle === undefined ? undefined : checkHandle(body.handle, req.user.id)
-  if (name) db.prepare('UPDATE users SET name = ? WHERE id = ?').run(name, req.user.id)
+  if (name) {
+    db.prepare('UPDATE users SET name = ? WHERE id = ?').run(name, req.user.id)
+    spaces.renameCandleFor({ ...req.user, name }, req.user.name)
+  }
   if (color !== undefined) db.prepare('UPDATE users SET color = ? WHERE id = ?').run(color, req.user.id)
   if (avatar !== undefined) db.prepare('UPDATE users SET avatar = ? WHERE id = ?').run(avatar, req.user.id)
   if (handle !== undefined && handle !== req.user.handle) await files.renameHandle(req.user.handle, handle, () => db.prepare('UPDATE users SET handle = ? WHERE id = ?').run(handle, req.user.id))
@@ -236,6 +244,7 @@ router.get('/invites/:token', (req, res) => {
 router.post('/invites/:token/accept', async (req, res, next) => {
   try {
     const user = await acceptInvite(req.params.token, { name: req.body?.name, password: req.body?.password, email: req.body?.email })
+    await setUpAccount(user, { joinHome: true })
     res.json({ user: signIn(req, res, user) })
   } catch (e) {
     next(e)
@@ -380,34 +389,34 @@ router.post('/admin/sync/now', requireAdmin, async (req, res, next) => {
 
 // ---------- files ----------
 
-// A conflict answers with the current text — only for someone who may read it
-function guardConflict(e, user, p) {
-  if (e instanceof files.ConflictError && e.current && !canRead(user, p, metaOf(p, e.current.text))) return new HttpError(404, 'Not found.')
-  return e
+// Paths here are the person's own tree (view.js): their candle at the top,
+// workspaces under workspaces/<slug>/, things shared with them under shared/<owner>/.
+const target = (user, raw, cache) => {
+  const p = files.cleanPath(raw)
+  if (!p) throw new HttpError(400, 'Invalid path.')
+  const t = view.resolve(user, p, cache)
+  if (!t || !canReadAt(t, t.path)) throw new HttpError(404, 'Not found.')
+  return t
 }
 
 router.get('/files', requireUser, (req, res) => {
-  const list = files.list().filter((f) => canRead(req.user, f.path, f.meta)).map((f) => ({ path: f.path, sha: f.sha, size: f.size }))
-  res.json({ files: list })
+  res.json({ files: view.list(req.user).map((f) => ({ path: f.path, sha: f.sha, size: f.size })) })
 })
 
 router.post('/files/read', requireUser, async (req, res, next) => {
   try {
     const paths = Array.isArray(req.body?.paths) ? req.body.paths : []
     if (paths.length > 500) throw new HttpError(400, 'Too many paths.')
+    const cache = view.lookups(req.user)
     const out = {}
     for (const raw of paths) {
       const p = files.cleanPath(raw)
-      if (!p) {
-        out[String(raw)] = null
+      const t = p && view.resolve(req.user, p, cache)
+      if (!t || !canReadAt(t, t.path)) {
+        out[p || String(raw)] = null
         continue
       }
-      const meta = files.info(p)?.meta ?? null
-      if (!canRead(req.user, p, meta)) {
-        out[p] = null
-        continue
-      }
-      const r = await files.read(p)
+      const r = await files.space(t.space).read(t.path)
       out[p] = r ? { text: r.text, sha: r.sha } : null
     }
     res.json({ files: out })
@@ -418,13 +427,12 @@ router.post('/files/read', requireUser, async (req, res, next) => {
 
 router.put('/files', requireUser, async (req, res, next) => {
   try {
-    const p = files.cleanPath(req.body?.path)
-    if (!p) throw new HttpError(400, 'Invalid path.')
+    const t = target(req.user, req.body?.path)
     const text = String(req.body?.text ?? '')
-    const result = await files.write(p, text, {
+    const result = await files.space(t.space).write(t.path, text, {
       baseSha: req.body?.sha ?? null,
       check(cur) {
-        const reason = writeProblem(req.user, p, metaOf(p, cur?.text ?? ''), metaOf(p, text), !!cur)
+        const reason = writeProblemAt(req.user, t, t.path, metaOf(t.path, cur?.text ?? ''), metaOf(t.path, text), !!cur)
         if (reason) throw new HttpError(403, reason)
       },
       by: req.user.handle,
@@ -432,31 +440,35 @@ router.put('/files', requireUser, async (req, res, next) => {
     // the file as stored, when it differs from what was sent (ids added, formatting settled)
     res.json(result.text != null && result.text !== text ? { sha: result.sha, text: result.text } : { sha: result.sha })
   } catch (e) {
-    next(guardConflict(e, req.user, files.cleanPath(req.body?.path)))
+    next(e)
   }
 })
 
 router.delete('/files', requireUser, async (req, res, next) => {
   try {
-    const p = files.cleanPath(req.body?.path)
-    if (!p) throw new HttpError(400, 'Invalid path.')
-    await files.remove(p, {
+    const t = target(req.user, req.body?.path)
+    await files.space(t.space).remove(t.path, {
       baseSha: req.body?.sha ?? null,
       check(cur) {
-        const reason = writeProblem(req.user, p, metaOf(p, cur?.text ?? ''), null, !!cur)
+        const reason = writeProblemAt(req.user, t, t.path, metaOf(t.path, cur?.text ?? ''), null, !!cur)
         if (reason) throw new HttpError(403, reason)
       },
       by: req.user.handle,
     })
     res.json({ ok: true })
   } catch (e) {
-    next(guardConflict(e, req.user, files.cleanPath(req.body?.path)))
+    next(e)
   }
 })
 
 // ---------- chat (server mode only) ----------
 
-const chatOnly = (req, res, next) => (DESKTOP ? res.status(404).json({ error: 'Not here.' }) : next())
+// chat belongs to the home workspace for now: only its members see it
+const chatOnly = (req, res, next) => {
+  if (DESKTOP) return res.status(404).json({ error: 'Not here.' })
+  if (req.user && !spaces.roleIn(req.user.id, files.homeSpaceId())) return res.status(404).json({ error: 'Not here.' })
+  next()
+}
 
 router.get('/chat/channels', chatOnly, requireUser, async (req, res, next) => {
   try {

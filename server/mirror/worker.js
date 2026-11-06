@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS sync_connections (
   id TEXT PRIMARY KEY,
   owner TEXT NOT NULL,
   scope TEXT NOT NULL,
+  space TEXT NOT NULL DEFAULT '',
   token TEXT NOT NULL,
   repo_id INTEGER NOT NULL,
   repo_name TEXT NOT NULL,
@@ -64,7 +65,7 @@ const LOST = new Set([401, 403, 404])
 const lostMessage = 'GitHub refused the token for this repository. It may have expired or been revoked, or the repository was deleted. Add a new token.'
 
 /**
- * `ctx`: { db, store, units, events, users: { get(id) → { handle, role } },
+ * `ctx`: { db, store, units (or unitsFor(space)), events, users: { get(id) → { handle, role } },
  *          source, app, clock }
  * `repoFor(conn)` → the gh interface for a connection (github/repo.js). The
  * connection's `token` is stored as given (the routes encrypt it).
@@ -72,6 +73,9 @@ const lostMessage = 'GitHub refused the token for this repository. It may have e
 export function createWorker(ctx, repoFor) {
   const { db, store, units, events, clock = () => Date.now() } = ctx
   db.exec(SCHEMA)
+  if (!db.prepare('PRAGMA table_info(sync_connections)').all().some((c) => c.name === 'space')) db.exec("ALTER TABLE sync_connections ADD COLUMN space TEXT NOT NULL DEFAULT ''")
+  // a connection mirrors one space (docs/CANDLES.md); one made before spaces, the old scopes
+  const unitsOf = (c) => (c.space && ctx.unitsFor ? ctx.unitsFor(c.space) : units)
   const running = new Map() // id → promise
   let timer = null
 
@@ -90,7 +94,8 @@ export function createWorker(ctx, repoFor) {
       owner: c.owner,
       ownerHandle: u?.handle || '',
       admin: u?.role === 'admin',
-      scope: c.scope,
+      scope: c.space ? 'workspace' : c.scope,
+      space: c.space || undefined,
       branch: c.branch,
       prefix: c.prefix,
       repoId: c.repo_id,
@@ -103,6 +108,7 @@ export function createWorker(ctx, repoFor) {
 
   // journal rows after `cursor` that this connection's mirror holds
   function pending(c, cursor = c.cursor) {
+    if (c.space) return store.changesSince(cursor, { space: c.space, limit: 1 }).length > 0
     const admin = ctx.users.get(c.owner)?.role === 'admin'
     for (const j of store.changesSince(cursor, { limit: 2000 })) {
       if (c.scope === 'workspace' || j.owner === c.owner || (j.owner === '' && admin)) {
@@ -115,13 +121,13 @@ export function createWorker(ctx, repoFor) {
 
   // ---------- connections ----------
 
-  function create(owner, { token, repo, branch, prefix, scope, mode, schedule, allowPublic, adopt }) {
+  function create(owner, { token, repo, branch, prefix, scope, space = '', mode, schedule, allowPublic, adopt }) {
     const id = `gh_${crypto.randomBytes(8).toString('hex')}`
     const now = clock()
     db.prepare(
-      `INSERT INTO sync_connections (id, owner, scope, token, repo_id, repo_name, branch, prefix, mode, schedule, allow_public, adopt, next_run_at, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(id, owner, scope, token, Number(repo.id), repo.fullName, branch, prefix, mode, schedule ? JSON.stringify(schedule) : null, allowPublic ? 1 : 0, adopt ? 1 : 0, now, now)
+      `INSERT INTO sync_connections (id, owner, scope, space, token, repo_id, repo_name, branch, prefix, mode, schedule, allow_public, adopt, next_run_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(id, owner, scope || 'workspace', space, token, Number(repo.id), repo.fullName, branch, prefix, mode, schedule ? JSON.stringify(schedule) : null, allowPublic ? 1 : 0, adopt ? 1 : 0, now, now)
     // due now: the first run is a full pass, whatever the mode
     return get(id)
   }
@@ -180,7 +186,7 @@ export function createWorker(ctx, repoFor) {
     let result = null
     let error = null
     try {
-      result = await runMirror({ store, units, app: ctx.app, source: ctx.source, clock }, mirrorConn(c), repoFor(c), { full: whole })
+      result = await runMirror({ store, units: unitsOf(c), app: ctx.app, source: ctx.source, clock }, mirrorConn(c), repoFor(c), { full: whole })
     } catch (e) {
       error = e
     }
@@ -238,13 +244,13 @@ export function createWorker(ctx, repoFor) {
   }
 
   // a change to what an after-changes connection holds moves its next run
-  function onChange(changes) {
+  function onChange(changes, opts = {}) {
     const conns = db.prepare("SELECT * FROM sync_connections WHERE mode = 'after-changes' AND paused IS NULL").all().map(decode)
     if (!conns.length) return
     const now = clock()
     for (const c of conns) {
       const admin = ctx.users.get(c.owner)?.role === 'admin'
-      const hit = changes.some((ch) => {
+      const hit = c.space ? opts.space === c.space : changes.some((ch) => {
         if (ch.deleted) return c.scope === 'workspace' || pending(c)
         const owner = units.recordOf(ch.path)?.owner
         return owner != null && covers({ scope: c.scope, owner: c.owner, admin }, ch.path, owner)

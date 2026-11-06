@@ -65,6 +65,8 @@ shared/           Pure JS used by client, server and tests
   merge.js        Rebase of pending edits onto a newer remote version
 server/           Express + ws. Auth, invites, file API with access control,
                   chat, git sync. Runs standalone or inside the desktop app.
+  spaces.js       Candles and workspaces: members, roles, invite links
+  view.js         Each person's tree of files across their spaces
   store/          The database: records, the journal, files ⇄ rows (units.js)
   mirror/         The GitHub mirror: run.js (one sync run), schedule.js,
                   worker.js (connections and the timer), restore.js, and the
@@ -113,18 +115,28 @@ quickly is one commit in GitHub mode, not five.
   hashes, session tokens). The admin is created from `ADMIN_EMAIL` /
   `ADMIN_PASSWORD`, or by the first-run setup screen when there are no users.
   **There is no public sign-up**: only an admin can create invite links.
-- **Access control** is per file, enforced by the server:
-  - lists, calendars and docs carry `owner:` and `share:` in their front matter;
-    without `share` a file is private to its owner. `share: everyone` or
-    `share: [ana, sam]` opens it up. Only the owner (or an admin) may change
-    those two fields.
-  - `users/<handle>/…` (preferences) and `data/plugins/<id>/<handle>/…` (plugin
-    data) belong to that user alone.
-  - `plugins/…` (plugin code) and `lumen.json` are readable by everyone and
-    writable by admins only — installing a plugin is an admin action.
-  - `chat/…` is written only by the server's chat API.
-- **Realtime.** One WebSocket per tab carries file-change notices (filtered to
-  what the user may read), chat messages, typing and presence.
+- **Spaces** ([CANDLES.md](CANDLES.md)). Every account has a **candle**, its
+  own private space, and can create or join **workspaces** (invite links).
+  Every record belongs to one space (`spaces.js` keeps spaces, members and
+  invites; the record tables carry a `space` column).
+- **Each person's tree** (`view.js`): the file API, realtime notices, the
+  browser's offline copy and the desktop's replica all use one tree per
+  person: their candle at the top, each workspace under
+  `workspaces/<slug>/`, and each thing others shared with them under
+  `shared/<owner>/`. The server turns those paths into (space, path inside it).
+- **Access control** (`access.js`), enforced by the server:
+  - your candle is yours alone: everything in it is yours, whatever a file's
+    `owner:` says. One board, calendar, doc or idea board can be shared with
+    chosen people: `share: [sam, ana:view]` (a bare name may edit, `:view`
+    may only look). Only you change sharing or delete it.
+  - in a workspace every member sees and edits everything; its `lumen.json`
+    is for its owner and admins; plugins and personal files belong in candles.
+  - `chat/…` is written only by the server's chat API (chat belongs to the
+    home workspace for now).
+- **Realtime.** One WebSocket per tab carries file-change notices in the
+  person's own tree, chat messages, typing and presence. Each socket knows
+  what its person was told about, so access gained or lost (a share, joining
+  or leaving a workspace) arrives as files appearing or going.
 - **GitHub sync.** If a remote is configured, the data folder is a git working
   copy: changes are committed a few seconds after they stop, pushed, and the
   remote is pulled on an interval. Item files merge with git's *union* driver
