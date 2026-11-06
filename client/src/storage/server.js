@@ -12,7 +12,9 @@ function mapError(e) {
     }
     if (e.status === 401) return new AuthError(e.message)
     // not allowed here (view only, not yours, access taken away): nothing to retry
-    if (e.status === 403 || e.status === 404) return new RefusedError(e.message)
+    if (e.status === 403) return new RefusedError(e.message)
+    // the path leads nowhere for you now: the share was taken back, or you left the workspace
+    if (e.status === 404) return new RefusedError('You no longer have access to this, so your change wasn’t saved.')
     if (e.status === 0 || (e.status >= 502 && e.status <= 504)) return new OfflineError()
   }
   return e

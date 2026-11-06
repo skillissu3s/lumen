@@ -713,3 +713,20 @@ settable right on a card; drop the calendar's New button.
 - The GitHub form now chooses a space instead of the old "whole workspace /
   what I own" scope; the server already ran one mirror per space.
 
+### Candles, phase 6: many people at once
+- The client keeps one store and one socket per page, so each simulated
+  person is a process of their own running the real store, backend and
+  socket (`server/testPerson.js`): `fetch` resolves relative paths against
+  the test server and carries the person's cookie, and the socket is the `ws`
+  package with the cookie header.
+- The first run hung: the harness sent `{ id, cmd, ...args }` and a tick's
+  card `id` overwrote the message id, so the answer went to the wrong
+  waiter. Messages are `{ seq, cmd, args }` now, and a command that doesn't
+  answer fails the test with its name instead of hanging.
+- 39 edits from three people at once on a workspace board, a shared board and
+  a doc all landed once and converged on the first real run: the store's
+  rebase-on-409 and the socket notices hold up across spaces.
+- A 404 on a write (access gone) surfaced as the server's bare "Not found.";
+  it now reads "You no longer have access to this, so your change wasn't
+  saved."
+

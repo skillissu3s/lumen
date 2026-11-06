@@ -29,6 +29,9 @@
   owner's version comes back.
 - **A GitHub copy per space.** Choose which space a repository keeps: your
   candle, or a workspace you run. Restoring brings it back into the same.
+- If you lose access to something while a change is on its way (a share
+  taken back, removed from a workspace), Lumen says your change wasn't saved
+  instead of trying again and again.
 - **Chat per workspace.** Every workspace has its own channels, for the people
   in it. Direct messages are between the two of you, wherever you are: in a
   workspace beside its channels, and in your candle on their own.

@@ -338,3 +338,23 @@ brings the views across spaces.
 - [x] Tests: the desktop gets the spaces and their files, sends a workspace
   edit up, gets Bob's view-only board back; the offline space list. Checked
   in the browser: the GitHub form's spaces.
+
+### Phase 6 progress
+
+- [x] `server/multi.e2e.test.js`: three people, each running the app's own
+  store, server backend and socket in a process of their own
+  (`server/testPerson.js`, with fetch and the socket pointed at a test
+  server), against one server.
+- [x] All at once: each adds five cards to a workspace board, three to a
+  board shared from Ada's candle (Ada at `lists/…`, the others at
+  `shared/ada/…`), ticks a card on each, and types three lines into a
+  workspace doc, without waiting for anyone. Every edit lands exactly once,
+  and every app ends up showing exactly what the server has, with no
+  problems reported. Stable over repeated runs.
+- [x] Losing access mid-edit: lowered to view (refused, "You can view this,
+  not change it.", the owner's version back); a share taken back while an
+  edit is queued, and being removed from a workspace while an edit is queued
+  (the edit goes nowhere, "You no longer have access to this, so your change
+  wasn't saved.", and the files go from the app). No retries in any case.
+
+All six phases are done.
