@@ -35,8 +35,9 @@ u.save('lists/pair.md', '---\\nname: Pair\\nowner: ada\\nshare: [bob]\\n---\\n\\
 u.save('docs/notes.md', '---\\ntitle: Notes\\nowner: bob\\n---\\n\\nBob only.\\n')
 u.save('plugins/focus/manifest.json', '{"id":"focus"}')
 u.save('users/bob/settings.json', '{"theme":"dark"}')
-u.save('chat/channels.json', JSON.stringify([{ id: 'general', name: 'general', members: 'everyone' }]))
+u.save('chat/channels.json', JSON.stringify([{ id: 'general', name: 'general', members: 'everyone' }, { id: 'dm-ada-bob', dm: true, members: ['ada', 'bob'] }]))
 u.save('chat/general/2026-11.jsonl', '{"id":"m1","at":"2026-11-01T10:00:00.000Z","from":"ada","text":"hello"}\\n')
+u.save('chat/dm-ada-bob/2026-11.jsonl', '{"id":"d1","at":"2026-11-01T11:00:00.000Z","from":"bob","text":"just us"}\\n')
 `
 
 function freePort() {
@@ -129,10 +130,17 @@ test('private things move to their owner’s candle; shared ones stay in the wor
   assert.ok(adaFiles.includes(`${w}lists/inbox.md`))
 
   // chat stayed with the workspace
-  const channels = await get(bob, '/api/chat/channels')
+  const channels = await get(bob, `/api/chat/channels?space=${ws.id}`)
   assert.ok(channels.channels.some((c) => c.id === 'general'))
-  const messages = await get(bob, '/api/chat/messages?channel=general')
+  const messages = await get(bob, `/api/chat/messages?space=${ws.id}&channel=general`)
   assert.ok(messages.messages.some((m) => m.text === 'hello'))
+
+  // direct messages moved out of the workspace, to their own place
+  assert.ok(!channels.channels.some((c) => c.dm && c.space !== 'dm'))
+  const dm = channels.channels.find((c) => c.dm)
+  assert.equal(dm.space, 'dm')
+  const said = await get(ada, `/api/chat/messages?space=dm&channel=${dm.id}`)
+  assert.deepEqual(said.messages.map((m) => m.text), ['just us'])
 })
 
 test('a second start changes nothing', async () => {

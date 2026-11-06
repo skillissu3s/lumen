@@ -127,3 +127,29 @@ export async function finishSpaces({ home, migrating }) {
   await seedSpace(h, { handle, name: '', title: spaces.get(home)?.name, chat: false })
   h.settle()
 }
+
+/**
+ * Direct messages live apart from any workspace (chat.js, 'dm'): those made
+ * before, in the home workspace's chat, move there once; read markers become
+ * per place (`<space>/<channel>`). Safe to run on every start.
+ */
+export function separateDirectMessages(home) {
+  const C = T('channel')
+  const M = T('message')
+  const dms = db.prepare(`SELECT id FROM ${C} WHERE dm = 1 AND space != 'dm'`).all()
+  const oldMarkers = db.prepare("SELECT COUNT(*) AS n FROM chat_reads WHERE instr(channel, '/') = 0").get().n
+  if (!dms.length && !oldMarkers) return false
+  tx(() => {
+    for (const { id } of dms) {
+      const local = id.slice(id.indexOf('/') + 1)
+      const to = `dm/${local}`
+      db.prepare(`UPDATE ${C} SET id = ?, space = 'dm' WHERE id = ?`).run(to, id)
+      db.prepare(`UPDATE ${M} SET space = 'dm', channel = ?, id = ? || substr(id, ?) WHERE channel = ?`).run(to, to, id.length + 1, id)
+    }
+    db.prepare("UPDATE chat_reads SET channel = 'dm/' || channel WHERE instr(channel, '/') = 0 AND channel LIKE 'dm-%'").run()
+    db.prepare("UPDATE chat_reads SET channel = ? || '/' || channel WHERE instr(channel, '/') = 0").run(home)
+  })
+  files.reopenAll()
+  return true
+}
+

@@ -102,6 +102,9 @@ export function roleIn(userId, spaceId) {
   return db.prepare('SELECT role FROM space_members WHERE space_id = ? AND user_id = ?').get(spaceId, userId)?.role || null
 }
 
+/** Every workspace on the server */
+export const allWorkspaces = () => db.prepare("SELECT * FROM spaces WHERE kind = 'workspace' AND deleted_at IS NULL").all()
+
 /** The spaces a person is in: their candle first, then workspaces by name */
 export function spacesOf(userId) {
   return db

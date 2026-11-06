@@ -7,7 +7,7 @@ import { DESKTOP, HOST, PORT, WORKSPACE_DIR, TRUST_PROXY } from './config.js'
 import * as files from './files.js'
 import { ensureEnvAdmin, allUsers } from './auth.js'
 import { seedWorkspace } from './seed.js'
-import { prepareSpaces, finishSpaces } from './migrateSpaces.js'
+import { prepareSpaces, finishSpaces, separateDirectMessages } from './migrateSpaces.js'
 import { setUpAccount } from './accounts.js'
 import * as spaces from './spaces.js'
 import { apiRouter } from './api.js'
@@ -64,6 +64,7 @@ const plan = prepareSpaces({ desktopUser })
 const workspace = DESKTOP ? desktopWorkspaceDir() : WORKSPACE_DIR
 await files.openWorkspace(workspace, plan.home)
 await finishSpaces(plan)
+if (!DESKTOP) separateDirectMessages(plan.home)
 if (!files.info('lumen.json')) {
   const admin = allUsers().find((u) => u.role === 'admin')
   if (admin) await seedWorkspace({ handle: admin.handle, name: admin.name, title: spaces.get(plan.home)?.name, chat: !DESKTOP })

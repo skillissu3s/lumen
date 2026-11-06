@@ -72,7 +72,7 @@ waiting, drift: [path], runs: [{ at, written, removed, commit, error, full }] }`
 
 | | | |
 |---|---|---|
-| `GET /api/spaces` | — | `{ spaces: [{ id, kind: 'candle'\|'workspace', name, slug, role, prefix, home }], shared: [{ prefix, path, owner, ownerName, can }] }`: your candle first; `home` holds chat for now |
+| `GET /api/spaces` | — | `{ spaces: [{ id, kind: 'candle'\|'workspace', name, slug, role, prefix, home }], shared: [{ prefix, path, owner, ownerName, can }] }`: your candle first; `home` is the workspace everyone shared before spaces |
 | `POST /api/spaces` | `{ name }` | a new workspace, owned by you, with starter files → `{ space }` |
 | `PATCH /api/spaces/:id` | `{ name?, slug? }` | owner and admins; a new slug moves everyone's paths → `{ space }` |
 | `DELETE /api/spaces/:id` | — | the owner deletes a workspace → `{ ok }` |
@@ -104,14 +104,20 @@ leads nowhere they may go is 404.
 
 | | | |
 |---|---|---|
-| `GET /api/chat/channels` | — | `{ channels: [{ id, name, dm, members, unread, lastAt }] }` |
-| `POST /api/chat/channels` | `{ name, members: "everyone" \| [handles] }` or `{ dm: handle }` | `{ channel }` (a DM that exists is returned as is) |
-| `DELETE /api/chat/channels/:id` | — | whoever made the channel, or an admin; removes it and its messages → `{ ok }`. A DM can't be deleted (400) |
-| `GET /api/chat/messages?channel=&before=` | — | up to 100 messages before the ISO time `before` (default now), oldest first, edits and deletes applied: `{ messages: [{ id, at, from, text, reply?, edited?, deleted? }], more }` |
-| `POST /api/chat/messages` | `{ channel, text, reply? }` | `{ message }` |
-| `PATCH /api/chat/messages` | `{ channel, id, text }` | own messages only → `{ message }` |
-| `DELETE /api/chat/messages` | `{ channel, id }` | own (or admin) → `{ ok }` |
-| `POST /api/chat/read` | `{ channel, at }` | marks read up to `at` |
+Every chat call names its place, `space`: a workspace's id (its channels, for
+its members) or `dm` (direct messages between two people, outside any space,
+the default). 404 when you aren't in that workspace or that conversation.
+
+| | | |
+|---|---|---|
+| `GET /api/chat/channels?space=` | — | the workspace's channels you're in (if `space` is one) and your direct messages: `{ channels: [{ id, space, name, dm, members, unread, lastAt }] }` |
+| `POST /api/chat/channels` | `{ space, name, members: "everyone" \| [handles] }` or `{ dm: handle }` | `{ channel }` ("everyone" is everyone in the workspace; a DM that exists is returned as is) |
+| `DELETE /api/chat/channels/:id?space=` | — | whoever made the channel, or the workspace's owner or admins; removes it and its messages → `{ ok }`. A DM can't be deleted (400) |
+| `GET /api/chat/messages?space=&channel=&before=` | — | up to 100 messages before the ISO time `before` (default now), oldest first, edits and deletes applied: `{ messages: [{ id, at, from, text, reply?, edited?, deleted? }], more }` |
+| `POST /api/chat/messages` | `{ space, channel, text, reply? }` | `{ message }` |
+| `PATCH /api/chat/messages` | `{ space, channel, id, text }` | own messages only → `{ message }` |
+| `DELETE /api/chat/messages` | `{ space, channel, id }` | own (or the workspace's owner and admins) → `{ ok }` |
+| `POST /api/chat/read` | `{ space, channel, at }` | marks read up to `at` |
 
 ## Desktop only
 
@@ -126,7 +132,7 @@ leads nowhere they may go is 404.
 Authenticated by the session cookie. Server → client (JSON per frame):
 
 - `{ type: "files", changes: [{ path, sha, deleted }] }` — only paths the user may read
-- `{ type: "chat", channel, message }` — new, edited (`edited: true`) or deleted (`deleted: true`)
+- `{ type: "chat", space, channel, message }` — new, edited (`edited: true`) or deleted (`deleted: true`)
 - `{ type: "channels" }` — the channel list changed; refetch
 - `{ type: "typing", channel, handle }`
 - `{ type: "presence", online: [handles] }`

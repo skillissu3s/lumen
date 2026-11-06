@@ -62,7 +62,7 @@ export function Rail({ route, closed }) {
         <RailItem href="#/calendar" icon={CalendarDays} tint="blue" label="Calendar" active={at('/calendar')} />
         <RailItem href="#/ideas" icon={Lightbulb} tint="violet" label="Ideas" active={at('/ideas')} />
         <RailItem href="#/docs" icon={FileText} tint="teal" label="Docs" active={at('/docs')} />
-        {mode === 'server' && space.home && <RailItem href="#/chat" icon={MessagesSquare} tint="green" label="Chat" active={at('/chat')} />}
+        {mode === 'server' && space.kind !== 'shared' && <RailItem href="#/chat" icon={MessagesSquare} tint="green" label="Chat" active={at('/chat')} />}
         <span className="app-rail-sep" />
         {lists.map((l) => (
           <RailItem key={l.path} href={`#/board/${l.id}`} label={l.name} active={path === `/board/${l.id}`}>

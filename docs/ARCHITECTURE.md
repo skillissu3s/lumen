@@ -141,8 +141,9 @@ usual edit actions.
     may only look). Only you change sharing or delete it.
   - in a workspace every member sees and edits everything; its `lumen.json`
     is for its owner and admins; plugins and personal files belong in candles.
-  - `chat/…` is written only by the server's chat API (chat belongs to the
-    home workspace for now).
+  - `chat/…` is written only by the server's chat API. Every workspace has
+    its own channels, for its members; direct messages live in a place of
+    their own (`dm`), outside any space, readable only by the two people.
 - **Realtime.** One WebSocket per tab carries file-change notices in the
   person's own tree, chat messages, typing and presence. Each socket knows
   what its person was told about, so access gained or lost (a share, joining

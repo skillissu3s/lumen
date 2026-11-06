@@ -204,6 +204,10 @@ duplicate is dropped on the next save.
 
 ## Chat
 
+Each workspace keeps these in its own space; direct messages between two
+people are kept the same way in a place of their own (`dm`), outside any
+space.
+
 `chat/channels.json`:
 
 ```json

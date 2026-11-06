@@ -8,8 +8,8 @@ import { userFromRequest } from './auth.js'
 import { DESKTOP } from './config.js'
 import { events as fileEvents } from './files.js'
 import * as view from './view.js'
-import { spaceEvents, isCandle } from './spaces.js'
-import { chatEvents, membersOf } from './chat.js'
+import { spaceEvents, isCandle, roleIn } from './spaces.js'
+import { DMS, chatEvents, membersOf } from './chat.js'
 import { syncEvents, status as syncStatus } from './git.js'
 import { cloudEvents } from './sync/replica.js'
 
@@ -47,12 +47,14 @@ export function attachWs(httpServer) {
   }
   const online = () => [...new Set([...sockets].map((s) => s.user.handle))]
 
-  const canSeeChannel = (user, channel) => {
-    const members = membersOf(channel)
+  // a workspace's channel: you're in the workspace, and in the channel; a DM: you're one of the two
+  const canSee = (user, space, members) => {
     if (!members) return false
+    if (space !== DMS && !roleIn(user.id, space)) return false
     if (members === 'everyone') return true
     return Array.isArray(members) && members.map(String).includes(user.handle)
   }
+  const canSeeChannel = (user, space, channel) => canSee(user, space, membersOf(space, channel))
 
   wss.on('connection', (ws, req, user) => {
     // known: path → sha of every file this person was told about
@@ -72,8 +74,9 @@ export function attachWs(httpServer) {
         return
       }
       if (msg.type === 'ping') return send(ws, { type: 'pong' })
-      if (msg.type === 'typing' && msg.channel && canSeeChannel(user, msg.channel)) {
-        broadcast({ type: 'typing', channel: msg.channel, handle: user.handle }, (s) => s !== entry && canSeeChannel(s.user, msg.channel))
+      const space = String(msg.space || DMS)
+      if (msg.type === 'typing' && msg.channel && canSeeChannel(user, space, msg.channel)) {
+        broadcast({ type: 'typing', space, channel: msg.channel, handle: user.handle }, (s) => s !== entry && canSeeChannel(s.user, space, msg.channel))
       }
     })
     ws.on('close', () => {
@@ -137,12 +140,11 @@ export function attachWs(httpServer) {
     for (const s of sockets) resync(s)
   })
 
-  chatEvents.on('message', ({ channel, message, members }) => {
-    const can = (u) => members === 'everyone' || (Array.isArray(members) && members.map(String).includes(u.handle))
-    broadcast({ type: 'chat', channel, message }, (s) => can(s.user))
+  chatEvents.on('message', ({ space, channel, message, members }) => {
+    broadcast({ type: 'chat', space, channel, message }, (s) => canSee(s.user, space, members))
   })
 
-  chatEvents.on('channels', () => broadcast({ type: 'channels' }))
+  chatEvents.on('channels', ({ space } = {}) => broadcast({ type: 'channels', space }, (s) => space === DMS || !space || !!roleIn(s.user.id, space)))
 
   syncEvents.on('status', (st) => broadcast({ type: 'sync', status: st }, (s) => s.user.role === 'admin'))
   cloudEvents.on('status', (st) => broadcast({ type: 'cloud', status: st }))

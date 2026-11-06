@@ -259,7 +259,7 @@ brings the views across spaces.
 - [x] Refusals: a write the server refuses (403, or 404 once access is gone)
   is dropped, the server's version put back and the reason shown; edits to
   things shared to view only aren't even sent.
-- [x] Chat shows only in the home workspace for now (phase 4).
+- [x] Chat showed only in the home workspace until phase 4.
 - [x] Checked in the browser with two accounts: making a workspace, an invite
   link, joining through it after signing in, sharing a board to view, the
   view-only refusal, the space menu and Move to.
@@ -293,3 +293,25 @@ brings the views across spaces.
   Today, labelled, ticked from there into the workspace's board; the team
   calendar's event in the schedule strip and the week; grouped calendars;
   hiding a space; the event form's places.
+
+### Phase 4 progress
+
+- [x] Chat per place (`chat.js`): each workspace keeps its channels in its own
+  space (`chat/channels.json` and the month files), and "everyone" means
+  everyone in that workspace; you must be in it to read or post. Direct
+  messages live in a place of their own, `dm`, outside any space (no one's
+  tree mounts it, so only the chat API reaches it), for the two people only.
+- [x] Every chat call and socket message carries its place; read markers are
+  per place (`<space>/<channel>`), since channel ids repeat between
+  workspaces. A workspace's owner and admins can delete its channels and
+  messages (server admins no longer can, in workspaces they aren't running).
+- [x] Today's chat: channels stay with the home workspace; direct messages
+  and read markers move once (`separateDirectMessages`, safe on every start).
+- [x] The chat view: in a workspace its channels and your direct messages, in
+  your candle your direct messages only; nothing in what others shared.
+- [x] Plugins per person: done in phases 1 and 2 (installed in each candle,
+  read and written there wherever you are).
+- [x] Tests: channels kept per workspace, outsiders refused, DMs apart and
+  private, the migration moving DMs. Checked in the browser: a message in a
+  workspace's #general, a DM started from the workspace, the candle showing
+  only direct messages.

@@ -22,6 +22,9 @@
   your workspaces, with everything in it.
 - **Workspace members and invites** in Settings: roles, invite links, leaving,
   and deleting a workspace you own.
+- **Chat per workspace.** Every workspace has its own channels, for the people
+  in it. Direct messages are between the two of you, wherever you are: in a
+  workspace beside its channels, and in your candle on their own.
 - Moving to this version: what only its owner could see moves into that
   person's candle; what was shared stays in the workspace, for everyone in it.
   Plugins are now installed per person.

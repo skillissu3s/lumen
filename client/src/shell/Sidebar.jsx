@@ -89,7 +89,7 @@ export function SyncStatus() {
 
 export function Sidebar({ route, onNavigate, closed }) {
   const mode = useSession((s) => s.mode)
-  // chat is the home workspace's for now (docs/CANDLES.md, phase 4)
+  // chat: a workspace's channels and your messages; in your candle, your messages
   const space = useCurrentSpace()
   const canMove = useCanMove()
   const lists = useLists()
@@ -145,7 +145,7 @@ export function Sidebar({ route, onNavigate, closed }) {
           <NavItem href="#/calendar" icon={CalendarDays} tint="blue" label="Calendar" active={at('/calendar')} />
           <NavItem href="#/ideas" icon={Lightbulb} tint="violet" label="Ideas" active={at('/ideas')} />
           <NavItem href="#/docs" icon={FileText} tint="teal" label="Docs" active={at('/docs')} />
-          {mode === 'server' && space.home && <NavItem href="#/chat" icon={MessagesSquare} tint="green" label="Chat" count={chatUnread} active={at('/chat')} />}
+          {mode === 'server' && space.kind !== 'shared' && <NavItem href="#/chat" icon={MessagesSquare} tint="green" label="Chat" count={chatUnread} active={at('/chat')} />}
         </div>
 
         <div className="nav-section">

@@ -484,16 +484,14 @@ router.delete('/files', requireUser, async (req, res, next) => {
 
 // ---------- chat (server mode only) ----------
 
-// chat belongs to the home workspace for now: only its members see it
-const chatOnly = (req, res, next) => {
-  if (DESKTOP) return res.status(404).json({ error: 'Not here.' })
-  if (req.user && !spaces.roleIn(req.user.id, files.homeSpaceId())) return res.status(404).json({ error: 'Not here.' })
-  next()
-}
+// chat is a workspace's (`space`, its id) or direct messages between two
+// people (space 'dm'); the server checks you're in it
+const chatOnly = (req, res, next) => (DESKTOP ? res.status(404).json({ error: 'Not here.' }) : next())
+const placeOf = (req) => String(req.query.space || req.body?.space || chat.DMS)
 
 router.get('/chat/channels', chatOnly, requireUser, async (req, res, next) => {
   try {
-    res.json({ channels: await chat.listChannels(req.user) })
+    res.json({ channels: await chat.listChannels(req.user, req.query.space ? String(req.query.space) : null) })
   } catch (e) {
     next(e)
   }
@@ -502,7 +500,7 @@ router.get('/chat/channels', chatOnly, requireUser, async (req, res, next) => {
 router.post('/chat/channels', chatOnly, requireUser, async (req, res, next) => {
   try {
     const body = req.body || {}
-    const channel = body.dm ? await chat.createDm(req.user, body.dm) : await chat.createChannel(req.user, { name: body.name, members: body.members })
+    const channel = body.dm ? await chat.createDm(req.user, body.dm) : await chat.createChannel(req.user, placeOf(req), { name: body.name, members: body.members })
     res.json({ channel })
   } catch (e) {
     next(e)
@@ -511,7 +509,7 @@ router.post('/chat/channels', chatOnly, requireUser, async (req, res, next) => {
 
 router.delete('/chat/channels/:id', chatOnly, requireUser, async (req, res, next) => {
   try {
-    res.json(await chat.deleteChannel(req.user, req.params.id))
+    res.json(await chat.deleteChannel(req.user, placeOf(req), req.params.id))
   } catch (e) {
     next(e)
   }
@@ -519,9 +517,8 @@ router.delete('/chat/channels/:id', chatOnly, requireUser, async (req, res, next
 
 router.get('/chat/messages', chatOnly, requireUser, async (req, res, next) => {
   try {
-    const channel = String(req.query.channel || '')
     const before = req.query.before ? String(req.query.before) : undefined
-    res.json(await chat.listMessages(req.user, channel, before))
+    res.json(await chat.listMessages(req.user, placeOf(req), String(req.query.channel || ''), before))
   } catch (e) {
     next(e)
   }
@@ -529,7 +526,7 @@ router.get('/chat/messages', chatOnly, requireUser, async (req, res, next) => {
 
 router.post('/chat/messages', chatOnly, requireUser, async (req, res, next) => {
   try {
-    res.json({ message: await chat.postMessage(req.user, req.body?.channel, req.body?.text, req.body?.reply) })
+    res.json({ message: await chat.postMessage(req.user, placeOf(req), req.body?.channel, req.body?.text, req.body?.reply) })
   } catch (e) {
     next(e)
   }
@@ -537,7 +534,7 @@ router.post('/chat/messages', chatOnly, requireUser, async (req, res, next) => {
 
 router.patch('/chat/messages', chatOnly, requireUser, async (req, res, next) => {
   try {
-    res.json({ message: await chat.editMessage(req.user, req.body?.channel, req.body?.id, req.body?.text) })
+    res.json({ message: await chat.editMessage(req.user, placeOf(req), req.body?.channel, req.body?.id, req.body?.text) })
   } catch (e) {
     next(e)
   }
@@ -545,7 +542,7 @@ router.patch('/chat/messages', chatOnly, requireUser, async (req, res, next) => 
 
 router.delete('/chat/messages', chatOnly, requireUser, async (req, res, next) => {
   try {
-    res.json(await chat.deleteMessage(req.user, req.body?.channel, req.body?.id))
+    res.json(await chat.deleteMessage(req.user, placeOf(req), req.body?.channel, req.body?.id))
   } catch (e) {
     next(e)
   }
@@ -553,15 +550,12 @@ router.delete('/chat/messages', chatOnly, requireUser, async (req, res, next) =>
 
 router.post('/chat/read', chatOnly, requireUser, async (req, res, next) => {
   try {
-    res.json(await chat.markRead(req.user, req.body?.channel, req.body?.at))
+    res.json(await chat.markRead(req.user, placeOf(req), req.body?.channel, req.body?.at))
   } catch (e) {
     next(e)
   }
 })
 
-// ---------- errors ----------
-
-/** Errors as JSON ({ error }), for this router and the desktop's */
 export function apiErrors(err, req, res, next) {
   if (err instanceof HttpError) return res.status(err.status).json({ error: err.message })
   if (err instanceof files.ConflictError) return res.status(409).json({ error: err.message, current: err.current })

@@ -11,6 +11,7 @@ import { useSession } from '../../store/session.js'
 import { useUI } from '../../store/ui.js'
 import { relativeDay, todayIso, isoOf, timeOf, formatTime } from '../../../../shared/dates.js'
 import { usePrefs } from '../../store/prefs.js'
+import { useCurrentSpace } from '../../store/spaces.js'
 import './chat.css'
 
 const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
@@ -20,7 +21,7 @@ const render = (text, me) => {
   return DOMPurify.sanitize(html, { ADD_ATTR: ['target'] })
 }
 
-function NewChannel({ open, onClose, people, onCreated }) {
+function NewChannel({ open, onClose, people, space, onCreated }) {
   const [name, setName] = useState('')
   const [who, setWho] = useState('everyone')
   const [picked, setPicked] = useState([])
@@ -35,7 +36,7 @@ function NewChannel({ open, onClose, people, onCreated }) {
   }, [open])
   const create = async () => {
     try {
-      const { channel } = await api('POST', '/chat/channels', { name, members: who === 'everyone' ? 'everyone' : picked })
+      const { channel } = await api('POST', '/chat/channels', { space, name, members: who === 'everyone' ? 'everyone' : picked })
       onCreated(channel)
     } catch (e) {
       setError(e.message)
@@ -60,7 +61,7 @@ function NewChannel({ open, onClose, people, onCreated }) {
     >
       <div className="chat-form">
         <Input icon={Hash} value={name} onChange={(e) => setName(e.target.value)} placeholder="planning" aria-label="Channel name" autoFocus />
-        <Segmented label="Members" value={who} onChange={setWho} options={[{ value: 'everyone', label: 'Everyone' }, { value: 'some', label: 'Some people' }]} />
+        <Segmented label="Members" value={who} onChange={setWho} options={[{ value: 'everyone', label: 'Everyone in the workspace' }, { value: 'some', label: 'Some people' }]} />
         {who === 'some' &&
           people.map((p) => (
             <label key={p.handle} className="share-person">
@@ -148,7 +149,6 @@ function Message({ m, first, me, people, h12, onReply, onEdit, onDelete, editing
 export default function ChatView({ route }) {
   const mode = useSession((s) => s.mode)
   const me = useSession((s) => s.user?.handle)
-  const role = useSession((s) => s.user?.role)
   const prefs = usePrefs()
   const h12 = prefs.timeFormat === '12h'
   const [channels, setChannels] = useState(null)
@@ -171,34 +171,46 @@ export default function ChatView({ route }) {
   const inputRef = useRef(null)
   const lastTyping = useRef(0)
   const channelId = route.parts[1] || null
+  // a workspace's channels and your direct messages; in your candle, the messages only
+  const current = useCurrentSpace()
+  const workspace = current.kind === 'workspace' ? current.id : null
+  const canManage = current.role === 'owner' || current.role === 'admin'
 
   const refreshChannels = useCallback(async () => {
-    const r = await api('GET', '/chat/channels')
+    const r = await api('GET', `/chat/channels${workspace ? `?space=${encodeURIComponent(workspace)}` : ''}`)
     setChannels(r.channels)
     useUI.setState({ chatUnread: r.channels.reduce((n, c) => n + (c.unread || 0), 0) })
     return r.channels
-  }, [])
+  }, [workspace])
+
+  // the first channel to open: #general, or whatever there is
+  const firstOf = (list) => list.find((c) => c.id === 'general' && !c.dm) || list[0]
 
   useEffect(() => {
     if (mode !== 'server') return
-    refreshChannels().then((list) => {
-      if (!channelId && list.length) navigate(`/chat/${list.find((c) => c.id === 'general')?.id || list[0].id}`, { replace: true })
-    })
+    setChannels(null)
+    refreshChannels()
+      .then((list) => {
+        // moved to another space: a channel of the last one isn't here
+        if ((!channelId || !list.some((c) => c.id === channelId)) && list.length) navigate(`/chat/${firstOf(list).id}`, { replace: true })
+      })
+      .catch(() => setChannels([]))
     api('GET', '/users').then((r) => setPeople(r.users)).catch(() => {})
-  }, [mode]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mode, workspace]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const peopleMap = useMemo(() => new Map(people.map((p) => [p.handle, p])), [people])
   const channel = channels?.find((c) => c.id === channelId)
+  const place = channel?.space
 
   // load the channel's history
   useEffect(() => {
-    if (!channelId || mode !== 'server') return
+    if (!channelId || !place || mode !== 'server') return
     let alive = true
     setLoading(true)
     setMessages([])
     setReply(null)
     setEditing(null)
-    api('GET', `/chat/messages?channel=${encodeURIComponent(channelId)}`)
+    api('GET', `/chat/messages?space=${encodeURIComponent(place)}&channel=${encodeURIComponent(channelId)}`)
       .then((r) => {
         if (!alive) return
         setMessages(r.messages)
@@ -210,13 +222,13 @@ export default function ChatView({ route }) {
     return () => {
       alive = false
     }
-  }, [channelId, mode])
+  }, [channelId, place, mode])
 
   // mark read when looking at it
   useEffect(() => {
     const last = messages[messages.length - 1]
-    if (!last || !channelId || document.visibilityState !== 'visible') return
-    api('POST', '/chat/read', { channel: channelId, at: last.at })
+    if (!last || !channelId || !place || document.visibilityState !== 'visible') return
+    api('POST', '/chat/read', { space: place, channel: channelId, at: last.at })
       .then(refreshChannels)
       .catch(() => {})
   }, [messages.length, channelId]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -225,7 +237,7 @@ export default function ChatView({ route }) {
   useEffect(() => {
     const offs = [
       onSocket('chat', (e) => {
-        if (e.channel !== channelId) return refreshChannels()
+        if (e.channel !== channelId || e.space !== place) return refreshChannels()
         setMessages((list) => {
           const i = list.findIndex((m) => m.id === e.message.id)
           if (i >= 0) return list.map((m, j) => (j === i ? { ...e.message } : m))
@@ -236,7 +248,7 @@ export default function ChatView({ route }) {
       onSocket('channels', refreshChannels),
       onSocket('presence', (e) => setOnline(e.online || [])),
       onSocket('typing', (e) => {
-        if (e.channel !== channelId) return
+        if (e.channel !== channelId || e.space !== place) return
         setTyping((t) => ({ ...t, [e.handle]: Date.now() }))
       }),
     ]
@@ -245,7 +257,7 @@ export default function ChatView({ route }) {
       offs.forEach((off) => off())
       clearInterval(tick)
     }
-  }, [channelId, atBottom, me, refreshChannels])
+  }, [channelId, place, atBottom, me, refreshChannels])
 
   useLayoutEffect(() => {
     const el = listRef.current
@@ -256,7 +268,7 @@ export default function ChatView({ route }) {
     if (!messages.length) return
     const el = listRef.current
     const before = el.scrollHeight
-    const r = await api('GET', `/chat/messages?channel=${encodeURIComponent(channelId)}&before=${encodeURIComponent(messages[0].at)}`)
+    const r = await api('GET', `/chat/messages?space=${encodeURIComponent(place)}&channel=${encodeURIComponent(channelId)}&before=${encodeURIComponent(messages[0].at)}`)
     setMessages((list) => [...r.messages, ...list])
     setMore(r.more)
     requestAnimationFrame(() => (el.scrollTop = el.scrollHeight - before))
@@ -272,7 +284,7 @@ export default function ChatView({ route }) {
     setReply(null)
     setAtBottom(true)
     try {
-      const { message } = await api('POST', '/chat/messages', { channel: channelId, text: t, reply: temp.reply })
+      const { message } = await api('POST', '/chat/messages', { space: place, channel: channelId, text: t, reply: temp.reply })
       setMessages((list) => {
         const without = list.filter((m) => m.id !== temp.id)
         return without.some((m) => m.id === message.id) ? without : [...without, message]
@@ -285,11 +297,11 @@ export default function ChatView({ route }) {
     if (retry) return send(t, m)
     setEditing(null)
     if (t.trim() === m.text) return
-    const { message } = await api('PATCH', '/chat/messages', { channel: channelId, id: m.id, text: t.trim() })
+    const { message } = await api('PATCH', '/chat/messages', { space: place, channel: channelId, id: m.id, text: t.trim() })
     setMessages((list) => list.map((x) => (x.id === m.id ? message : x)))
   }
   const remove = async (m) => {
-    await api('DELETE', '/chat/messages', { channel: channelId, id: m.id })
+    await api('DELETE', '/chat/messages', { space: place, channel: channelId, id: m.id })
     setMessages((list) => list.map((x) => (x.id === m.id ? { ...x, deleted: true, text: '' } : x)))
   }
 
@@ -298,7 +310,7 @@ export default function ChatView({ route }) {
     setText(v)
     if (Date.now() - lastTyping.current > 3000) {
       lastTyping.current = Date.now()
-      sendSocket({ type: 'typing', channel: channelId })
+      sendSocket({ type: 'typing', space: place, channel: channelId })
     }
     const before = v.slice(0, e.target.selectionStart)
     const m = /(^|\s)@([a-z0-9-]*)$/i.exec(before)
@@ -362,6 +374,7 @@ export default function ChatView({ route }) {
         <div className="chat-side-head">
           <span className="view-title">Chat</span>
         </div>
+        {workspace && (
         <div className="chat-side-section">
           <div className="cal-side-head">
             <span>Channels</span>
@@ -379,6 +392,7 @@ export default function ChatView({ route }) {
             </a>
           ))}
         </div>
+        )}
         <div className="chat-side-section">
           <div className="cal-side-head">
             <span>Direct messages</span>
@@ -418,10 +432,10 @@ export default function ChatView({ route }) {
           </select>
           {channel && (
             <span className="view-subtitle">
-              {channel.members === 'everyone' ? 'Everyone' : `${(channel.members || []).length} people`}
+              {channel.members === 'everyone' ? `Everyone in ${current.name}` : `${(channel.members || []).length} people`}
             </span>
           )}
-          {channel && !channel.dm && (channel.by === me || role === 'admin') && (
+          {channel && !channel.dm && (channel.by === me || canManage) && (
             <div className="view-actions">
               <Menu
                 align="end"
@@ -512,6 +526,7 @@ export default function ChatView({ route }) {
       <NewChannel
         open={newOpen}
         onClose={() => setNewOpen(false)}
+        space={workspace}
         people={people.filter((p) => p.handle !== me)}
         onCreated={(c) => {
           setNewOpen(false)
@@ -534,10 +549,10 @@ export default function ChatView({ route }) {
               variant="danger"
               onClick={async () => {
                 try {
-                  await api('DELETE', `/chat/channels/${encodeURIComponent(removing.id)}`)
+                  await api('DELETE', `/chat/channels/${encodeURIComponent(removing.id)}?space=${encodeURIComponent(removing.space)}`)
                   setRemoving(null)
                   const list = await refreshChannels()
-                  navigate(list.length ? `/chat/${list.find((c) => c.id === 'general')?.id || list[0].id}` : '/chat', { replace: true })
+                  navigate(list.length ? `/chat/${firstOf(list).id}` : '/chat', { replace: true })
                 } catch (err) {
                   useUI.getState().toast(err.message, { tone: 'danger' })
                 }
@@ -565,7 +580,7 @@ export default function ChatView({ route }) {
               <UserAvatar user={p} size={20} /> {p.name} <span className="faint">@{p.handle}</span>
             </button>
           ))}
-          {people.length < 2 && <p className="muted">No one else is here yet. Invite people from Settings → Members.</p>}
+          {people.length < 2 && <p className="muted">No one else is here yet. Invite people to a workspace from Settings → Members.</p>}
         </div>
       </Dialog>
     </div>

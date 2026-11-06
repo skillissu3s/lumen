@@ -394,33 +394,40 @@ test('moving a board between your candle and a workspace keeps it whole, and its
   await api(adminJar, 'DELETE', `/api/spaces/${ws.id}`)
 })
 
+// the workspace everyone was in before spaces: its chat
+async function homeSpace() {
+  const res = await api(adminJar, 'GET', '/api/spaces')
+  return (await res.json()).spaces.find((s) => s.home).id
+}
+
 test('chat: post, edit, permissions, delete, DM isolation', async () => {
-  let res = await api(adminJar, 'POST', '/api/chat/messages', { channel: 'general', text: 'Hello team' })
+  const home = await homeSpace()
+  let res = await api(adminJar, 'POST', '/api/chat/messages', { space: home, channel: 'general', text: 'Hello team' })
   assert.equal(res.status, 200)
   const m1 = (await res.json()).message
   assert.ok(m1.id)
   assert.equal(m1.from, admin.handle)
 
-  res = await api(memberJar, 'GET', '/api/chat/messages?channel=general')
+  res = await api(memberJar, 'GET', `/api/chat/messages?space=${home}&channel=general`)
   assert.equal(res.status, 200)
   let messages = (await res.json()).messages
   assert.ok(messages.some((m) => m.id === m1.id))
 
-  res = await api(adminJar, 'PATCH', '/api/chat/messages', { channel: 'general', id: m1.id, text: 'Hello team!' })
+  res = await api(adminJar, 'PATCH', '/api/chat/messages', { space: home, channel: 'general', id: m1.id, text: 'Hello team!' })
   assert.equal(res.status, 200)
   const edited = (await res.json()).message
   assert.equal(edited.edited, true)
   assert.equal(edited.text, 'Hello team!')
 
-  res = await api(memberJar, 'PATCH', '/api/chat/messages', { channel: 'general', id: m1.id, text: 'nope' })
+  res = await api(memberJar, 'PATCH', '/api/chat/messages', { space: home, channel: 'general', id: m1.id, text: 'nope' })
   assert.equal(res.status, 403, 'cannot edit another’s message')
 
-  res = await api(memberJar, 'POST', '/api/chat/messages', { channel: 'general', text: 'hi' })
+  res = await api(memberJar, 'POST', '/api/chat/messages', { space: home, channel: 'general', text: 'hi' })
   const m2 = (await res.json()).message
-  res = await api(memberJar, 'DELETE', '/api/chat/messages', { channel: 'general', id: m2.id })
+  res = await api(memberJar, 'DELETE', '/api/chat/messages', { space: home, channel: 'general', id: m2.id })
   assert.equal(res.status, 200)
 
-  res = await api(adminJar, 'GET', '/api/chat/messages?channel=general')
+  res = await api(adminJar, 'GET', `/api/chat/messages?space=${home}&channel=general`)
   messages = (await res.json()).messages
   const deleted = messages.find((m) => m.id === m2.id)
   assert.ok(deleted && deleted.deleted === true && deleted.text === '')
@@ -441,7 +448,7 @@ test('chat: post, edit, permissions, delete, DM isolation', async () => {
   res = await api(carol.jar, 'GET', `/api/chat/messages?channel=${dm.id}`)
   assert.equal(res.status, 404, 'outsider gets 404 on the DM')
 
-  res = await api(carol.jar, 'GET', '/api/chat/channels')
+  res = await api(carol.jar, 'GET', `/api/chat/channels?space=${home}`)
   const carolChannels = (await res.json()).channels.map((c) => c.id)
   assert.ok(!carolChannels.includes(dm.id), 'outsider does not see the DM channel')
 })
@@ -467,15 +474,53 @@ test('a username change follows into shared lists, chat and the files', async ()
   assert.match(got['lists/forged.md'].text, /owner: robert/)
 
   // the DM is still theirs, and asking for it again doesn't make a second one
-  res = await api(memberJar, 'GET', '/api/chat/channels')
+  const home = await homeSpace()
+  res = await api(memberJar, 'GET', `/api/chat/channels?space=${home}`)
   const dms = (await res.json()).channels.filter((c) => c.dm)
   assert.equal(dms.length, 1)
   res = await api(adminJar, 'POST', '/api/chat/channels', { dm: 'robert' })
   assert.equal((await res.json()).channel.id, dms[0].id)
 
-  res = await api(memberJar, 'GET', '/api/chat/messages?channel=general')
+  res = await api(memberJar, 'GET', `/api/chat/messages?space=${home}&channel=general`)
   const from = (await res.json()).messages.map((m) => m.from)
   assert.ok(from.includes('robert') && !from.includes(old))
+})
+
+test('chat: every workspace its own channels; direct messages apart from all of them', async () => {
+  const home = await homeSpace()
+  let res = await api(adminJar, 'POST', '/api/spaces', { name: 'Chatters' })
+  const ws = (await res.json()).space
+  // a new workspace starts with its own #general, separate from the home one's
+  res = await api(adminJar, 'POST', '/api/chat/messages', { space: ws.id, channel: 'general', text: 'only Chatters' })
+  assert.equal(res.status, 200)
+  res = await api(adminJar, 'GET', `/api/chat/messages?space=${home}&channel=general`)
+  assert.ok(!(await res.json()).messages.some((m) => m.text === 'only Chatters'))
+  // not in the workspace: not in its chat
+  res = await api(memberJar, 'GET', `/api/chat/messages?space=${ws.id}&channel=general`)
+  assert.equal(res.status, 404)
+  res = await api(memberJar, 'POST', '/api/chat/channels', { space: ws.id, name: 'sneaky' })
+  assert.equal(res.status, 404)
+  // once in it, yes
+  res = await api(adminJar, 'POST', `/api/spaces/${ws.id}/invites`, {})
+  await api(memberJar, 'POST', `/api/join/${(await res.json()).token}`)
+  res = await api(memberJar, 'GET', `/api/chat/channels?space=${ws.id}`)
+  const list = (await res.json()).channels
+  assert.ok(list.some((c) => c.id === 'general' && c.space === ws.id))
+  // and direct messages show alongside, in their own place
+  const dm = list.find((c) => c.dm)
+  assert.equal(dm.space, 'dm')
+  res = await api(memberJar, 'GET', `/api/chat/messages?space=dm&channel=${dm.id}`)
+  assert.equal(res.status, 200)
+  // someone who isn't one of the two can't read it, whatever workspace they name
+  res = await api(adminJar, 'POST', '/api/admin/invites', { role: 'member' })
+  const token = (await res.json()).url.split('/invite/')[1]
+  const outsider = new CookieJar()
+  await api(outsider, 'POST', `/api/invites/${token}/accept`, { name: 'Eve', password: 'password123', email: 'eve@example.com' })
+  res = await api(outsider, 'GET', `/api/chat/messages?space=dm&channel=${dm.id}`)
+  assert.equal(res.status, 404)
+  res = await api(outsider, 'POST', '/api/chat/channels', { dm: 'nobody-here' })
+  assert.equal(res.status, 404)
+  await api(adminJar, 'DELETE', `/api/spaces/${ws.id}`)
 })
 
 test('git sync to a local bare repo', { skip: !hasGit }, async () => {

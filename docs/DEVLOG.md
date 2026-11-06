@@ -689,3 +689,14 @@ settable right on a card; drop the calendar's New button.
 - Test data written with curl from Git Bash lost its emoji (`??`), so a task
   looked undated; written from the browser it showed at once. Not an app bug.
 
+### Candles, phase 4: chat per workspace
+- Chat functions take a place: a workspace id or `dm`. A workspace's channel
+  list and month files are files of that space; `dm` is a space nobody's tree
+  mounts, so only the chat API reaches it. The socket checks membership of
+  the workspace and of the channel before sending a message or a typing note.
+- Read markers were keyed by channel id alone, which repeats between
+  workspaces; they're `<space>/<channel>` now, and old ones are rewritten once
+  along with moving old DMs out of the home workspace.
+- Test data again: curl from Git Bash can't be trusted with emoji, so the
+  browser check wrote through the app.
+
