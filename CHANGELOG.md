@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.0 — a calmer, tidier Lumen
 
 - **The sidebar is easier to read.** The top is your workspace: its settings,
   inviting people, plugins and its copy on GitHub. The bottom is you: your
