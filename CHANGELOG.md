@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.2 — obi's look
 
 - **obi's look is Lumen's default**: warm ink on paper, with obi's jade accent.
   The earlier plain grey is still there as the Neutral theme, and indigo is
