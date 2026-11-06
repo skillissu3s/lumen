@@ -5,7 +5,7 @@ import { APP_NAME, VERSION, DESKTOP, PUBLIC_URL, INVITE_DAYS } from './config.js
 import { db, getSetting } from './db.js'
 import { HttpError, checkHandle, userFromRequest, countUsers, createUser, login, getUser, allUsers, changePassword, createInvite, listInvites, revokeInvite, findInvite, acceptInvite, createSession, setSessionCookie, endSession, endUserSessions, sessionHashOf, cleanEmail, hashPassword, validPassword, userByEmail } from './auth.js'
 import * as files from './files.js'
-import { canReadAt, writeProblemAt, metaOf } from './access.js'
+import { canReadAt, writeProblemAt, metaOf, SHARED_KINDS } from './access.js'
 import * as view from './view.js'
 import * as chat from './chat.js'
 import * as git from './git.js'
@@ -439,6 +439,27 @@ router.put('/files', requireUser, async (req, res, next) => {
     })
     // the file as stored, when it differs from what was sent (ids added, formatting settled)
     res.json(result.text != null && result.text !== text ? { sha: result.sha, text: result.text } : { sha: result.sha })
+  } catch (e) {
+    next(e)
+  }
+})
+
+// a board, calendar, doc or idea board to another space you can edit: { from, to }
+// are paths in your tree (`to` may be taken: the server picks a free one)
+router.post('/files/move', requireUser, async (req, res, next) => {
+  try {
+    const cache = view.lookups(req.user)
+    const from = target(req.user, req.body?.from, cache)
+    const to = target(req.user, req.body?.to, cache)
+    if (!SHARED_KINDS.test(from.path) || !SHARED_KINDS.test(to.path) || from.path.split('/')[0] !== to.path.split('/')[0]) throw new HttpError(400, 'Only boards, calendars, docs and idea boards move, and they stay what they are.')
+    if (from.space === to.space) throw new HttpError(400, 'It’s there already.')
+    const cur = await files.space(from.space).read(from.path)
+    const leave = writeProblemAt(req.user, from, from.path, metaOf(from.path, cur?.text ?? ''), null, !!cur)
+    if (leave) throw new HttpError(403, leave)
+    const arrive = writeProblemAt(req.user, to, to.path, null, metaOf(to.path, cur?.text ?? ''), false)
+    if (arrive) throw new HttpError(403, arrive)
+    const dest = await files.move(from, to, { by: req.user.handle })
+    res.json({ path: view.toView(req.user, to.space, dest) })
   } catch (e) {
     next(e)
   }

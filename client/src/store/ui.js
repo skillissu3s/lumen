@@ -15,6 +15,8 @@ export const useUI = create((set, get) => ({
   pluginStatus: {},
   chatUnread: 0,
   shortcutsOpen: false,
+  // a board, calendar, doc or idea board being moved to another space: { path, name }
+  moving: null,
 
   toast(message, opts = {}) {
     const timeout = opts.timeout ?? 5000

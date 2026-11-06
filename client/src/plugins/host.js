@@ -78,7 +78,7 @@ function disabledPlugins() {
 
 function settingsFile() {
   const handle = useSession.getState().user?.handle
-  const file = handle ? useWorkspace.getState().files[`users/${handle}/settings.json`] : null
+  const file = handle ? useWorkspace.getState().tree[`users/${handle}/settings.json`] : null
   if (!file) return {}
   try {
     return JSON.parse(file.text)
@@ -88,7 +88,7 @@ function settingsFile() {
 }
 
 function sync() {
-  const installed = selectPlugins(useWorkspace.getState())
+  const installed = selectPlugins(candle())
   const disabled = disabledPlugins()
   const wanted = new Set()
   for (const p of installed) {
@@ -154,7 +154,7 @@ function destroyFrame(id) {
 }
 
 function findInstalled(id) {
-  return selectPlugins(useWorkspace.getState()).find((p) => p.id === id)
+  return selectPlugins(candle()).find((p) => p.id === id)
 }
 
 function registerCommands(rec) {
@@ -184,7 +184,7 @@ async function loadPluginFiles(id, manifest) {
   const files = {}
   for (const name of manifest.files || []) {
     if (typeof name !== 'string') continue
-    const got = await ws.ensure(`plugins/${id}/${name}`)
+    const got = await ws.ensureAt(`plugins/${id}/${name}`)
     if (got) files[name] = got.text
   }
   return files
@@ -505,6 +505,12 @@ export async function dispatch(rec, method, params = {}) {
 
 // ---------- storage ----------
 
+// a plugin's files and data are the person's: in their candle, at the top of the tree
+function candle() {
+  const s = useWorkspace.getState()
+  return { files: s.tree, paths: s.treePaths }
+}
+
 function dataDir(id) {
   const handle = useSession.getState().user?.handle || 'local'
   return `data/plugins/${id}/${handle}`
@@ -538,13 +544,13 @@ function storageFilePath(id, file) {
 
 async function writeStorageText(id, path, text) {
   const ws = useWorkspace.getState()
-  const got = await ws.ensure(path)
-  if (got) await ws.setText(path, text)
-  else await ws.createFile(path, text)
+  const got = await ws.ensureAt(path)
+  if (got) await ws.setTextAt(path, text)
+  else await ws.createAt(path, text)
 }
 
 async function storageGet(id, key) {
-  const got = await useWorkspace.getState().ensure(storageJsonPath(id, key))
+  const got = await useWorkspace.getState().ensureAt(storageJsonPath(id, key))
   if (!got) return null
   try {
     return JSON.parse(got.text)
@@ -559,7 +565,7 @@ async function storageSet(id, key, value) {
 }
 
 async function storageRead(id, file) {
-  const got = await useWorkspace.getState().ensure(storageFilePath(id, file))
+  const got = await useWorkspace.getState().ensureAt(storageFilePath(id, file))
   return got ? got.text : null
 }
 
@@ -569,7 +575,7 @@ async function storageWrite(id, file, text) {
 
 async function storageAppend(id, file, text) {
   const path = storageFilePath(id, file)
-  const got = await useWorkspace.getState().ensure(path)
+  const got = await useWorkspace.getState().ensureAt(path)
   const next = (got ? got.text : '') + String(text ?? '')
   await writeStorageText(id, path, next)
 }
@@ -577,13 +583,13 @@ async function storageAppend(id, file, text) {
 async function storageList(id, prefix = '') {
   const dir = `${dataDir(id)}/`
   const pre = dir + (prefix || '')
-  return useWorkspace.getState().paths.filter((p) => p.startsWith(pre) && p.length > dir.length).map((p) => p.slice(dir.length))
+  return useWorkspace.getState().treePaths.filter((p) => p.startsWith(pre) && p.length > dir.length).map((p) => p.slice(dir.length))
 }
 
 async function storageRemove(id, file) {
   const path = storageFilePath(id, file)
-  const got = await useWorkspace.getState().ensure(path)
-  if (got) await useWorkspace.getState().removeFile(path)
+  const got = await useWorkspace.getState().ensureAt(path)
+  if (got) await useWorkspace.getState().removeAt(path)
 }
 
 // ---------- tasks ----------

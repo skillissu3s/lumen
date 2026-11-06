@@ -195,3 +195,59 @@ test('a remote notice during an in-flight write waits for it, and our own echo i
   assert.match(s().files[INBOX].text, /\[x\] A/)
   assert.equal(s().saving.state, 'saved')
 })
+
+test('spaces: the current space shows its own files at its own paths', async () => {
+  const backend = await loaded({
+    [INBOX]: '- [ ] mine\n',
+    'users/nikhil/settings.json': '{}',
+    'workspaces/acme/lists/inbox.md': '- [ ] team\n',
+    'workspaces/acme/lumen.json': '{"name":"Acme"}',
+    'shared/ana/lists/groceries.md': '- [ ] milk\n',
+  })
+  // the candle: everything that isn't a workspace's or shared
+  assert.deepEqual(s().paths.sort(), [INBOX, 'users/nikhil/settings.json'])
+  s().setSpace('workspaces/acme/')
+  assert.deepEqual(s().paths.sort(), [INBOX, 'lumen.json'])
+  assert.equal(s().files[INBOX].text, '- [ ] team\n')
+  // an edit here goes to the workspace's file
+  await s().edit(INBOX, (t) => `${t}- [ ] ship\n`)
+  await s().flushNow()
+  assert.equal(backend.writes.at(-1).path, 'workspaces/acme/lists/inbox.md')
+  assert.equal(backend.files.get(INBOX).text, '- [ ] mine\n')
+  // what's the person's is reached wherever they are
+  assert.ok(s().tree['users/nikhil/settings.json'])
+  await s().editAt('users/nikhil/settings.json', () => '{"theme":"dark"}')
+  await s().flushNow()
+  assert.equal(backend.writes.at(-1).path, 'users/nikhil/settings.json')
+  // a change elsewhere arrives in the tree, not in this space
+  backend.files.set('shared/ana/lists/groceries.md', { text: '- [x] milk\n', sha: 'shaX' })
+  await backend.emit([{ path: 'shared/ana/lists/groceries.md', sha: 'shaX', deleted: false }])
+  assert.equal(s().tree['shared/ana/lists/groceries.md'].text, '- [x] milk\n')
+  assert.ok(!s().paths.includes('groceries.md') && !s().files['lists/groceries.md'])
+  s().setSpace('shared/ana/')
+  assert.deepEqual(s().paths, ['lists/groceries.md'])
+  s().setSpace('')
+})
+
+test('a write the server refuses is dropped, its version put back, and the reason told', async () => {
+  const backend = await loaded({ [INBOX]: '- [ ] mine\n' })
+  const { RefusedError } = await import('../storage/errors.js')
+  const told = []
+  const off = onProblem((p) => told.push(p.message))
+  backend.writeImpl = () => {
+    throw new RefusedError('You can view this, not change it.')
+  }
+  await s().edit(INBOX, (t) => `${t}- [ ] sneaky\n`)
+  await s().flushNow()
+  assert.equal(s().files[INBOX].text, '- [ ] mine\n')
+  assert.equal(s().saving.pending, 0)
+  assert.deepEqual(told, ['You can view this, not change it.'])
+  // and what's shared to view only isn't even tried
+  backend.writeImpl = null
+  s().setReadOnly([INBOX])
+  await s().edit(INBOX, (t) => `${t}- [ ] again\n`)
+  await s().flushNow()
+  assert.equal(backend.writes.length, 1)
+  s().setReadOnly([])
+  off()
+})

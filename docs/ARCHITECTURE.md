@@ -108,6 +108,13 @@ almost always. Free-form text (docs) uses a diff-match-patch rebase instead.
 Writes to the same file are debounced and coalesced, so ticking off five tasks
 quickly is one commit in GitHub mode, not five.
 
+Across spaces ([CANDLES.md](CANDLES.md)) the store holds the person's whole
+tree and shows one space at a time: `files` and `paths` are the open space's,
+with paths inside it, so views work the same in a candle, a workspace or what
+someone shared. Preferences, plugins and plugin data are read and written in
+the candle (`editAt`, `ensureAt`…) wherever you are. A write the server
+refuses is dropped and the server's version put back.
+
 ## Server mode
 
 - **Accounts.** SQLite (`node:sqlite`) holds users, sessions and invites — the

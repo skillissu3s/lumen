@@ -681,7 +681,7 @@ body.is-col-resizing * {
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 28px;
+  min-height: 28px;
   padding: 0 4px;
   border-radius: 5px;
   cursor: pointer;
@@ -689,9 +689,29 @@ body.is-col-resizing * {
 .share-person:hover {
   background: var(--bg-hover);
 }
+.share-person label {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  cursor: pointer;
+}
 .share-handle {
   margin-left: auto;
   color: var(--text-faint);
+  font-size: var(--fs-sm);
+}
+.share-person .ui-select-wrap {
+  flex: none;
+}
+.share-person .share-can {
+  height: 24px;
+  font-size: var(--fs-sm);
+}
+.share-note {
+  margin: 0;
+  color: var(--text-muted);
   font-size: var(--fs-sm);
 }
 
@@ -1150,4 +1170,51 @@ body.is-col-resizing * {
 .acct-item > span {
   flex: 1;
   white-space: nowrap;
+}
+
+/* ---------- moving between spaces (the space menu) ---------- */
+.space-list {
+  margin-top: 4px;
+}
+.space-group + .space-group {
+  margin-top: 4px;
+}
+.space-group-label {
+  padding: 6px 8px 2px;
+  color: var(--text-faint);
+  font-size: var(--fs-xs, 11px);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.space-item span:not(.workspace-mark) {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.space-item .workspace-mark {
+  flex: none;
+}
+.space-item.is-current {
+  background: var(--bg-active);
+}
+.space-check {
+  color: var(--accent);
+}
+.workspace-mark.is-candle {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+.workspace-mark.is-shared {
+  background: var(--bg-muted);
+  color: var(--text-muted);
+}
+.move-targets {
+  display: grid;
+  gap: 2px;
+}
+.move-target {
+  justify-content: flex-start;
+  gap: 10px;
 }

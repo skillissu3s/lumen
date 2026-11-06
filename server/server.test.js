@@ -359,6 +359,41 @@ test('workspaces: create, invite, join, everyone in it sees and edits all of it,
   assert.ok(!(await res.json()).files.some((f) => f.path.startsWith('workspaces/launch/')))
 })
 
+test('moving a board between your candle and a workspace keeps it whole, and its id', async () => {
+  let res = await api(adminJar, 'POST', '/api/spaces', { name: 'Movers' })
+  const ws = (await res.json()).space
+  res = await api(adminJar, 'POST', `/api/spaces/${ws.id}/invites`, {})
+  await api(memberJar, 'POST', `/api/join/${(await res.json()).token}`)
+
+  const text = `---\nname: Trip\nshare: [${member.handle}:view]\n---\n\n- [ ] tickets\n`
+  res = await api(adminJar, 'PUT', '/api/files', { path: 'lists/trip.md', text, sha: null })
+  const stored = (await res.json()).text
+  const id = /^id: (\S+)$/m.exec(stored)[1]
+
+  // Bob may not move what was only shared with him
+  res = await api(memberJar, 'POST', '/api/files/move', { from: `shared/${admin.handle}/lists/trip.md`, to: `workspaces/${ws.slug}/lists/trip.md` })
+  assert.equal(res.status, 403)
+
+  res = await api(adminJar, 'POST', '/api/files/move', { from: 'lists/trip.md', to: `workspaces/${ws.slug}/lists/trip.md` })
+  assert.equal(res.status, 200)
+  assert.equal((await res.json()).path, `workspaces/${ws.slug}/lists/trip.md`)
+  res = await api(memberJar, 'POST', '/api/files/read', { paths: [`workspaces/${ws.slug}/lists/trip.md`, `shared/${admin.handle}/lists/trip.md`] })
+  const got = (await res.json()).files
+  assert.equal(got[`shared/${admin.handle}/lists/trip.md`], null, 'no longer shared from the candle')
+  const there = got[`workspaces/${ws.slug}/lists/trip.md`]
+  assert.match(there.text, new RegExp(`^id: ${id}$`, 'm'), 'the same board')
+  assert.match(there.text, /tickets/)
+  assert.doesNotMatch(there.text, /share:/, 'sharing stays behind')
+
+  // back again, beside a board of the same name: it gets a free path
+  await api(adminJar, 'PUT', '/api/files', { path: 'lists/trip.md', text: '---\nname: Other trip\n---\n', sha: null })
+  res = await api(adminJar, 'POST', '/api/files/move', { from: `workspaces/${ws.slug}/lists/trip.md`, to: 'lists/trip.md' })
+  assert.equal((await res.json()).path, 'lists/trip-2.md')
+  res = await api(adminJar, 'POST', '/api/files/move', { from: 'lists/trip-2.md', to: `workspaces/${ws.slug}/docs/trip.md` })
+  assert.equal(res.status, 400, 'a board stays a board')
+  await api(adminJar, 'DELETE', `/api/spaces/${ws.id}`)
+})
+
 test('chat: post, edit, permissions, delete, DM isolation', async () => {
   let res = await api(adminJar, 'POST', '/api/chat/messages', { channel: 'general', text: 'Hello team' })
   assert.equal(res.status, 200)

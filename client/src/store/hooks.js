@@ -19,7 +19,11 @@ export const useConfig = () => {
 export const useLists = () => useDerived(selectLists)
 export const useCalendars = () => useDerived(selectCalendars)
 export const useAllItems = () => useDerived(selectAllItems)
-export const usePlugins = () => useDerived(selectPlugins)
+// plugins are the person's, installed in their candle: read from the whole tree
+export const usePlugins = () => {
+  const tree = useWorkspace((s) => s.tree)
+  return useMemo(() => selectPlugins({ files: tree }), [tree])
+}
 export const useDocs = () => useDerived(selectDocs)
 export const useIdeas = () => useDerived(selectIdeas)
 

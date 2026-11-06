@@ -660,3 +660,19 @@ settable right on a card; drop the calendar's New button.
   private, so it all moved to Nikhil's candle; the workspace kept chat and got
   fresh starter files. The app still opens and works on the candle.
 
+### Candles, phase 2: spaces in the app
+- The store keeps the whole tree and shows one space as if it were the whole
+  workspace (paths inside it), so no view had to learn about spaces. The few
+  things that are the person's (preferences, plugins, plugin data) use the
+  tree paths directly; they only exist in the candle, at the top of the tree.
+- What others shared with you is a space per person (`shared/<them>/`), so a
+  shared board opens like any board. Edits to view-only things are stopped in
+  the store; any write the server refuses (403, or 404 when access is gone)
+  used to look like a lost sign-in and stay pending; it's now dropped, the
+  server's version restored, and the reason shown.
+- Moving between spaces is one server transaction (remove there, save here)
+  so the root keeps its id: the deleted row's id is free to be reused, and
+  saving revives it in the new space with its children.
+- Checked with two accounts in the browser. The pane's element references
+  sometimes give wrong click positions; coordinates from screenshots worked.
+

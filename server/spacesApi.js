@@ -3,7 +3,7 @@
 
 import express from 'express'
 import { DESKTOP, PUBLIC_URL } from './config.js'
-import { createSession, createUser, setSessionCookie, userByEmail } from './auth.js'
+import { createSession, createUser, setSessionCookie, userByEmail, userByHandle } from './auth.js'
 import * as files from './files.js'
 import * as spaces from './spaces.js'
 import * as view from './view.js'
@@ -17,7 +17,8 @@ spacesRouter.use(jsonBody, csrf, loadUser)
 const fail = (status, message) => Object.assign(new Error(message), { status })
 const serverOnly = (req, res, next) => (DESKTOP ? res.status(404).json({ error: 'Workspaces are on a Lumen server.' }) : next())
 
-const shape = (s) => ({ id: s.id, kind: s.kind, name: s.name, slug: s.slug, role: s.role, prefix: s.kind === 'candle' ? '' : `workspaces/${s.slug}/` })
+// `home`: the workspace that holds chat for now (phase 4 gives every workspace its own)
+const shape = (s) => ({ id: s.id, kind: s.kind, name: s.name, slug: s.slug, role: s.role, prefix: s.kind === 'candle' ? '' : `workspaces/${s.slug}/`, home: s.id === files.homeSpaceId() })
 const mustBeIn = (user, id) => {
   const role = spaces.roleIn(user.id, id)
   if (!role) throw fail(404, 'Not found.')
@@ -25,11 +26,11 @@ const mustBeIn = (user, id) => {
 }
 
 spacesRouter.get('/spaces', requireUser, (req, res) => {
-  if (req.user.desktop) return res.json({ spaces: [{ id: files.homeSpaceId(), kind: 'candle', name: '', slug: null, role: 'owner', prefix: '' }], shared: [] })
+  if (req.user.desktop) return res.json({ spaces: [{ id: files.homeSpaceId(), kind: 'candle', name: '', slug: null, role: 'owner', prefix: '', home: true }], shared: [] })
   spaces.ensureCandle(req.user)
   res.json({
     spaces: spaces.spacesOf(req.user.id).map(shape),
-    shared: view.shared(req.user).map((s) => ({ prefix: s.prefix, path: s.path, owner: s.owner, can: s.can })),
+    shared: view.shared(req.user).map((s) => ({ prefix: s.prefix, path: s.path, owner: s.owner, ownerName: userByHandle(s.owner)?.name || s.owner, can: s.can })),
   })
 })
 

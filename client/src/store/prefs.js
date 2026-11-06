@@ -59,7 +59,7 @@ export function usePrefs() {
 function currentPrefs() {
   const user = useSession.getState().user
   const handle = user?.handle
-  const file = handle ? useWorkspace.getState().files[`users/${handle}/settings.json`] : null
+  const file = handle ? useWorkspace.getState().tree[`users/${handle}/settings.json`] : null
   let raw = {}
   if (file) {
     try {
@@ -75,7 +75,7 @@ function currentPrefs() {
 let lastSource = null
 function syncPrefs() {
   const handle = useSession.getState().user?.handle
-  const text = handle ? useWorkspace.getState().files[`users/${handle}/settings.json`]?.text : null
+  const text = handle ? useWorkspace.getState().tree[`users/${handle}/settings.json`]?.text : null
   const source = `${handle}|${text ?? ''}`
   if (source === lastSource) return
   lastSource = source
@@ -92,8 +92,8 @@ export async function setPrefs(patch) {
   if (!handle) return
   const path = `users/${handle}/settings.json`
   const ws = useWorkspace.getState()
-  if (ws.files[path]) {
-    await ws.edit(path, (text) => {
+  if (ws.tree[path]) {
+    await ws.editAt(path, (text) => {
       let cur = {}
       try {
         cur = JSON.parse(text)
@@ -103,7 +103,7 @@ export async function setPrefs(patch) {
       return `${JSON.stringify(deepMerge(cur, patch), null, 2)}\n`
     })
   } else {
-    await ws.createFile(path, `${JSON.stringify(patch, null, 2)}\n`)
+    await ws.createAt(path, `${JSON.stringify(patch, null, 2)}\n`)
   }
   prefsStore.setState({ prefs: deepMerge(prefsStore.getState().prefs, patch) })
 }

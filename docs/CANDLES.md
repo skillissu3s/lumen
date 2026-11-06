@@ -192,9 +192,9 @@ today, now across spaces:
    losing-access cases; then a release.
 
 Each phase ends with tests, the docs updated, a commit and a push; releases
-only when the user says so. **Not releasable between phase 1 and phase 2**:
-after phase 1 the app shows only the candle (workspaces' files are under
-`workspaces/…`, which today's app doesn't read yet).
+only when the user says so. Phase 1 alone wasn't releasable (the app showed
+only the candle); from phase 2 on you work in one space at a time, and phase 3
+brings the views across spaces.
 
 ### Phase 1 progress
 
@@ -227,3 +227,39 @@ after phase 1 the app shows only the candle (workspaces' files are under
 - [x] Tests: spaces kept apart in units, candle privacy and view/edit
   sharing, workspaces (create, invite, join, edit, rename, leave, sign up by
   link, delete), live updates for shares and membership, the migration.
+
+### Phase 2 progress
+
+- [x] The store keeps the whole tree (`tree`, `treePaths`) and shows the
+  current space as if it were the whole workspace: `files` and `paths` are
+  that space's, with paths inside it, so boards, calendars, docs, ideas and
+  their routes work unchanged in any space. `edit` and friends take those
+  paths; `editAt` and friends take tree paths, for what is the person's
+  wherever they are (preferences, plugins, plugin data, all in the candle).
+- [x] `store/spaces.js`: the list from `/api/spaces` (offline, worked out from
+  the tree), each person's shares as a space of its own ("Shared by Ana" at
+  `shared/ana/`), the open space remembered per account, a fresh look when a
+  space appears or goes (joined, left, removed, deleted: back to the candle).
+- [x] The space menu at the top of the sidebar: the open space and what it
+  offers (settings, members and invites, plugins in the candle, its GitHub
+  copy), every space to move to, a new workspace, joining with a link.
+- [x] `#/join/<token>`: one button when signed in; a sign-up form without an
+  account; "I have an account" signs in and comes back to the link.
+- [x] Settings → Members for a workspace: roles, removing people, invite links
+  (made, copied, revoked, how many joined), leaving. General names the open
+  space (renaming goes through the server, which updates its `lumen.json`),
+  and the owner can delete a workspace. Accounts and git sync sit under
+  *Server*, for server admins; Plugins under *You*.
+- [x] Sharing from a candle: only me, or chosen people, each "Can view" or
+  "Can edit" (`share: [sam, ana:view]`); in a workspace the field says everyone
+  in it can see and edit.
+- [x] Move to…: boards, calendars, docs and idea boards move between your
+  candle and your workspaces (`POST /api/files/move`, one transaction on the
+  server, the same id, sharing left behind, a free path if the name is taken).
+- [x] Refusals: a write the server refuses (403, or 404 once access is gone)
+  is dropped, the server's version put back and the reason shown; edits to
+  things shared to view only aren't even sent.
+- [x] Chat shows only in the home workspace for now (phase 4).
+- [x] Checked in the browser with two accounts: making a workspace, an invite
+  link, joining through it after signing in, sharing a board to view, the
+  view-only refusal, the space menu and Move to.

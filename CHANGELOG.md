@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+- **Your own candle, and workspaces you share.** Everyone now has a private
+  candle of their own: boards, calendars, docs, idea boards and plugins that
+  are yours alone. From the menu at the top of the sidebar, make a workspace
+  and invite people with a link (they can sign up through it), or join one.
+  Everyone in a workspace sees and edits all of it. Move between your candle
+  and your workspaces from the same menu.
+- **Share one thing from your candle.** A board, calendar, doc or idea board
+  can be shared with chosen people, each able to view or to edit. What others
+  share with you appears in the menu as *Shared by* them.
+- **Move to…** a board, calendar, doc or idea board between your candle and
+  your workspaces, with everything in it.
+- **Workspace members and invites** in Settings: roles, invite links, leaving,
+  and deleting a workspace you own.
+- Moving to this version: what only its owner could see moves into that
+  person's candle; what was shared stays in the workspace, for everyone in it.
+  Plugins are now installed per person.
+
 - **The timeline tells the time right.** While something is under way, now is
   marked on it, with how long is left, instead of a line after it. Free time
   today only counts what is still ahead, and 12-hour times no longer wrap.

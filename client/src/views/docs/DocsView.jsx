@@ -11,6 +11,7 @@ import { navigate } from '../../lib/router.js'
 import { createDoc, deleteDoc, renameDoc, saveDoc } from '../../lib/actions.js'
 import { setFrontMatter, splitFrontMatter } from '../../../../shared/frontmatter.js'
 import { ShareField } from '../../shell/ListEditor.jsx'
+import { moveItem, useCanMove } from '../../shell/MoveTo.jsx'
 import { BOARD_COLORS } from '../../../../shared/board.js'
 import { RichEditor } from './RichEditor.jsx'
 import './docs.css'
@@ -44,6 +45,7 @@ function parts(text) {
 // is: a twisty (a folder's chevron; empty for docs once there are folders),
 // an 18 px icon, the name, and a menu that shows on hover.
 function Tree({ docs, current, filter, onDelete }) {
+  const canMove = useCanMove()
   const [closed, setClosed] = useState(() => new Set())
   const folders = useMemo(() => {
     const map = new Map()
@@ -57,6 +59,7 @@ function Tree({ docs, current, filter, onDelete }) {
   const hasFolders = folders.some(([f]) => f)
   const docMenu = (d) => [
     { label: 'Open', icon: FileText, onSelect: () => navigate(`/${d.path}`) },
+    ...(canMove ? [moveItem(d.path, d.title)] : []),
     'separator',
     { label: 'Delete doc…', icon: Trash2, danger: true, onSelect: () => onDelete({ docs: [d], title: d.title }) },
   ]
@@ -130,6 +133,7 @@ function Tree({ docs, current, filter, onDelete }) {
 }
 
 function Editor({ path }) {
+  const canMove = useCanMove()
   const file = useWorkspace((s) => s.files[path])
   const saving = useWorkspace((s) => s.saving)
   const mode = useSession((s) => s.mode)
@@ -215,6 +219,7 @@ function Editor({ path }) {
                 },
               },
               { label: 'Full width', icon: MoveHorizontal, checked: meta.width === 'full', onSelect: () => setMeta({ width: meta.width === 'full' ? null : 'full' }) },
+              ...(canMove ? [moveItem(path, meta.title || path.split('/').pop().replace(/\.md$/, ''))] : []),
               'separator',
               { label: 'Delete doc…', icon: Trash2, danger: true, onSelect: () => setConfirm(true) },
             ]}

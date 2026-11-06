@@ -2,7 +2,7 @@
 
 import { api, ApiError } from '../lib/api.js'
 import { connectSocket, onSocket, onSocketState } from '../lib/socket.js'
-import { ConflictError, AuthError, OfflineError } from './errors.js'
+import { ConflictError, AuthError, OfflineError, RefusedError } from './errors.js'
 
 function mapError(e) {
   if (e instanceof ApiError) {
@@ -10,7 +10,9 @@ function mapError(e) {
       const current = e.body && typeof e.body === 'object' && 'current' in e.body ? e.body.current : null
       return new ConflictError(current)
     }
-    if (e.status === 401 || e.status === 403) return new AuthError(e.message)
+    if (e.status === 401) return new AuthError(e.message)
+    // not allowed here (view only, not yours, access taken away): nothing to retry
+    if (e.status === 403 || e.status === 404) return new RefusedError(e.message)
     if (e.status === 0 || (e.status >= 502 && e.status <= 504)) return new OfflineError()
   }
   return e

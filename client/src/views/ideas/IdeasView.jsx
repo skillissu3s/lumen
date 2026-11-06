@@ -9,6 +9,7 @@ import { navigate } from '../../lib/router.js'
 import { createIdeaBoard, deleteIdeaBoard, updateIdeaMeta } from '../../lib/boardActions.js'
 import { bounds, colorName } from '../../../../shared/canvas.js'
 import { ListEditor } from '../../shell/ListEditor.jsx'
+import { moveItem, useCanMove } from '../../shell/MoveTo.jsx'
 import { IdeaCanvas } from './IdeaCanvas.jsx'
 import './ideas.css'
 
@@ -32,6 +33,7 @@ function Preview({ board }) {
 }
 
 function Gallery({ boards }) {
+  const canMove = useCanMove()
   const [creating, setCreating] = useState(null) // the anchor the form opens by
   const [editing, setEditing] = useState(null)
   const [confirm, setConfirm] = useState(null)
@@ -39,6 +41,7 @@ function Gallery({ boards }) {
   const count = (b) => b.nodes.filter((n) => n.type !== 'group').length
   const tileMenu = (b) => [
     { label: 'Edit idea board…', icon: Pencil, onSelect: () => setEditing(b) },
+    ...(canMove ? [moveItem(b.path, b.name)] : []),
     'separator',
     { label: 'Delete idea board…', icon: Trash2, danger: true, onSelect: () => setConfirm(b) },
   ]
@@ -147,6 +150,7 @@ function DeleteBoard({ board, onClose, onDeleted }) {
 }
 
 function Board({ board }) {
+  const canMove = useCanMove()
   const [editing, setEditing] = useState(false)
   const [confirm, setConfirm] = useState(false)
   const [ready, setReady] = useState(() => !!useWorkspace.getState().files[board.path])
@@ -174,6 +178,7 @@ function Board({ board }) {
             align="end"
             items={[
               { label: 'Edit idea board…', icon: Pencil, onSelect: () => setEditing(true) },
+              ...(canMove ? [moveItem(board.path, board.name)] : []),
               { label: 'Delete idea board…', icon: Trash2, danger: true, onSelect: () => setConfirm(true) },
             ]}
             trigger={

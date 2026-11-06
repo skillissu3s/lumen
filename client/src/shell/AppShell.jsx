@@ -11,6 +11,7 @@ import { useConfig, inboxPath } from '../store/hooks.js'
 import { Sidebar } from './Sidebar.jsx'
 import { Rail } from './Rail.jsx'
 import { CommandPalette } from './CommandPalette.jsx'
+import { MoveHost } from './MoveTo.jsx'
 import PluginFrames from '../plugins/PluginFrames.jsx'
 import { useShortcut, shortcutList, comboKeys } from './shortcuts.js'
 import { SidebarResizer, SIDEBAR_DEFAULT } from './SidebarResizer.jsx'
@@ -198,6 +199,7 @@ export function AppShell({ route }) {
       )}
       <PluginFrames />
       <CommandPalette />
+      <MoveHost />
       <ShortcutsDialog />
       <Toaster toasts={toasts} onDismiss={dismiss} />
     </div>

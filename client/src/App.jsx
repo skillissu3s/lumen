@@ -3,11 +3,13 @@
 import { useEffect } from 'react'
 import { useSession } from './store/session.js'
 import { useWorkspace } from './store/workspace.js'
+import { rememberedSpace } from './store/spaces.js'
 import { usePrefs, applyTheme } from './store/prefs.js'
 import { useRoute, navigate } from './lib/router.js'
 import { connectSocket, onSocket } from './lib/socket.js'
 import { AcceptInvite, BootError, BootScreen, DesktopWelcome, ForgotPassword, NoServer, SignIn, Setup } from './auth/AuthScreens.jsx'
 import { AppShell } from './shell/AppShell.jsx'
+import JoinPage, { pendingJoin } from './auth/JoinPage.jsx'
 
 const AUTH_ROUTES = ['signin', 'setup', 'invite', 'forgot']
 
@@ -30,12 +32,15 @@ export default function App() {
   useEffect(() => {
     if (status !== 'ready') return
     const ws = useWorkspace.getState()
-    ws.initWorkspace({ backend: useSession.getState().backend(), user, mode })
+    ws.initWorkspace({ backend: useSession.getState().backend(), user, mode, space: mode === 'server' ? rememberedSpace() : '' })
     ws.load({ offline: useSession.getState().offline })
     if (mode === 'server' || mode === 'desktop') connectSocket()
     // the desktop app's syncing with a Lumen server, as it goes
     const off = mode === 'desktop' ? onSocket('cloud', (msg) => useSession.setState({ cloud: msg.status })) : null
     if (AUTH_ROUTES.includes(route.parts[0])) navigate('/today', { replace: true })
+    // a workspace link opened before signing in carries on now
+    const join = pendingJoin()
+    if (join) navigate(`/join/${join}`, { replace: true })
     return () => off?.()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, mode, user?.handle])
@@ -58,6 +63,7 @@ export default function App() {
   if (status !== 'ready') {
     const [first, second] = route.parts
     if (first === 'invite' && second) return <AcceptInvite token={second} />
+    if (first === 'join' && second && mode === 'server') return <JoinPage token={second} />
     if (status === 'needs-setup') return <Setup />
     if (first === 'forgot' && mode === 'server') return <ForgotPassword />
     return <SignIn />
@@ -65,5 +71,6 @@ export default function App() {
 
   if (wsStatus === 'error') return <BootError message={wsError} onRetry={() => useWorkspace.getState().load()} />
   if (wsStatus !== 'ready') return <BootScreen />
+  if (route.parts[0] === 'join' && route.parts[1]) return <JoinPage token={route.parts[1]} />
   return <AppShell route={route} />
 }

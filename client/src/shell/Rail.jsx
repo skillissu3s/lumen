@@ -6,7 +6,8 @@ import { CalendarDays, FileText, Kanban, Lightbulb, MessagesSquare, PanelLeftOpe
 import { IconBadge, Tooltip } from '../components/ui/index.js'
 import { useSession } from '../store/session.js'
 import { useUI } from '../store/ui.js'
-import { useConfig, useLists, usePlugins } from '../store/hooks.js'
+import { useLists, usePlugins } from '../store/hooks.js'
+import { useCurrentSpace } from '../store/spaces.js'
 import { usePrefs, setPrefs } from '../store/prefs.js'
 import { createBoard } from '../lib/boardActions.js'
 import { navigate } from '../lib/router.js'
@@ -27,8 +28,8 @@ function RailItem({ href, icon: Icon, tint, label, active, children }) {
 }
 
 export function Rail({ route, closed }) {
+  const space = useCurrentSpace()
   const mode = useSession((s) => s.mode)
-  const config = useConfig()
   const lists = useLists()
   const plugins = usePlugins()
   const prefs = usePrefs()
@@ -42,7 +43,7 @@ export function Rail({ route, closed }) {
   return (
     <nav className={`app-rail${closed ? ' is-closed' : ''}`} aria-label="Main" inert={closed || undefined}>
       <div className="app-rail-top">
-        <WorkspaceMenu workspace={config.name} compact />
+        <WorkspaceMenu compact />
         <Tooltip label="Expand the sidebar  Ctrl+\" side="right">
           <button type="button" className="app-rail-item" aria-label="Expand the sidebar" onClick={() => setPrefs({ sidebar: { collapsed: false } })}>
             <PanelLeftOpen size={16} />
@@ -61,7 +62,7 @@ export function Rail({ route, closed }) {
         <RailItem href="#/calendar" icon={CalendarDays} tint="blue" label="Calendar" active={at('/calendar')} />
         <RailItem href="#/ideas" icon={Lightbulb} tint="violet" label="Ideas" active={at('/ideas')} />
         <RailItem href="#/docs" icon={FileText} tint="teal" label="Docs" active={at('/docs')} />
-        {mode === 'server' && <RailItem href="#/chat" icon={MessagesSquare} tint="green" label="Chat" active={at('/chat')} />}
+        {mode === 'server' && space.home && <RailItem href="#/chat" icon={MessagesSquare} tint="green" label="Chat" active={at('/chat')} />}
         <span className="app-rail-sep" />
         {lists.map((l) => (
           <RailItem key={l.path} href={`#/board/${l.id}`} label={l.name} active={path === `/board/${l.id}`}>

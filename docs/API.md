@@ -72,7 +72,7 @@ waiting, drift: [path], runs: [{ at, written, removed, commit, error, full }] }`
 
 | | | |
 |---|---|---|
-| `GET /api/spaces` | — | `{ spaces: [{ id, kind: 'candle'\|'workspace', name, slug, role, prefix }], shared: [{ prefix, path, owner, can }] }`: your candle first |
+| `GET /api/spaces` | — | `{ spaces: [{ id, kind: 'candle'\|'workspace', name, slug, role, prefix, home }], shared: [{ prefix, path, owner, ownerName, can }] }`: your candle first; `home` holds chat for now |
 | `POST /api/spaces` | `{ name }` | a new workspace, owned by you, with starter files → `{ space }` |
 | `PATCH /api/spaces/:id` | `{ name?, slug? }` | owner and admins; a new slug moves everyone's paths → `{ space }` |
 | `DELETE /api/spaces/:id` | — | the owner deletes a workspace → `{ ok }` |
@@ -98,6 +98,7 @@ leads nowhere they may go is 404.
 | `POST /api/files/read` | `{ paths: [..] }` (≤ 500) | `{ files: { [path]: { text, sha } \| null } }` |
 | `PUT /api/files` | `{ path, text, sha }` | `sha`: the version the edit is based on, `null` = create. → `{ sha }`. **409** `{ error, current: { text, sha } \| null }` if the file moved on. 403 with a reason if not allowed |
 | `DELETE /api/files` | `{ path, sha }` | `{ ok }` (409 as above) |
+| `POST /api/files/move` | `{ from, to }` | a board, calendar, doc or idea board to another space you can edit; keeps its id, drops its sharing, takes a free path if `to` is taken → `{ path }` |
 
 ## Chat (server mode only; 404 on the desktop)
 

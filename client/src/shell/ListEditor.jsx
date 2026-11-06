@@ -1,45 +1,85 @@
 // The small form for making or changing a board, calendar or idea board:
-// name, icon, colour, and (on a server) who it's shared with.
+// name, icon, colour, and (in your candle on a server) who it's shared with.
 import { useEffect, useState } from 'react'
-import { Button, ColorPicker, IconBadge, IconPicker, Input, Popover, Segmented } from '../components/ui/index.js'
+import { Button, ColorPicker, IconBadge, IconPicker, Input, Popover, Segmented, Select } from '../components/ui/index.js'
 import { api } from '../lib/api.js'
 import { useSession } from '../store/session.js'
+import { useCurrentSpace } from '../store/spaces.js'
 
+// [sam, ana:view] → { sam: 'edit', ana: 'view' }, and back (docs/CANDLES.md)
+const shareMap = (value) => Object.fromEntries((Array.isArray(value) ? value : []).map((e) => String(e).split(':')).map(([h, can]) => [h, can === 'view' ? 'view' : 'edit']))
+const shareList = (map) => {
+  const out = Object.entries(map).map(([h, can]) => (can === 'view' ? `${h}:view` : h))
+  return out.length ? out : null
+}
+
+/**
+ * Who can see a board, calendar, doc or idea board. In your candle: only you,
+ * or people you pick, each able to view or to edit. In a workspace everyone in
+ * it already can, so there is nothing to choose.
+ */
 export function ShareField({ value, onChange }) {
   const mode = useSession((s) => s.mode)
   const me = useSession((s) => s.user?.handle)
+  const space = useCurrentSpace()
   const [people, setPeople] = useState([])
+  const inCandle = mode === 'server' && space.kind === 'candle'
   useEffect(() => {
-    if (mode !== 'server') return
+    if (!inCandle) return
     api('GET', '/users')
       .then((r) => setPeople(r.users.filter((u) => u.handle !== me)))
       .catch(() => {})
-  }, [mode, me])
+  }, [inCandle, me])
   if (mode !== 'server') return null
-  const kind = value === 'everyone' ? 'everyone' : Array.isArray(value) && value.length ? 'people' : 'private'
-  const chosen = Array.isArray(value) ? value : []
+  if (space.kind === 'workspace') return <p className="share-note">Everyone in {space.name} can see and edit this.</p>
+  if (space.kind === 'shared') return <p className="share-note">Shared with you by {space.name}. Only they can change who has it.</p>
+  const map = shareMap(value)
+  const kind = Object.keys(map).length ? 'people' : 'private'
+  const set = (next) => onChange(shareList(next))
   return (
     <div className="share-field">
       <Segmented
         label="Who can see it"
         value={kind}
-        onChange={(k) => onChange(k === 'everyone' ? 'everyone' : k === 'people' ? (chosen.length ? chosen : people.slice(0, 1).map((p) => p.handle)) : null)}
+        onChange={(k) => (k === 'people' ? set(Object.keys(map).length ? map : people[0] ? { [people[0].handle]: 'view' } : {}) : onChange(null))}
         options={[
           { value: 'private', label: 'Only me' },
-          { value: 'everyone', label: 'Everyone' },
           { value: 'people', label: 'People…' },
         ]}
       />
       {kind === 'people' && (
         <div className="share-people">
           {people.map((p) => (
-            <label key={p.handle} className="share-person">
-              <input type="checkbox" checked={chosen.includes(p.handle)} onChange={(e) => onChange(e.target.checked ? [...chosen, p.handle] : chosen.filter((h) => h !== p.handle))} />
-              <span>{p.name}</span>
-              <span className="share-handle">@{p.handle}</span>
-            </label>
+            <div key={p.handle} className="share-person">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={!!map[p.handle]}
+                  onChange={(e) => {
+                    const next = { ...map }
+                    if (e.target.checked) next[p.handle] = 'view'
+                    else delete next[p.handle]
+                    set(next)
+                  }}
+                />
+                <span>{p.name}</span>
+                <span className="share-handle">@{p.handle}</span>
+              </label>
+              {map[p.handle] && (
+                <Select
+                  className="share-can"
+                  value={map[p.handle]}
+                  onChange={(e) => set({ ...map, [p.handle]: e.target.value })}
+                  options={[
+                    { value: 'view', label: 'Can view' },
+                    { value: 'edit', label: 'Can edit' },
+                  ]}
+                  aria-label={`What ${p.name} can do`}
+                />
+              )}
+            </div>
           ))}
-          {!people.length && <p className="muted">No one else has joined yet.</p>}
+          {!people.length && <p className="muted">No one else has an account yet.</p>}
         </div>
       )}
     </div>

@@ -7,7 +7,9 @@ import { Button, ContextMenu, Dialog, IconBadge, Spinner, Tooltip } from '../com
 import { useSession } from '../store/session.js'
 import { useWorkspace } from '../store/workspace.js'
 import { useUI } from '../store/ui.js'
-import { useConfig, useLists, usePlugins } from '../store/hooks.js'
+import { useLists, usePlugins } from '../store/hooks.js'
+import { useCurrentSpace } from '../store/spaces.js'
+import { moveItem, useCanMove } from './MoveTo.jsx'
 import { usePrefs, setPrefs } from '../store/prefs.js'
 import { deleteList, updateListMeta } from '../lib/actions.js'
 import { createBoard, moveCard } from '../lib/boardActions.js'
@@ -87,7 +89,9 @@ export function SyncStatus() {
 
 export function Sidebar({ route, onNavigate, closed }) {
   const mode = useSession((s) => s.mode)
-  const config = useConfig()
+  // chat is the home workspace's for now (docs/CANDLES.md, phase 4)
+  const space = useCurrentSpace()
+  const canMove = useCanMove()
   const lists = useLists()
   const plugins = usePlugins()
   const prefs = usePrefs()
@@ -109,6 +113,7 @@ export function Sidebar({ route, onNavigate, closed }) {
 
   const boardMenu = (l) => [
     { label: 'Edit board…', onSelect: () => setEditor({ anchor: document.getElementById(`nav-${l.id}`), list: l }) },
+    ...(canMove ? [moveItem(l.path, l.name)] : []),
     'separator',
     { label: 'Delete board…', danger: true, onSelect: () => setConfirm(l) },
   ]
@@ -117,7 +122,7 @@ export function Sidebar({ route, onNavigate, closed }) {
     <nav className={`sidebar${closed ? ' is-closed' : ''}`} aria-label="Main" inert={closed || undefined}>
       <div className="sidebar-top">
         <div className="sidebar-head">
-          <WorkspaceMenu workspace={config.name} />
+          <WorkspaceMenu />
           <Tooltip label="Collapse the sidebar  Ctrl+\" side="right">
             <button type="button" className="sidebar-collapse" aria-label="Collapse the sidebar" onClick={() => setPrefs({ sidebar: { collapsed: true } })}>
               <PanelLeftClose size={16} />
@@ -138,7 +143,7 @@ export function Sidebar({ route, onNavigate, closed }) {
           <NavItem href="#/calendar" icon={CalendarDays} tint="blue" label="Calendar" active={at('/calendar')} />
           <NavItem href="#/ideas" icon={Lightbulb} tint="violet" label="Ideas" active={at('/ideas')} />
           <NavItem href="#/docs" icon={FileText} tint="teal" label="Docs" active={at('/docs')} />
-          {mode === 'server' && <NavItem href="#/chat" icon={MessagesSquare} tint="green" label="Chat" count={chatUnread} active={at('/chat')} />}
+          {mode === 'server' && space.home && <NavItem href="#/chat" icon={MessagesSquare} tint="green" label="Chat" count={chatUnread} active={at('/chat')} />}
         </div>
 
         <div className="nav-section">

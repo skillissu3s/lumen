@@ -36,7 +36,7 @@ async function fetchText(url) {
 /** The starter plugins that ship with Lumen: [{ manifest, path, source, installed, updateAvailable }]. */
 export async function loadCatalog() {
   const registry = await fetchJson('catalog/registry.json')
-  const installed = new Map(selectPlugins(useWorkspace.getState()).map((p) => [p.id, p]))
+  const installed = new Map(selectPlugins({ files: useWorkspace.getState().tree }).map((p) => [p.id, p]))
   const list = []
   for (const entry of registry.plugins || []) {
     const manifest = await fetchJson(`catalog/${entry.path}/manifest.json`)
@@ -146,9 +146,9 @@ export async function readFromFolder(fileList) {
 async function setPluginEntry(id, entry) {
   const ws = useWorkspace.getState()
   const path = 'lumen.json'
-  const got = await ws.ensure(path)
+  const got = await ws.ensureAt(path)
   if (got) {
-    await ws.edit(path, (text) => {
+    await ws.editAt(path, (text) => {
       let cfg = {}
       try {
         cfg = JSON.parse(text)
@@ -159,7 +159,7 @@ async function setPluginEntry(id, entry) {
       return `${JSON.stringify(cfg, null, 2)}\n`
     })
   } else {
-    await ws.createFile(path, `${JSON.stringify({ version: 1, plugins: { [id]: entry } }, null, 2)}\n`)
+    await ws.createAt(path, `${JSON.stringify({ version: 1, plugins: { [id]: entry } }, null, 2)}\n`)
   }
 }
 
@@ -183,9 +183,9 @@ export async function installPlugin({ manifest, files = {} }, grantedPermissions
   const ws = useWorkspace.getState()
   for (const [name, text] of Object.entries(all)) {
     const path = `plugins/${id}/${name}`
-    const got = await ws.ensure(path)
-    if (got) await ws.setText(path, String(text ?? ''))
-    else await ws.createFile(path, String(text ?? ''))
+    const got = await ws.ensureAt(path)
+    if (got) await ws.setTextAt(path, String(text ?? ''))
+    else await ws.createAt(path, String(text ?? ''))
   }
   const entry = { version: manifest.version, permissions: grantedPermissions ?? manifest.permissions ?? [], source }
   await setPluginEntry(id, entry)
@@ -203,13 +203,13 @@ export async function uninstallPlugin(id) {
   const prefix = `plugins/${id}/`
   for (const p of ws.paths) {
     if (!p.startsWith(prefix)) continue
-    const got = await ws.ensure(p)
-    if (got) await ws.removeFile(p)
+    const got = await ws.ensureAt(p)
+    if (got) await ws.removeAt(p)
   }
   const path = 'lumen.json'
-  const got = await ws.ensure(path)
+  const got = await ws.ensureAt(path)
   if (got) {
-    await ws.edit(path, (text) => {
+    await ws.editAt(path, (text) => {
       let cfg = {}
       try {
         cfg = JSON.parse(text)

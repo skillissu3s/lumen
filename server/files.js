@@ -22,6 +22,7 @@ import crypto from 'node:crypto'
 import { EventEmitter } from 'node:events'
 import { MAX_FILE_BYTES } from './config.js'
 import { metaOf } from './access.js'
+import { setFrontMatter } from '../shared/frontmatter.js'
 import { db, setSetting } from './db.js'
 import { createStore } from './store/records.js'
 import { createUnits } from './store/units.js'
@@ -412,6 +413,52 @@ export async function openWorkspace(dir, id) {
 export function closeWorkspace() {
   watcher?.close()
   watcher = null
+}
+
+// sharing belongs to a candle's things; anywhere else it means nothing
+function withoutShare(path, text) {
+  if (path.endsWith('.canvas')) {
+    try {
+      const doc = JSON.parse(text)
+      if (doc.lumen && 'share' in doc.lumen) delete doc.lumen.share
+      return JSON.stringify(doc, null, 2)
+    } catch {
+      return text
+    }
+  }
+  return setFrontMatter(text, { share: null })
+}
+
+/**
+ * Moves a board, calendar, doc or idea board to another space, in one
+ * transaction: it keeps its id (so its history follows it), lands at a free
+ * path there, and leaves its sharing behind. → the path it now has.
+ */
+export async function move(from, to, { by } = {}) {
+  const a = space(from.space)
+  const b = space(to.space)
+  return locked(`${from.space}:${from.path}`, () =>
+    locked(`${to.space}:${to.path}`, async () => {
+      a.ready()
+      b.ready()
+      const cur = await a.read(from.path)
+      if (!cur) throw Object.assign(new Error('Not found.'), { status: 404 })
+      // a free path there: the same name, or with a number
+      const dot = to.path.lastIndexOf('.')
+      let dest = to.path
+      for (let i = 2; b.info(dest); i++) dest = `${to.path.slice(0, dot)}-${i}${to.path.slice(dot)}`
+      const text = withoutShare(dest, cur.text)
+      store.tx(() => {
+        a.units.remove(from.path)
+        b.units.save(dest, text)
+      })
+      a.refresh(from.path)
+      b.refresh(dest)
+      events.emit('change', [{ path: from.path, sha: null, deleted: true }], { space: a.id, by })
+      events.emit('change', [{ path: dest, sha: b.info(dest)?.sha ?? null, deleted: false }], { space: b.id, by })
+      return dest
+    }),
+  )
 }
 
 /** Forgets what was rendered (after a migration rewrote rows underneath) */

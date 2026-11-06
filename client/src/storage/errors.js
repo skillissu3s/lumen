@@ -16,6 +16,14 @@ export class AuthError extends Error {
   }
 }
 
+/** 403/404 on a write — you may not change this (any more): the edit is dropped. */
+export class RefusedError extends Error {
+  constructor(message) {
+    super(message || 'You can’t change this.')
+    this.status = 403
+  }
+}
+
 /** No network; the edit is kept and will be retried. */
 export class OfflineError extends Error {
   constructor() {

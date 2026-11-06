@@ -15,6 +15,8 @@ import { Customize } from '../calendar/CalendarView.jsx'
 import { useUpdateState } from '../../shell/UpdateNotice.jsx'
 import { Row, Section } from './parts.jsx'
 import Account from './AccountSettings.jsx'
+import SpaceMembers from './SpaceMembers.jsx'
+import { useCurrentSpace, useSpaces } from '../../store/spaces.js'
 import './settings.css'
 
 const PluginSettings = lazy(() => import('./PluginSettings.jsx'))
@@ -407,20 +409,37 @@ function ImportGitHub() {
   )
 }
 
+// the space you're in: its name, where it lives, an export; for a workspace, leaving or deleting it
 function Workspace() {
   const config = useConfig()
   const mode = useSession((s) => s.mode)
-  const user = useSession((s) => s.user)
-  const [name, setName] = useState(config.name)
+  const space = useCurrentSpace()
+  const toast = useUI((s) => s.toast)
+  const [name, setName] = useState(space.name || config.name)
   const [busy, setBusy] = useState(false)
-  const canEdit = mode !== 'server' || user?.role === 'admin'
+  const [deleting, setDeleting] = useState(false)
+  const server = mode === 'server'
+  const canEdit = !server || space.kind === 'candle' || space.role === 'owner' || space.role === 'admin'
+  useEffect(() => setName(space.name || config.name), [space.name, config.name])
+  const save = async () => {
+    try {
+      // the server keeps the name with the space, and writes it into its lumen.json
+      if (server && space.id) {
+        await api('PATCH', `/spaces/${space.id}`, { name: name.trim() })
+        await useSpaces.getState().load()
+      } else await useWorkspace.getState().edit('lumen.json', (t) => `${JSON.stringify({ ...JSON.parse(t || '{}'), name: name.trim() }, null, 2)}\n`)
+      toast('Name saved')
+    } catch (e) {
+      toast(e.message, { tone: 'danger' })
+    }
+  }
   const exportAll = async () => {
     setBusy(true)
     try {
       const ws = useWorkspace.getState()
       const backend = useSession.getState().backend()
-      const files = await backend.readMany(ws.paths)
-      const out = Object.fromEntries(Object.entries(files).filter(([, f]) => f).map(([p, f]) => [p, f.text]))
+      const files = await backend.readMany(ws.paths.map((p) => ws.prefix + p))
+      const out = Object.fromEntries(Object.entries(files).filter(([, f]) => f).map(([p, f]) => [p.slice(ws.prefix.length), f.text]))
       const a = document.createElement('a')
       a.href = URL.createObjectURL(new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' }))
       a.download = `lumen-export-${isoOf(new Date())}.json`
@@ -429,27 +448,68 @@ function Workspace() {
       setBusy(false)
     }
   }
+  const where = mode === 'desktop' ? 'The database on this computer' : space.kind === 'candle' ? 'This server’s database, private to you' : space.kind === 'shared' ? 'Their candle on this server' : 'This server’s database, shared by everyone in the workspace'
   return (
-    <Section>
-      <Row label="Name">
-        <div className="set-inline">
-          <Input value={name} onChange={(e) => setName(e.target.value)} disabled={!canEdit} aria-label="Workspace name" />
-          <Button disabled={!canEdit || !name.trim() || name === config.name} onClick={() => useWorkspace.getState().edit('lumen.json', (t) => `${JSON.stringify({ ...JSON.parse(t || '{}'), name: name.trim() }, null, 2)}\n`)}>
-            Save
+    <>
+      <Section>
+        {space.kind !== 'shared' && (
+          <Row label="Name">
+            <div className="set-inline">
+              <Input value={name} onChange={(e) => setName(e.target.value)} disabled={!canEdit} aria-label="Name" />
+              <Button disabled={!canEdit || !name.trim() || name === (space.name || config.name)} onClick={save}>
+                Save
+              </Button>
+            </div>
+          </Row>
+        )}
+        <Row label="Where your data lives">
+          <span className="set-value">{where}</span>
+        </Row>
+        <Row label="Export" hint={space.kind === 'workspace' ? 'Every file in this workspace, in one JSON file.' : 'Every file here, in one JSON file.'}>
+          <Button onClick={exportAll} loading={busy}>
+            Export everything
           </Button>
-        </div>
-      </Row>
-      <Row label="Where your data lives">
-        <span className="set-value">
-          {mode === 'desktop' ? 'The database on this computer' : 'This server’s database (and GitHub, if sync is on)'}
-        </span>
-      </Row>
-      <Row label="Export" hint="Every file you can see, in one JSON file.">
-        <Button onClick={exportAll} loading={busy}>
-          Export everything
-        </Button>
-      </Row>
-    </Section>
+        </Row>
+      </Section>
+      {server && space.kind === 'workspace' && space.role === 'owner' && (
+        <Section>
+          <Row label="Delete this workspace" hint="It disappears for everyone in it, right away.">
+            <Button variant="danger" onClick={() => setDeleting(true)}>
+              Delete workspace
+            </Button>
+          </Row>
+        </Section>
+      )}
+      <Dialog
+        open={deleting}
+        onClose={() => setDeleting(false)}
+        size="sm"
+        title={`Delete ${space.name}?`}
+        description="Everyone in it loses access to its boards, calendars, docs, idea boards and chat. Their candles aren’t touched."
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setDeleting(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={async () => {
+                try {
+                  await api('DELETE', `/spaces/${space.id}`)
+                  setDeleting(false)
+                  await useSpaces.getState().load()
+                  useSpaces.getState().open('')
+                } catch (e) {
+                  toast(e.message, { tone: 'danger' })
+                }
+              }}
+            >
+              Delete
+            </Button>
+          </>
+        }
+      />
+    </>
   )
 }
 
@@ -533,19 +593,30 @@ function About() {
 
 export default function SettingsView({ route, onClose }) {
   const mode = useSession((s) => s.mode)
+  const space = useCurrentSpace()
   const role = useSession((s) => s.user?.role)
+  const server = mode === 'server'
+  const manages = space.kind === 'candle' || space.role === 'owner' || space.role === 'admin'
   const tabs = [
     { group: 'You' },
     { id: 'account', label: 'Account', icon: UserRound, about: 'Your profile and how you sign in.', el: Account },
     { id: 'appearance', label: 'Appearance', icon: Palette, about: 'How Lumen looks on this account, on every device.', el: Appearance },
-    { group: 'Workspace' },
-    { id: 'workspace', label: 'General', icon: Database, about: 'The workspace’s name, where its files live, and a full export.', el: Workspace },
+    // plugins are each person's, installed in their candle, wherever they are
+    { id: 'plugins', label: 'Plugins', icon: Puzzle, about: 'Add features to Lumen, for you. Plugins run sandboxed with only the access you grant.', el: PluginsTab },
+    { group: space.kind === 'candle' ? 'Your candle' : space.name || 'Workspace' },
+    { id: 'workspace', label: 'General', icon: Database, about: space.kind === 'candle' ? 'Your candle: its name, where it lives, and a full export.' : space.kind === 'shared' ? `What ${space.name} shared with you.` : 'This workspace’s name, where it lives, and a full export.', el: Workspace },
     { id: 'tasks', label: 'Boards and tasks', icon: Kanban, about: 'Where new tasks land and how boards open.', el: TasksTab },
     { id: 'calendar', label: 'Calendar', icon: CalendarDays, about: 'Hours, colours and what the calendar shows.', el: CalendarTab },
-    ...(mode === 'server' && role === 'admin' ? [{ id: 'members', label: 'Members', icon: Users, about: 'Only admins can invite people or change who has access.', el: Members }] : []),
-    ...(mode === 'server' ? [{ id: 'github', label: 'GitHub', icon: FolderGit2, about: 'A readable copy of your data in a GitHub repository, written by this server on a schedule.', el: GitHubTab }] : []),
-    ...(mode !== 'server' || role === 'admin' ? [{ id: 'sync', label: mode === 'server' ? 'Git sync' : 'Sync', icon: GitBranch, about: mode === 'server' ? 'The older two-way sync: the server keeps a git copy of the workspace and pushes and pulls with a token.' : 'Keep the workspace in a GitHub repository, as plain text.', el: Sync }] : []),
-    { id: 'plugins', label: 'Plugins', icon: Puzzle, about: 'Add features to Lumen. Plugins run sandboxed with only the access you grant.', el: PluginsTab },
+    ...(server && space.kind === 'workspace' ? [{ id: 'members', label: 'Members', icon: Users, about: 'Who is in this workspace, and invite links to bring people in.', el: SpaceMembers }] : []),
+    ...(server && manages && space.kind !== 'shared' ? [{ id: 'github', label: 'GitHub', icon: FolderGit2, about: 'A readable copy in a GitHub repository, written by this server on a schedule.', el: GitHubTab }] : []),
+    ...(!server ? [{ id: 'sync', label: 'Sync', icon: GitBranch, about: 'Keep your data in a GitHub repository, as plain text.', el: Sync }] : []),
+    ...(server && role === 'admin'
+      ? [
+          { group: 'Server' },
+          { id: 'accounts', label: 'Accounts', icon: UserRound, about: 'Everyone with an account on this server. Only server admins see this.', el: Members },
+          { id: 'sync', label: 'Git sync', icon: GitBranch, about: 'The older two-way sync of the server’s first workspace: the server keeps a git copy and pushes and pulls with a token.', el: Sync },
+        ]
+      : []),
     { group: 'App' },
     { id: 'shortcuts', label: 'Shortcuts', icon: Keyboard, about: 'Press ? anywhere to see these.', el: Shortcuts },
     { id: 'about', label: 'About', icon: Info, about: 'Version, updates and source.', el: About },

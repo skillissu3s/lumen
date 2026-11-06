@@ -21,6 +21,7 @@ import { EventEditor } from './EventEditor.jsx'
 import { EventPreview } from './EventPreview.jsx'
 import { CardDialog } from '../boards/CardDialog.jsx'
 import { CalendarSide } from './CalendarSide.jsx'
+import { moveItem, useCanMove } from '../../shell/MoveTo.jsx'
 import './calendar.css'
 
 function download(name, text, type = 'text/calendar') {
@@ -80,6 +81,7 @@ export function Customize({ c, prefs, calendars, title = true }) {
 }
 
 export default function CalendarView({ route }) {
+  const canMove = useCanMove()
   const prefs = usePrefs()
   const c = prefs.calendar
   const h12 = prefs.timeFormat === '12h'
@@ -323,6 +325,7 @@ export default function CalendarView({ route }) {
         importRef.current?.click()
       },
     },
+    ...(canMove ? [moveItem(cal.path, cal.name)] : []),
     'separator',
     { label: 'Delete calendar…', danger: true, onSelect: () => setConfirmDel(cal) },
   ]
