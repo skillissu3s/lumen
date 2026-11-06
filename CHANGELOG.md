@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.1 — easier to read
 
 - **Easier to read.** Secondary text (dates, counts, section names, hints and
   placeholders) is darker in light themes and brighter in dark ones, in every
