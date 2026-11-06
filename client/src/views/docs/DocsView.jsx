@@ -2,7 +2,7 @@
 // A tree on the left, the page on the right. Front matter stays out of sight.
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ChevronRight, Download, FileText, FolderClosed, Image as ImageIcon, MoreHorizontal, MoveHorizontal, Plus, Search, Smile, Trash2 } from 'lucide-react'
-import { Button, Dialog, EmptyState, IconBadge, IconPicker, Input, Menu, Popover, Spinner, Tooltip } from '../../components/ui/index.js'
+import { Button, ContextMenu, Dialog, EmptyState, IconBadge, IconPicker, Input, Menu, Popover, Spinner, Tooltip } from '../../components/ui/index.js'
 import { useDocs } from '../../store/hooks.js'
 import { useWorkspace } from '../../store/workspace.js'
 import { useSession } from '../../store/session.js'
@@ -40,7 +40,10 @@ function parts(text) {
   return { head: bodyStart ? `${lines.slice(0, bodyStart).join('\n')}\n` : '', body: lines.slice(bodyStart).join('\n') }
 }
 
-function Tree({ docs, current, filter }) {
+// Every row has the same slots, so icons and names line up whatever the row
+// is: a twisty (a folder's chevron; empty for docs once there are folders),
+// an 18 px icon, the name, and a menu that shows on hover.
+function Tree({ docs, current, filter, onDelete }) {
   const [closed, setClosed] = useState(() => new Set())
   const folders = useMemo(() => {
     const map = new Map()
@@ -51,8 +54,26 @@ function Tree({ docs, current, filter }) {
     }
     return [...map].sort(([a], [b]) => (a === '' ? -1 : b === '' ? 1 : a.localeCompare(b)))
   }, [docs, filter])
+  const hasFolders = folders.some(([f]) => f)
+  const docMenu = (d) => [
+    { label: 'Open', icon: FileText, onSelect: () => navigate(`/${d.path}`) },
+    'separator',
+    { label: 'Delete doc…', icon: Trash2, danger: true, onSelect: () => onDelete({ docs: [d], title: d.title }) },
+  ]
+  const folderMenu = (folder, list) => [{ label: 'Delete folder…', icon: Trash2, danger: true, onSelect: () => onDelete({ docs: list, title: folder, folder: true }) }]
+  const more = (items, label) => (
+    <Menu
+      align="end"
+      items={items}
+      trigger={
+        <button type="button" className="doc-row-more" aria-label={label}>
+          <MoreHorizontal size={14} />
+        </button>
+      }
+    />
+  )
   return (
-    <ul className="doc-tree" role="tree" aria-label="Docs">
+    <ul className={`doc-tree${hasFolders ? ' has-folders' : ''}`} role="tree" aria-label="Docs">
       {folders.map(([folder, list]) => {
         const isClosed = closed.has(folder) && !filter
         const items = (
@@ -60,11 +81,15 @@ function Tree({ docs, current, filter }) {
             {list
               .sort((a, b) => a.title.localeCompare(b.title))
               .map((d) => (
-                <li key={d.path} role="treeitem" aria-selected={d.path === current}>
-                  <a className={`doc-link${d.path === current ? ' is-active' : ''}`} href={`#/${d.path}`}>
-                    {d.icon ? <IconBadge name={d.icon} color={d.color || 'gray'} size={18} fallback={FileText} /> : <FileText size={14} />}
-                    <span>{d.title}</span>
-                  </a>
+                <li key={d.path} role="treeitem" aria-selected={d.path === current} className="doc-row">
+                  <ContextMenu items={docMenu(d)}>
+                    <a className={`doc-link${d.path === current ? ' is-active' : ''}`} href={`#/${d.path}`}>
+                      {hasFolders && <span className="doc-twisty" />}
+                      <span className="doc-row-icon">{d.icon ? <IconBadge name={d.icon} color={d.color || 'gray'} size={18} fallback={FileText} /> : <FileText size={15} />}</span>
+                      <span className="doc-row-name">{d.title}</span>
+                    </a>
+                  </ContextMenu>
+                  {more(docMenu(d), `${d.title}: options`)}
                 </li>
               ))}
           </ul>
@@ -72,21 +97,30 @@ function Tree({ docs, current, filter }) {
         if (!folder) return <li key="root">{items}</li>
         return (
           <li key={folder} role="treeitem" aria-expanded={!isClosed}>
-            <button
-              type="button"
-              className={`doc-folder${isClosed ? '' : ' is-open'}`}
-              onClick={() =>
-                setClosed((s) => {
-                  const n = new Set(s)
-                  n.has(folder) ? n.delete(folder) : n.add(folder)
-                  return n
-                })
-              }
-            >
-              <ChevronRight size={12} />
-              <FolderClosed size={14} />
-              <span>{folder}</span>
-            </button>
+            <div className="doc-row">
+              <ContextMenu items={folderMenu(folder, list)}>
+                <button
+                  type="button"
+                  className={`doc-folder${isClosed ? '' : ' is-open'}`}
+                  onClick={() =>
+                    setClosed((s) => {
+                      const n = new Set(s)
+                      n.has(folder) ? n.delete(folder) : n.add(folder)
+                      return n
+                    })
+                  }
+                >
+                  <span className="doc-twisty">
+                    <ChevronRight size={12} />
+                  </span>
+                  <span className="doc-row-icon">
+                    <FolderClosed size={15} />
+                  </span>
+                  <span className="doc-row-name">{folder}</span>
+                </button>
+              </ContextMenu>
+              {more(folderMenu(folder, list), `${folder}: options`)}
+            </div>
             {!isClosed && items}
           </li>
         )
@@ -310,6 +344,7 @@ export default function DocsView({ route }) {
   const docs = useDocs()
   const path = route.parts[0] === 'docs' && route.parts.length > 1 ? route.parts.join('/') : null
   const [filter, setFilter] = useState('')
+  const [removing, setRemoving] = useState(null) // { docs, title, folder? }
   const toast = useUI((s) => s.toast)
 
   useEffect(() => {
@@ -326,6 +361,7 @@ export default function DocsView({ route }) {
       const p = createDoc({ title: 'Untitled', folder })
       navigate(`/${p}`)
       setTimeout(() => document.querySelector('.doc-title')?.select(), 120)
+      return p
     },
     [],
   )
@@ -351,25 +387,48 @@ export default function DocsView({ route }) {
         <div className="docs-search">
           <Input size="sm" icon={Search} value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filter docs" aria-label="Filter docs" />
         </div>
-        <Tree docs={docs} current={path} filter={filter.trim().toLowerCase()} />
+        <Tree docs={docs} current={path} filter={filter.trim().toLowerCase()} onDelete={setRemoving} />
         <button
           type="button"
           className="docs-new-folder"
           onClick={() => {
-            const name = `Folder ${new Set(docs.map((d) => d.folder).filter(Boolean)).size + 1}`
-            newDoc(name)
-            toast(`Made “${name}” — rename it from your files, or move docs into it.`)
+            const p = newDoc(`Folder ${new Set(docs.map((d) => d.folder).filter(Boolean)).size + 1}`)
+            toast(`Made the folder “${p.split('/').slice(1, -1).join('/')}” with a new doc in it.`)
           }}
         >
           <FolderClosed size={14} /> New folder
         </button>
       </aside>
+      <Dialog
+        open={!!removing}
+        onClose={() => setRemoving(null)}
+        size="sm"
+        title={`Delete “${removing?.title}”?`}
+        description={removing?.folder ? `The folder and the ${removing.docs.length === 1 ? 'doc' : `${removing.docs.length} docs`} in it will be removed.` : 'The doc will be removed.'}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setRemoving(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                for (const d of removing.docs) deleteDoc(d.path)
+                if (removing.docs.some((d) => d.path === path)) navigate('/docs')
+                setRemoving(null)
+              }}
+            >
+              {removing?.folder ? 'Delete folder' : 'Delete doc'}
+            </Button>
+          </>
+        }
+      />
       <div className="docs-main">
         {path ? (
           <Editor key={path} path={path} />
         ) : (
-          <EmptyState icon={FileText} title="No docs yet" action={<Button variant="primary" icon={Plus} onClick={() => newDoc()}>New doc</Button>}>
-            Docs are markdown files in your workspace’s docs folder.
+          <EmptyState icon={FileText} title={docs.length ? 'Pick a doc' : 'No docs yet'} action={<Button variant="primary" icon={Plus} onClick={() => newDoc()}>New doc</Button>}>
+            {docs.length ? 'Choose one from the list, or start a new one.' : 'Docs are markdown files in your workspace’s docs folder.'}
           </EmptyState>
         )}
       </div>

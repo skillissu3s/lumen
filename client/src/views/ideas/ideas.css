@@ -21,6 +21,34 @@
 .idea-tile:hover {
   border-color: var(--border-strong);
   box-shadow: var(--shadow-sm);
+  text-decoration: none;
+}
+.idea-tile-wrap {
+  position: relative;
+  display: grid;
+}
+.idea-tile-more {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-muted);
+  box-shadow: 0 0 0 1px var(--border);
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease);
+}
+.idea-tile-wrap:hover .idea-tile-more,
+.idea-tile-more:focus-visible,
+.idea-tile-more[aria-expanded='true'] {
+  opacity: 1;
+}
+.idea-tile-more:hover {
+  color: var(--text);
 }
 .idea-tile:focus-visible {
   outline: none;
@@ -113,6 +141,7 @@
   position: relative;
   flex: 1;
   min-height: 0;
+  container: canvas / inline-size;
 }
 .idea-surface {
   position: absolute;
@@ -123,6 +152,9 @@
   cursor: default;
   touch-action: none;
   user-select: none;
+}
+.idea-surface.is-plain {
+  background-image: none;
 }
 .idea-surface:focus-visible {
   outline: none;
@@ -222,6 +254,21 @@
 }
 .idea.is-editing .idea-handle {
   display: none;
+}
+/* the card an arrow is about to join, and the side it will join */
+.idea[data-link-to] {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.idea[data-link-to] .idea-handle {
+  opacity: 0.45;
+}
+.idea[data-link-to='top'] .idea-handle.is-top,
+.idea[data-link-to='right'] .idea-handle.is-right,
+.idea[data-link-to='bottom'] .idea-handle.is-bottom,
+.idea[data-link-to='left'] .idea-handle.is-left {
+  opacity: 1;
+  background: var(--accent);
+  transform: scale(1.25);
 }
 .idea-handle.is-top {
   top: -7px;
@@ -464,9 +511,48 @@
     padding: 8px 16px 24px;
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   }
+}
+
+/* The floating tools follow the canvas's own width (the sidebar can be any
+   width): off-centre when the zoom bar would meet them, then icons only, then
+   the zoom bar stacks above and the tools scroll sideways. */
+@container canvas (max-width: 1090px) {
   .idea-tools {
     left: 16px;
     transform: none;
+  }
+}
+@container canvas (max-width: 830px) {
+  .idea-tool-label {
+    display: none;
+  }
+  .idea-tools .idea-tool.is-primary,
+  .idea-tools .idea-tool {
+    padding: 0 6px;
+  }
+}
+@container canvas (max-width: 710px) {
+  .idea-tools {
+    right: 16px;
+    width: max-content;
+    max-width: calc(100% - 32px);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .idea-tools::-webkit-scrollbar {
+    display: none;
+  }
+  .idea-tools > * {
+    flex: none;
+  }
+  .idea-zoom {
+    bottom: 62px;
+  }
+  .idea-pen-bar {
+    bottom: 108px;
+  }
+  .idea-minimap {
+    bottom: 108px;
   }
 }
 
@@ -662,7 +748,6 @@ input.idea-edge-label {
 .idea-body input[type='checkbox'] {
   margin: 0 6px 0 0;
   vertical-align: -2px;
-  accent-color: var(--accent);
   cursor: pointer;
 }
 .idea-body li.task-item {

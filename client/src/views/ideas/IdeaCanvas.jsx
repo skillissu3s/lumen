@@ -4,7 +4,7 @@
 // to move, Ctrl + scroll to zoom. Saved as JSON Canvas a moment after each
 // change; Ctrl+Z steps back.
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceAround, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceAround, BoxSelect, Circle, CircleSlash, Columns3, Copy, Diamond, ExternalLink, FileText, Globe, Grid2x2, Image as ImageIcon, Kanban, LayoutGrid, LayoutTemplate, Link2, ListPlus, ListTodo, Map as MapIcon, Maximize, Minus, MousePointer2, Network, Pencil, PenLine, Plus, Redo2, Repeat, Scale, Search, Shapes, Square, StickyNote, Trash2, Type, Undo2, Workflow, X } from 'lucide-react'
+import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceAround, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceAround, BoxSelect, Circle, CircleSlash, Columns3, Copy, Diamond, ExternalLink, FileText, Globe, Grid2x2, Grid3x3, Image as ImageIcon, Kanban, LayoutGrid, LayoutTemplate, Link2, ListPlus, ListTodo, Map as MapIcon, Maximize, Minus, MousePointer2, Network, Pencil, PenLine, Plus, Redo2, Repeat, Scale, Search, Shapes, Square, StickyNote, Trash2, Type, Undo2, Workflow, X } from 'lucide-react'
 import { MenuPopup, Tooltip } from '../../components/ui/index.js'
 import { useWorkspace } from '../../store/workspace.js'
 import { useUI } from '../../store/ui.js'
@@ -18,6 +18,19 @@ import { renderMarkdown, toggleTaskInBody } from '../docs/markdown.js'
 
 const COLORS = ['red', 'orange', 'amber', 'green', 'teal', 'violet']
 const SIDES = ['top', 'right', 'bottom', 'left']
+
+// Where an arrow let go over card `n` at `p` joins it: the side whose handle it
+// was dropped on, or the edge it was dropped near; dropped in the middle, the
+// side facing the card it comes from.
+function dropSide(n, p, from, el) {
+  const handle = el?.closest?.('.idea-handle')
+  if (handle) return SIDES.find((side) => handle.classList.contains(`is-${side}`))
+  const gap = { left: p.x - n.x, right: n.x + n.width - p.x, top: p.y - n.y, bottom: n.y + n.height - p.y }
+  const [side, d] = Object.entries(gap).sort((a, b) => a[1] - b[1])[0]
+  return d <= Math.min(48, Math.min(n.width, n.height) * 0.3) ? side : facingSide(n, from)
+}
+// the way an arrow's loose end points, from where it started to the pointer
+const looseSide = (from, p) => (Math.abs(p.x - from.x) > Math.abs(p.y - from.y) ? (p.x > from.x ? 'left' : 'right') : p.y > from.y ? 'top' : 'bottom')
 const GRID = 12
 const clampZoom = (z) => Math.max(0.2, Math.min(2.5, z))
 const snap = (v, on) => (on ? Math.round(v / GRID) * GRID : Math.round(v))
@@ -84,12 +97,12 @@ const host = (url) => {
   }
 }
 
-function NodeView({ node, page, selected, editing, fresh, found, onPointerDown, onDoubleClick, onContextMenu, onResize, onConnect, onEditDone, onTick }) {
+function NodeView({ node, page, selected, editing, fresh, found, linkTo, onPointerDown, onDoubleClick, onContextMenu, onResize, onConnect, onEditDone, onTick }) {
   const color = colorName(node.color)
   const style = { left: node.x, top: node.y, width: node.width, height: node.height }
   if (color) Object.assign(style, { '--nc': `var(--c-${color})`, '--nc-bg': `var(--c-${color}-bg)` })
   const handles = SIDES.map((side) => <span key={side} className={`idea-handle is-${side}`} onPointerDown={(e) => onConnect?.(e, side)} aria-hidden="true" title="Drag to connect" />)
-  const common = { 'data-node': node.id, onPointerDown, onDoubleClick, onContextMenu }
+  const common = { 'data-node': node.id, 'data-link-to': linkTo || undefined, onPointerDown, onDoubleClick, onContextMenu }
   const finish = {
     onPointerDown: (e) => e.stopPropagation(),
     onBlur: (e) => onEditDone(e.target.value),
@@ -274,6 +287,7 @@ export function IdeaCanvas({ path }) {
   const [ink, setInk] = useState(null) // the line being drawn, in world points
   const docs = useDocs()
   const showMap = !!prefs.ideas?.minimap
+  const gridOn = prefs.ideas?.grid !== false
   const surface = useRef(null)
   const drag = useRef(null)
   const saved = useRef(file?.text)
@@ -377,34 +391,34 @@ export function IdeaCanvas({ path }) {
   const at = (p) => p || pointer.current || center()
   const newIdea = (p, text = '') => {
     const c = at(p)
-    addNode({ id: newId(16), type: 'text', text, x: snap(c.x - 120, true), y: snap(c.y - 60, true), width: 240, height: 120 }, !text)
+    addNode({ id: newId(16), type: 'text', text, x: snap(c.x - 120, gridOn), y: snap(c.y - 60, gridOn), width: 240, height: 120 }, !text)
   }
   const newLabel = (p) => {
     const c = at(p)
-    addNode({ id: newId(16), type: 'text', style: 'label', text: '', x: snap(c.x - 120, true), y: snap(c.y - 24, true), width: 240, height: 48 })
+    addNode({ id: newId(16), type: 'text', style: 'label', text: '', x: snap(c.x - 120, gridOn), y: snap(c.y - 24, gridOn), width: 240, height: 48 })
   }
   const newImage = (p, url = '') => {
     const c = at(p)
-    addNode({ id: newId(16), type: 'link', url, image: !url || undefined, x: snap(c.x - 160, true), y: snap(c.y - 110, true), width: 320, height: 220 }, !url)
+    addNode({ id: newId(16), type: 'link', url, image: !url || undefined, x: snap(c.x - 160, gridOn), y: snap(c.y - 110, gridOn), width: 320, height: 220 }, !url)
   }
   const newLink = (p, url = '') => {
     const c = at(p)
-    addNode({ id: newId(16), type: 'link', url, x: snap(c.x - 140, true), y: snap(c.y - 36, true), width: 280, height: 72 }, !url)
+    addNode({ id: newId(16), type: 'link', url, x: snap(c.x - 140, gridOn), y: snap(c.y - 36, gridOn), width: 280, height: 72 }, !url)
   }
   const newShape = (p, shape = 'rect') => {
     const c = at(p)
     const { width, height } = SHAPES[shape]
-    addNode({ id: newId(16), type: 'text', shape, text: '', x: snap(c.x - width / 2, true), y: snap(c.y - height / 2, true), width, height })
+    addNode({ id: newId(16), type: 'text', shape, text: '', x: snap(c.x - width / 2, gridOn), y: snap(c.y - height / 2, gridOn), width, height })
   }
   const newTodo = (p) => {
     const c = at(p)
     // shown ready to tick rather than as the words behind it; double-click to change them
-    addNode({ id: newId(16), type: 'text', text: '**To do**\n\n- [ ] Something to do\n- [ ] Something else', x: snap(c.x - 130, true), y: snap(c.y - 70, true), width: 260, height: 140 }, false)
+    addNode({ id: newId(16), type: 'text', text: '**To do**\n\n- [ ] Something to do\n- [ ] Something else', x: snap(c.x - 130, gridOn), y: snap(c.y - 70, gridOn), width: 260, height: 140 }, false)
   }
   // a card for one of your docs or boards (JSON Canvas's "file" card)
   const newPage = (p, file) => {
     const c = at(p)
-    addNode({ id: newId(16), type: 'file', file, x: snap(c.x - 130, true), y: snap(c.y - 36, true), width: 260, height: 72 }, false)
+    addNode({ id: newId(16), type: 'file', file, x: snap(c.x - 130, gridOn), y: snap(c.y - 36, gridOn), width: 260, height: 72 }, false)
   }
   const pageOf = (n) => {
     const f = n.file || ''
@@ -425,8 +439,8 @@ export function IdeaCanvas({ path }) {
     const t = buildTemplate(kind)
     const b = bounds(t.nodes)
     const c = at(p)
-    const dx = snap(c.x - b.width / 2 - b.x, true)
-    const dy = snap(c.y - b.height / 2 - b.y, true)
+    const dx = snap(c.x - b.width / 2 - b.x, gridOn)
+    const dy = snap(c.y - b.height / 2 - b.y, gridOn)
     const nodes = t.nodes.map((n) => ({ ...n, x: n.x + dx, y: n.y + dy }))
     const m = modelRef.current
     commit({ ...m, nodes: [...nodes.filter((n) => n.type === 'group'), ...m.nodes, ...nodes.filter((n) => n.type !== 'group')], edges: [...m.edges, ...t.edges] })
@@ -443,7 +457,7 @@ export function IdeaCanvas({ path }) {
       node = { id: newId(16), type: 'group', label: 'Group', x: b.x - 36, y: b.y - 48, width: b.width + 72, height: b.height + 84 }
     } else {
       const c = at(p)
-      node = { id: newId(16), type: 'group', label: 'Group', x: snap(c.x - 260, true), y: snap(c.y - 170, true), width: 520, height: 340 }
+      node = { id: newId(16), type: 'group', label: 'Group', x: snap(c.x - 260, gridOn), y: snap(c.y - 170, gridOn), width: 520, height: 340 }
     }
     commit({ ...model, nodes: [node, ...model.nodes] })
     setSelected(new Set([node.id]))
@@ -575,6 +589,13 @@ export function IdeaCanvas({ path }) {
     setSelected(new Set())
     surface.current.setPointerCapture(e.pointerId)
   }
+  // Stop writing in a card, keeping what was typed. Taking the field away in a
+  // pointerdown would remove it before it could blur and save, so blur it first.
+  const endEdit = () => {
+    const el = document.activeElement
+    if (editing && el && surface.current?.contains(el) && /^(INPUT|TEXTAREA)$/.test(el.tagName)) el.blur()
+    setEditing(null)
+  }
   const onSurfaceDown = (e) => {
     if (pen && e.button === 0 && !spaceDown) return startInk(e)
     if (e.target !== surface.current && !e.target.classList.contains('idea-world')) return
@@ -582,7 +603,7 @@ export function IdeaCanvas({ path }) {
     if (e.button === 1 || (e.button === 0 && (spaceDown || e.pointerType === 'touch'))) return startPan(e)
     if (e.button !== 0) return
     setEdge(null)
-    setEditing(null)
+    endEdit()
     const p = toWorld(e.clientX, e.clientY)
     drag.current = { kind: 'box', x0: p.x, y0: p.y, base: e.shiftKey ? new Set(selected) : new Set() }
     if (!e.shiftKey) setSelected(new Set())
@@ -632,7 +653,13 @@ export function IdeaCanvas({ path }) {
     if (!d) return
     if (d.kind === 'pan') return setView((v) => ({ ...v, x: d.vx + e.clientX - d.sx, y: d.vy + e.clientY - d.sy }))
     const p = toWorld(e.clientX, e.clientY)
-    if (d.kind === 'link') return setLinking((l) => ({ ...l, x: p.x, y: p.y }))
+    if (d.kind === 'link') {
+      const el = document.elementFromPoint(e.clientX, e.clientY)
+      const id = el?.closest('[data-node]')?.dataset.node
+      const from = modelRef.current.nodes.find((n) => n.id === d.from)
+      const over = id && id !== d.from ? modelRef.current.nodes.find((n) => n.id === id && n.type !== 'group') : null
+      return setLinking((l) => ({ ...l, x: p.x, y: p.y, target: over?.id || null, toSide: over && from ? dropSide(over, p, from, el) : null }))
+    }
     if (d.kind === 'ink') {
       const last = d.pts[d.pts.length - 1]
       if (Math.hypot(p.x - last.x, p.y - last.y) * view.z < 2) return
@@ -647,7 +674,8 @@ export function IdeaCanvas({ path }) {
       setSelected(new Set([...d.base, ...hit.map((n) => n.id)]))
       return
     }
-    const grid = !e.altKey
+    // Alt turns snapping the other way for this drag
+    const grid = gridOn !== e.altKey
     if (d.kind === 'resize') {
       // (a drawing may be as small as a tick; a card stays big enough to read)
       const small = modelRef.current.nodes.find((n) => n.id === d.id)?.ink
@@ -683,13 +711,14 @@ export function IdeaCanvas({ path }) {
     }
     if (d.kind === 'link') {
       setLinking(null)
-      const target = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-node]')?.dataset.node
+      const el = document.elementFromPoint(e.clientX, e.clientY)
+      const target = el?.closest('[data-node]')?.dataset.node
       const a = model.nodes.find((n) => n.id === d.from)
       if (!a || target === d.from) return
       if (!target) {
         // let go on empty space: a new card there, already joined
         const p = toWorld(e.clientX, e.clientY)
-        const node = { id: newId(16), type: 'text', text: '', x: snap(p.x - 120, true), y: snap(p.y - 60, true), width: 240, height: 120 }
+        const node = { id: newId(16), type: 'text', text: '', x: snap(p.x - 120, gridOn), y: snap(p.y - 60, gridOn), width: 240, height: 120 }
         commit({ ...model, nodes: [...model.nodes, node], edges: [...model.edges, { id: newId(16), fromNode: a.id, fromSide: d.side, toNode: node.id, toSide: facingSide(node, a), toEnd: 'arrow' }] })
         setSelected(new Set([node.id]))
         setFresh(node.id)
@@ -698,7 +727,7 @@ export function IdeaCanvas({ path }) {
       }
       const b = model.nodes.find((n) => n.id === target)
       if (!b || model.edges.some((x) => x.fromNode === a.id && x.toNode === b.id)) return
-      commit({ ...model, edges: [...model.edges, { id: newId(16), fromNode: a.id, fromSide: d.side, toNode: b.id, toSide: facingSide(b, a), toEnd: 'arrow' }] })
+      commit({ ...model, edges: [...model.edges, { id: newId(16), fromNode: a.id, fromSide: d.side, toNode: b.id, toSide: dropSide(b, toWorld(e.clientX, e.clientY), a, el), toEnd: 'arrow' }] })
       return
     }
     if (d.kind === 'move' && !d.moved) return
@@ -964,7 +993,7 @@ export function IdeaCanvas({ path }) {
     <div className="idea-canvas">
       <div
         ref={surface}
-        className={`idea-surface${spaceDown ? ' is-space' : ''}${panning ? ' is-panning' : ''}${pen ? ' is-pen' : ''}`}
+        className={`idea-surface${spaceDown ? ' is-space' : ''}${panning ? ' is-panning' : ''}${pen ? ' is-pen' : ''}${gridOn ? '' : ' is-plain'}`}
         tabIndex={0}
         aria-label="Idea board. Double-click or press N to add an idea, T for text, S for a shape, L for a link, P to draw; drag empty space to select; arrows move the selection; Delete removes it; F fits everything in view."
         style={{ backgroundPosition: `${view.x}px ${view.y}px`, backgroundSize: `${24 * view.z}px ${24 * view.z}px` }}
@@ -1034,7 +1063,12 @@ export function IdeaCanvas({ path }) {
                 </g>
               )
             })}
-            {linking && linkFrom && <path className="idea-edge-line is-draft" d={edgePath(anchor(linkFrom, linking.side), linking.side, { x: linking.x, y: linking.y }, 'left')} markerEnd="url(#idea-arrow)" />}
+            {linking && linkFrom && (() => {
+              const start = anchor(linkFrom, linking.side)
+              const to = linking.target && byId.get(linking.target)
+              const end = to ? anchor(to, linking.toSide) : { x: linking.x, y: linking.y }
+              return <path className="idea-edge-line is-draft" d={edgePath(start, linking.side, end, to ? linking.toSide : looseSide(start, end))} markerEnd="url(#idea-arrow)" />
+            })()}
           </svg>
           {model.edges.map((ed) => {
             const g = (ed.label || editingEdge?.id === ed.id) && geometry(ed)
@@ -1075,6 +1109,7 @@ export function IdeaCanvas({ path }) {
               editing={editing === n.id}
               fresh={fresh === n.id}
               found={finding && matches.some((x) => x.id === n.id)}
+              linkTo={linking?.target === n.id ? linking.toSide : null}
               onTick={(i) => tick(n, i)}
               onPointerDown={onNodeDown(n)}
               onContextMenu={nodeMenu(n)}
@@ -1178,8 +1213,8 @@ export function IdeaCanvas({ path }) {
         </Tooltip>
         <span className="idea-bar-sep" />
         <Tooltip label="Add an idea (N)">
-          <button type="button" className="idea-tool is-primary" onClick={() => newIdea(center())}>
-            <StickyNote size={15} /> Idea
+          <button type="button" className="idea-tool is-primary" aria-label="Idea" onClick={() => newIdea(center())}>
+            <StickyNote size={15} /> <span className="idea-tool-label">Idea</span>
           </button>
         </Tooltip>
         <Tooltip label="Add text (T)">
@@ -1213,8 +1248,8 @@ export function IdeaCanvas({ path }) {
           </button>
         </Tooltip>
         <Tooltip label={selected.size > 1 ? 'Group the selection (Ctrl G)' : 'Add a group'}>
-          <button type="button" className="idea-tool" onClick={() => newGroup(selected.size > 1 ? undefined : center())}>
-            <BoxSelect size={15} /> Group
+          <button type="button" className="idea-tool" aria-label="Group" onClick={() => newGroup(selected.size > 1 ? undefined : center())}>
+            <BoxSelect size={15} /> <span className="idea-tool-label">Group</span>
           </button>
         </Tooltip>
         <Tooltip label="Start from a template">
@@ -1286,6 +1321,11 @@ export function IdeaCanvas({ path }) {
         <button type="button" className="idea-tool" aria-label="Zoom in" onClick={() => zoomBy(1.2)}>
           <Plus size={14} />
         </button>
+        <Tooltip label={gridOn ? 'Hide the grid; cards move freely' : 'Show the grid; cards snap to it'}>
+          <button type="button" className={`idea-tool${gridOn ? ' is-on' : ''}`} aria-label="Grid" aria-pressed={gridOn} onClick={() => setPrefs({ ideas: { grid: !gridOn } })}>
+            <Grid3x3 size={14} />
+          </button>
+        </Tooltip>
         <Tooltip label={showMap ? 'Hide the map (M)' : 'Show a map of the board (M)'}>
           <button type="button" className={`idea-tool${showMap ? ' is-on' : ''}`} aria-label="Map of the board" aria-pressed={showMap} onClick={() => setPrefs({ ideas: { minimap: !showMap } })}>
             <MapIcon size={14} />

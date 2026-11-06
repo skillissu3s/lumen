@@ -15,6 +15,30 @@
 - **Delete a chat channel** you made (admins can delete any channel).
 - In the desktop app on Windows, the title bar and the sidebar are one surface,
   with no line where they meet the page.
+- **Idea boards keep what you type.** Text written in a card or text box is no
+  longer lost when you click the canvas afterwards.
+- **A grid switch on idea boards**, by the zoom controls. With the grid off,
+  cards move freely; hold Alt while dragging to do the opposite of the switch.
+- **Arrows join the side you drop them on**, or the side facing the card they
+  come from when you let go in the middle. While you drag, the side they will
+  join is highlighted.
+- The idea board's tools fit any window: they move aside, then show icons
+  only, then sit in two rows on narrow screens.
+- **Docs: the block handle shows whenever the pointer is beside a block**, and
+  the line showing where a dragged block will land appears straight away.
+- Doc and folder icons in the docs list line up, whether or not a doc has its
+  own icon.
+- **Delete from where you made it.** Docs and folders have a menu in the docs
+  list (and on right-click), idea boards have one on their tile, alongside
+  the existing ways to delete boards, calendars and messages. Each asks first.
+- **The calendar's panel is on the right**, and shows the day you're on, a
+  coloured tick per calendar and board, and tasks still waiting for a day.
+  Each part folds away. On a narrow window it opens over the calendar.
+- Dropdown lists, checkboxes and sliders follow the dark theme everywhere,
+  including in the desktop app.
+- Forms that open in a small panel (a new board, calendar or idea board) put
+  the cursor in the name field, and the new idea board form opens by the tile
+  you clicked.
 
 ## 0.6.1 — choose your username
 

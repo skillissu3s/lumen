@@ -134,6 +134,9 @@ function registerIpc() {
   })
 
   ipcMain.handle('lumen:titlebar', (_event, colors) => {
+    // native parts (a select's list, scrollbars, menus) follow the app's own
+    // light or dark, not just the system's
+    if (['system', 'light', 'dark'].includes(colors?.theme)) nativeTheme.themeSource = colors.theme
     if (process.platform !== 'win32' || !win) return
     win.setTitleBarOverlay({
       height: 34,

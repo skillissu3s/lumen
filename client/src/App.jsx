@@ -47,7 +47,7 @@ export default function App() {
     const d = window.lumenDesktop
     if (!d?.setTitleBarColors) return
     const css = getComputedStyle(document.documentElement)
-    d.setTitleBarColors({ color: css.getPropertyValue('--bg-subtle').trim(), symbolColor: css.getPropertyValue('--text-muted').trim() })
+    d.setTitleBarColors({ color: css.getPropertyValue('--bg-subtle').trim(), symbolColor: css.getPropertyValue('--text-muted').trim(), theme: prefs.theme })
   }, [prefs.theme, prefs.palette, status])
 
   if (status === 'booting') return <BootScreen />

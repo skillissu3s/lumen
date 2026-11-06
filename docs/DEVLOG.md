@@ -560,3 +560,31 @@ settable right on a card; drop the calendar's New button.
   any. `GET/DELETE /api/me/sessions` list and end the account's other
   sessions; `DELETE /api/chat/channels/:id` removes a channel and its month
   files (creator or admin, never a DM).
+
+### Polish: idea boards, docs, the calendar panel, controls
+- Lost card text: a pointerdown on the canvas set `editing` to null, React
+  removed the textarea before the browser moved focus, so its `onBlur` (which
+  saves) never ran. `endEdit()` blurs the field first.
+- Arrows: `dropSide` picks the handle under the pointer, else the nearest
+  edge within ~30% of the card, else `facingSide`. The draft arrow and a
+  `data-link-to` highlight show the side while dragging.
+- The canvas is a size container (`container: canvas / inline-size`), so the
+  tool bars react to the canvas's width, not the window's: the measured bars
+  (526 px tools, 253 px zoom) set the 1090 / 830 / 710 px steps.
+- `prefs.ideas.grid` (default on) hides the dots and turns snapping off.
+- Docs handle: Tiptap's drag handle listens for `mousemove` on the editor
+  element only, and the drop cursor for `dragover` there too, but the handle
+  sits in the page's left padding, outside it. `.doc-prose` now has a 64 px
+  left padding with a matching negative margin, so the gutter belongs to the
+  editor (checked: handle shown with the pointer at x 600 for a block at 642;
+  a synthetic `dragover` at x 600 draws the line).
+- Popover autofocus ran while the popover was still `visibility: hidden`
+  (placed in a layout effect, focused in a passive one), so the field never
+  got focus; it now focuses on the next tick.
+- Native selects: Chromium on Windows draws a select's list from the
+  options' colours; a transparent select leaves them white. Options get
+  `--surface`; checkboxes, radios and ranges get the accent (two used `--ink`,
+  which is near white in dark). The desktop app sets `nativeTheme.themeSource`
+  from the theme setting, through the title-bar IPC.
+- The calendar panel is `CalendarSide.jsx`, on the right; folded sections are
+  kept in localStorage (`lumen.cal.folded`), like the panel's open state.

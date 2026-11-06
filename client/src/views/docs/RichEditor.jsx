@@ -148,7 +148,7 @@ export function RichEditor({ markdown, onChange, onBlur, editorRef }) {
   const hovered = useRef(null) // the block the handle sits beside: { node, pos }
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({ heading: { levels: [1, 2, 3] }, link: { openOnClick: false, autolink: true } }),
+      StarterKit.configure({ heading: { levels: [1, 2, 3] }, link: { openOnClick: false, autolink: true }, dropcursor: { color: 'var(--accent)', width: 2, class: 'doc-dropcursor' } }),
       TaskList,
       TaskItem.configure({ nested: true }),
       Placeholder.configure({ placeholder: ({ node }) => (node.type.name === 'heading' ? `Heading ${node.attrs.level}` : 'Type ‘/’ for commands') }),

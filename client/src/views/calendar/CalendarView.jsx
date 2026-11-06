@@ -1,8 +1,8 @@
 // The calendar: events and dated tasks together, in six views, every option
 // adjustable, every action available from the keyboard.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Download, MoreHorizontal, PanelLeft, Plus, Search, SlidersHorizontal, Upload } from 'lucide-react'
-import { Button, Checkbox, ColorDot, Dialog, IconButton, Menu, MiniMonth, Popover, Segmented, Select, Switch, Tooltip } from '../../components/ui/index.js'
+import { ChevronLeft, ChevronRight, Download, PanelRight, Search, SlidersHorizontal, Upload } from 'lucide-react'
+import { Button, Dialog, IconButton, Popover, Segmented, Select, Switch, Tooltip } from '../../components/ui/index.js'
 import { useCalendars, useLists } from '../../store/hooks.js'
 import { usePrefs, setPrefs } from '../../store/prefs.js'
 import { useUI } from '../../store/ui.js'
@@ -13,13 +13,14 @@ import { expand } from '../../../../shared/calendar.js'
 import { isOpen, itemDay, undoPatch } from '../../../../shared/items.js'
 import { useShortcut } from '../../shell/shortcuts.js'
 import { ListEditor } from '../../shell/ListEditor.jsx'
-import { VIEWS, dateKeyOf, movePatch, periodTitle, stepDate, titleOf, viewDays } from './calendarMath.js'
+import { VIEWS, dateKeyOf, movePatch, periodTitle, stepDate, viewDays } from './calendarMath.js'
 import { TimeGrid } from './TimeGrid.jsx'
 import { TimelineView } from './TimelineView.jsx'
 import { AgendaView, MonthView } from './MonthView.jsx'
 import { EventEditor } from './EventEditor.jsx'
 import { EventPreview } from './EventPreview.jsx'
 import { CardDialog } from '../boards/CardDialog.jsx'
+import { CalendarSide } from './CalendarSide.jsx'
 import './calendar.css'
 
 function download(name, text, type = 'text/calendar') {
@@ -107,7 +108,6 @@ export default function CalendarView({ route }) {
   const [live, setLive] = useState('')
   const [confirmDel, setConfirmDel] = useState(null)
   const czRef = useRef(null)
-  const newCalRef = useRef(null)
   const importRef = useRef(null)
   const importTarget = useRef(null)
   const toast = useUI((s) => s.toast)
@@ -332,7 +332,6 @@ export default function CalendarView({ route }) {
   return (
     <div className={`view cal${side ? ' has-side' : ''}`}>
       <header className="view-header has-border cal-header">
-        <IconButton icon={PanelLeft} label={side ? 'Hide side panel' : 'Show side panel'} active={side} onClick={toggleSide} />
         <h1 className="view-title cal-title">{periodTitle(view, view === 'timeline' ? [date] : days)}</h1>
         <div className="cal-nav">
           <IconButton icon={ChevronLeft} label="Previous" onClick={() => go({ date: stepDate(view, date, -1) })} />
@@ -357,72 +356,38 @@ export default function CalendarView({ route }) {
               <SlidersHorizontal size={16} />
             </button>
           </Tooltip>
+          <IconButton icon={PanelRight} label={side ? 'Hide the panel' : 'Show the panel'} active={side} onClick={toggleSide} />
         </div>
       </header>
 
       <div className="cal-body">
-        {side && (
-          <aside className="cal-side" aria-label="Calendars">
-            <MiniMonth value={date} onChange={(d) => go({ date: d })} weekStart={prefs.weekStart} marks={marks} today={today} />
-            <section className="cal-side-section">
-              <div className="cal-side-head">
-                <span>Calendars</span>
-                <button ref={newCalRef} type="button" className="nav-section-add" aria-label="New calendar" onClick={() => setCalEdit({ anchor: newCalRef.current })}>
-                  <Plus size={14} />
-                </button>
-              </div>
-              {calendars.map((cal) => (
-                <div key={cal.path} id={`cal-${cal.id}`} className="cal-src">
-                  <Checkbox checked={!hidden.has(cal.path)} onChange={() => toggleHidden(cal.path)} label={<span className="cal-src-name"><ColorDot color={cal.color || 'blue'} size={8} /> {cal.name}{defaultCal?.path === cal.path && <span className="faint"> · default</span>}</span>} />
-                  <Menu align="end" items={calMenu(cal)} trigger={<button type="button" className="cal-src-more" aria-label={`${cal.name} options`}><MoreHorizontal size={14} /></button>} />
-                </div>
-              ))}
-            </section>
-            {c.showTasks && (
-              <section className="cal-side-section">
-                <div className="cal-side-head">
-                  <span>Boards</span>
-                </div>
-                {lists.map((l) => (
-                  <div key={l.path} className="cal-src">
-                    <Checkbox checked={!hidden.has(l.path)} onChange={() => toggleHidden(l.path)} label={<span className="cal-src-name"><ColorDot color={l.color || 'gray'} size={8} /> {l.name}</span>} />
-                  </div>
-                ))}
-              </section>
-            )}
-            <section className="cal-side-section cal-inbox">
-              <div className="cal-side-head">
-                <span>To schedule</span>
-                <span className="faint">{inbox.length}</span>
-              </div>
-              <p className="cal-side-hint">Drag onto the calendar to plan it.</p>
-              {inbox.slice(0, 40).map((i) => (
-                <div
-                  key={`${i.path}#${i.id}`}
-                  className="cal-inbox-item"
-                  draggable
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData('application/x-lumen-item', JSON.stringify({ path: i.path, id: i.id }))
-                    e.dataTransfer.effectAllowed = 'move'
-                  }}
-                >
-                  <ColorDot color={i.source.color || 'gray'} size={6} />
-                  <span className="cal-inbox-title">
-                    {titleOf(i)}
-                  </span>
-                  {itemDay(i) && <span className="cal-inbox-late">{relativeDay(itemDay(i))}</span>}
-                </div>
-              ))}
-              {!inbox.length && <p className="cal-side-hint">Everything has a day.</p>}
-            </section>
-          </aside>
-        )}
         <div className="cal-main">
           {view === 'timeline' && <TimelineView date={date} {...common} />}
           {(view === 'day' || view === '3day' || view === 'week') && <TimeGrid days={days} {...common} onMove={moveOcc} onDropItem={dropItem} draft={editor?.isNew ? editor.value : null} announce={announce} />}
           {view === 'month' && <MonthView days={days} focus={date} {...common} onMoveDay={moveDay} />}
           {view === 'agenda' && <AgendaView days={days} {...common} />}
         </div>
+        {side && (
+          <CalendarSide
+            date={date}
+            today={today}
+            weekStart={prefs.weekStart}
+            marks={marks}
+            items={items}
+            settings={settings}
+            calendars={calendars}
+            lists={lists}
+            hidden={hidden}
+            defaultCal={defaultCal}
+            calMenu={calMenu}
+            inbox={inbox}
+            onPick={(d) => go({ date: d })}
+            onOpen={openOcc}
+            onNew={(d, el) => openNew({ date: d, time: '09:00', duration: c.defaultDuration }, el)}
+            onNewCalendar={(el) => setCalEdit({ anchor: el })}
+            onToggleHidden={toggleHidden}
+          />
+        )}
       </div>
 
       <div className="sr-only" aria-live="polite">

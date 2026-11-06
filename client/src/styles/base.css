@@ -184,3 +184,18 @@ hr {
     scroll-behavior: auto !important;
   }
 }
+
+/* Native controls take the theme. A select's list is drawn by the system from
+   the option's colours, and a transparent select leaves them white, so every
+   option gets the surface colour; ticks, radios and sliders use the accent. */
+select option,
+select optgroup {
+  background-color: var(--surface);
+  color: var(--text);
+}
+input[type='checkbox'],
+input[type='radio'],
+input[type='range'],
+progress {
+  accent-color: var(--accent);
+}

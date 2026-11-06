@@ -884,7 +884,6 @@ button.pb-list-dot:hover {
 .lp-check {
   width: 15px;
   height: 15px;
-  accent-color: var(--accent);
 }
 .lp-bar {
   flex: 1;

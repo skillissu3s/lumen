@@ -116,10 +116,14 @@ export function Popover({
     if (!open) return undefined
     const node = popupRef.current
     previousFocus.current = document.activeElement
-    // the field marked data-autofocus, else the first thing that takes focus
-    const first = node?.querySelector('[data-autofocus]') || node?.querySelector(FOCUSABLE)
-    ;(first || node)?.focus()
+    // the field marked data-autofocus, else the first thing that takes focus;
+    // just after it has been placed (a hidden field can't take focus)
+    const later = setTimeout(() => {
+      const first = node?.querySelector('[data-autofocus]') || node?.querySelector(FOCUSABLE)
+      if (!node?.contains(document.activeElement)) (first || node)?.focus()
+    }, 0)
     return () => {
+      clearTimeout(later)
       const active = document.activeElement
       if (previousFocus.current?.isConnected && (active === document.body || node?.contains(active))) {
         previousFocus.current.focus()
