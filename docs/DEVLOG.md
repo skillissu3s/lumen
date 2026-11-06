@@ -622,3 +622,21 @@ settable right on a card; drop the calendar's New button.
   so in a line under the list, since that was not obvious.
 - `sidebar.collapsed` defaults to `true`. It only changes people who never
   toggled the sidebar; a saved choice wins.
+
+### Timeline "now", the small month, pop-ups that stay in view
+- Timeline: rows were sorted by start, so "now" in the middle of an event came
+  after it. An event under way (`now` between its start and end) now gets an
+  `is-live` row with a tick across its pill at the fraction reached and
+  "Now, 14:52 · 1 h 53 min left"; the separate now row is left out then.
+  Today's free gaps start at now at the earliest and drop when under 15 min.
+  Column widths are `--tl-time` / `--tl-rail`, wider with `is-h12`.
+- The panel's mini month: 32 px round day buttons centred in their columns,
+  the title lined up with the section names.
+- `usePopoverPosition` placed a popup once, from the side asked for, and only
+  clamped it, so a tall one ran off the window. It now flips to the side with
+  more room, caps the height (the room on that side, or the window beside the
+  anchor or when that side is a sliver) with `overflow-y: auto`, set on the
+  element directly so it can be lifted to measure; re-runs on a
+  `ResizeObserver` (the event form's "More options"); and ignores scrolls
+  inside itself. The time and duration lists use it too (fixed, not
+  absolute), so they flip or shorten instead of hanging off the edge.

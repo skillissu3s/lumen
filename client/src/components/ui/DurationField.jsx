@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
+import { usePopoverPosition } from './Popover.jsx'
 import { formatDuration, parseDuration } from '../../../../shared/dates.js'
 
 const PRESETS = [15, 30, 45, 60, 90, 120, 180]
@@ -13,6 +14,9 @@ export function DurationField({ value = null, onChange, className = '', ...props
   const optionRefs = useRef([])
   const typed = useRef(false)
   const listId = useId()
+  // the list is placed against the window, so it flips above the field or
+  // shortens rather than running off the edge
+  const { popupRef: listRef, style: listStyle } = usePopoverPosition(wrapRef, 'bottom-start', open)
 
   useEffect(() => {
     setText(value ? formatDuration(value) : '')
@@ -125,7 +129,7 @@ export function DurationField({ value = null, onChange, className = '', ...props
         <ChevronDown size={14} strokeWidth={1.75} aria-hidden="true" />
       </button>
       {open ? (
-        <div className="ui-duration-list" id={listId} role="listbox" aria-label="Durations">
+        <div ref={listRef} className="ui-duration-list" style={{ ...listStyle, minWidth: wrapRef.current?.offsetWidth }} id={listId} role="listbox" aria-label="Durations">
           {PRESETS.map((minutes, i) => (
             <button
               key={minutes}

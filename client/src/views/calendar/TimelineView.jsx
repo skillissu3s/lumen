@@ -40,19 +40,24 @@ export function TimelineView({ date, occs, settings, h12, onCreate, onOpen, onTo
   const now = nowMinutes()
   const untimed = occs.filter((o) => o.allDay && o.date <= date && o.endDate >= date)
   const timed = layoutDay(occs.filter((o) => !o.allDay && o.date === date))
-  const gaps = timeline?.showGaps === false ? [] : freeGaps(timed, dayStart * 60, dayEnd * 60, 30)
+  // today, time that has passed is not free: a gap starts at now at the earliest
+  const gaps = (timeline?.showGaps === false ? [] : freeGaps(timed, dayStart * 60, dayEnd * 60, 30))
+    .map((g) => (isToday ? { from: Math.max(g.from, now), to: g.to } : g))
+    .filter((g) => g.to - g.from >= 15)
+  // while something is under way, "now" is drawn inside it, not as its own row
+  const running = isToday ? timed.filter((o) => now >= o.top && now < o.top + o.duration) : []
 
   // one sorted stream of rows: items, gaps and "now"
   const rows = [
     ...timed.map((o) => ({ kind: 'item', at: o.top, o })),
     ...gaps.map((g) => ({ kind: 'gap', at: g.from, g })),
-    ...(isToday ? [{ kind: 'now', at: now }] : []),
+    ...(isToday && !running.length ? [{ kind: 'now', at: now }] : []),
   ].sort((a, b) => a.at - b.at || (a.kind === 'now' ? -1 : b.kind === 'now' ? 1 : 0))
 
   const pillHeight = (d) => Math.min(160, 44 + Math.max(0, d - 15) * 0.9)
 
   return (
-    <div className="timeline">
+    <div className={`timeline${h12 ? ' is-h12' : ''}`}>
       <div className="tl-day">
         <h2 className="tl-date">
           {dayName(date)} <span className="faint">{dayOfMonth(date)} {monthName(date)}</span>
@@ -105,14 +110,17 @@ export function TimelineView({ date, occs, settings, h12, onCreate, onOpen, onTo
             const color = colorOf(o.item, colorBy)
             const end = fromMinutes(toMinutes(o.time) + o.duration)
             const past = isToday && toMinutes(o.time) + o.duration < now
+            const live = running.includes(o)
+            const height = pillHeight(o.duration)
             return (
-              <li key={o.key} className={`tl-item${past ? ' is-past' : ''}${o.ghost ? ' is-ghost' : ''}`}>
+              <li key={o.key} className={`tl-item${past ? ' is-past' : ''}${live ? ' is-live' : ''}${o.ghost ? ' is-ghost' : ''}`}>
+                {live && <span className="tl-now-mark" style={{ top: 4 + ((now - o.top) / o.duration) * height }} aria-hidden="true" />}
                 <span className="tl-time tabular">
                   {formatTime(o.time, h12)}
                   <span className="tl-end">{formatTime(end, h12)}</span>
                 </span>
                 <span className="tl-rail">
-                  <Pill o={o} color={color} onToggle={onToggle} height={pillHeight(o.duration)} />
+                  <Pill o={o} color={color} onToggle={onToggle} height={height} />
                 </span>
                 <button type="button" className="tl-body" aria-label={blockLabel(o, h12)} onClick={(e) => onOpen(o, e.currentTarget)}>
                   <span className={`tl-title${o.item.kind === 'task' && !isOpen(o.item.status) ? ' is-done' : ''}`}>{titleOf(o.item)}</span>
@@ -121,6 +129,7 @@ export function TimelineView({ date, occs, settings, h12, onCreate, onOpen, onTo
                     {o.item.source?.name ? ` · ${o.item.source.name}` : ''}
                     {o.item.location ? ` · ${o.item.location}` : ''}
                   </span>
+                  {live && <span className="tl-live">Now, {formatTime(fromMinutes(now), h12)} · {humanDuration(o.top + o.duration - now)} left</span>}
                 </button>
               </li>
             )

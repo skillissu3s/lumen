@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- **The timeline tells the time right.** While something is under way, now is
+  marked on it, with how long is left, instead of a line after it. Free time
+  today only counts what is still ahead, and 12-hour times no longer wrap.
+- **A tidier small month** in the calendar panel: round days in even columns,
+  lined up with the rest of the panel.
+- **Pop-ups stay in the window.** The event form, menus and the time and
+  duration lists flip to the side with more room, move as they grow, and
+  scroll when they are taller than the window.
+
 ## 0.7.2 — obi's look
 
 - **obi's look is Lumen's default**: warm ink on paper, with obi's jade accent.

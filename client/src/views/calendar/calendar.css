@@ -75,9 +75,31 @@
     transform: translateX(8px);
   }
 }
+/* the small month: round day buttons centred in even columns, the title
+   lined up with the section names below it */
 .cal-side .ui-mini-month {
   width: 100%;
+  margin-bottom: 2px;
+}
+.cal-side .ui-mini-month-head {
   margin-bottom: 4px;
+  padding-left: 6px;
+}
+.cal-side .ui-mini-month-grid {
+  gap: 2px;
+}
+.cal-side .ui-mini-month-weekday {
+  height: 24px;
+  font-size: 10.5px;
+}
+.cal-side .ui-mini-month-day {
+  justify-self: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+.cal-side .ui-mini-month-dot {
+  bottom: 4px;
 }
 .cal-side-section + .cal-side-section,
 .ui-mini-month + .cal-side-section {
@@ -182,6 +204,7 @@
   background: var(--bg-hover);
 }
 .cal-day-time {
+  white-space: nowrap;
   flex: none;
   width: 52px;
   color: var(--text-faint);
@@ -646,6 +669,8 @@
 /* ---------- timeline (Structured style) ---------- */
 
 .timeline {
+  --tl-time: 64px;
+  --tl-rail: 56px;
   flex: 1;
   overflow-y: auto;
 }
@@ -711,12 +736,18 @@
   padding: 0;
   list-style: none;
 }
+/* "11:15 AM" needs more room than "11:15" */
+.timeline.is-h12 {
+  --tl-time: 84px;
+}
 .tl-rows > li {
+  position: relative;
   display: grid;
-  grid-template-columns: 64px 56px minmax(0, 1fr);
+  grid-template-columns: var(--tl-time) var(--tl-rail) minmax(0, 1fr);
   align-items: stretch;
 }
 .tl-time {
+  white-space: nowrap;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -852,7 +883,7 @@
 .tl-now-line::before {
   content: '';
   position: absolute;
-  left: 23px;
+  left: calc(var(--tl-rail) / 2 - 5px);
   top: -4px;
   width: 10px;
   height: 10px;
@@ -860,11 +891,39 @@
   background: var(--danger);
   box-shadow: 0 0 0 3px var(--bg);
 }
+/* now, inside something under way: a tick across its pill at the time it
+   has reached (the text says the rest) */
+.tl-now-mark {
+  position: absolute;
+  z-index: 2;
+  left: calc(var(--tl-time) - 6px);
+  width: calc(var(--tl-rail) + 12px);
+  height: 2px;
+  margin-top: -1px;
+  background: var(--danger);
+  pointer-events: none;
+}
+.tl-now-mark::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--tl-rail) / 2 + 1px);
+  top: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--danger);
+  box-shadow: 0 0 0 3px var(--bg);
+}
+.tl-live {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--danger);
+}
 .tl-empty {
   display: flex !important;
   align-items: center;
   gap: 12px;
-  padding: 24px 0 0 64px;
+  padding: 24px 0 0 var(--tl-time);
   color: var(--text-faint);
 }
 
@@ -1322,8 +1381,12 @@
   .editor {
     width: calc(100vw - 24px);
   }
-  .tl-rows > li {
-    grid-template-columns: 52px 48px minmax(0, 1fr);
+  .timeline {
+    --tl-time: 52px;
+    --tl-rail: 48px;
+  }
+  .timeline.is-h12 {
+    --tl-time: 70px;
   }
 }
 

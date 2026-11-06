@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
+import { usePopoverPosition } from './Popover.jsx'
 import { formatTime, fromMinutes } from '../../../../shared/dates.js'
 
 const pad = (n) => String(n).padStart(2, '0')
@@ -57,6 +58,9 @@ export function TimeField({
   const inputRef = useRef(null)
   const optionRefs = useRef([])
   const listId = useId()
+  // the list is placed against the window, so it flips above the field or
+  // shortens rather than running off the edge
+  const { popupRef: listRef, style: listStyle } = usePopoverPosition(wrapRef, 'bottom-start', open)
   const typed = useRef(false)
 
   const options = useMemo(() => {
@@ -177,7 +181,7 @@ export function TimeField({
         <ChevronDown size={14} strokeWidth={1.75} aria-hidden="true" />
       </button>
       {open ? (
-        <div className="ui-time-list" id={listId} role="listbox" aria-label="Times">
+        <div ref={listRef} className="ui-time-list" style={{ ...listStyle, minWidth: wrapRef.current?.offsetWidth }} id={listId} role="listbox" aria-label="Times">
           {options.map((time, i) => (
             <button
               key={time}
