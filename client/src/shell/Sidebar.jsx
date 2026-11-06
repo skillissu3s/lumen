@@ -7,7 +7,7 @@ import { Button, ContextMenu, Dialog, IconBadge, Spinner, Tooltip } from '../com
 import { useSession } from '../store/session.js'
 import { useWorkspace } from '../store/workspace.js'
 import { useUI } from '../store/ui.js'
-import { useLists, usePlugins } from '../store/hooks.js'
+import { useLists, useListsAcross, usePlugins } from '../store/hooks.js'
 import { useCurrentSpace } from '../store/spaces.js'
 import { moveItem, useCanMove } from './MoveTo.jsx'
 import { usePrefs, setPrefs } from '../store/prefs.js'
@@ -104,8 +104,10 @@ export function Sidebar({ route, onNavigate, closed }) {
   const addRef = useRef(null)
 
   const today = todayIso()
-  const todayCount = useMemo(() => lists.reduce((n, l) => n + flatItems(l).filter((i) => !i.parent && i.kind === 'task' && isOpen(i.status) && itemDay(i) && itemDay(i) <= today).length, 0), [lists, today])
-  const openCount = useMemo(() => lists.reduce((n, l) => n + countOpen(l), 0), [lists])
+  // the counts match Today and All tasks, which in your candle take in other spaces
+  const counted = useListsAcross()
+  const todayCount = useMemo(() => counted.reduce((n, l) => n + flatItems(l).filter((i) => !i.parent && i.kind === 'task' && isOpen(i.status) && itemDay(i) && itemDay(i) <= today).length, 0), [counted, today])
+  const openCount = useMemo(() => counted.reduce((n, l) => n + countOpen(l), 0), [counted])
   const path = route.path
   const at = (p) => path === p || path.startsWith(`${p}/`)
   const views = plugins.filter((p) => p.manifest.view && !prefs.plugins.disabled.includes(p.id))

@@ -1,7 +1,7 @@
 // What views call. Every action is a small, optimistic edit through the workspace
 // store, built from the pure text→text functions in shared/items.js.
 
-import { useWorkspace } from '../store/workspace.js'
+import { useWorkspace, fileAt, isCalendarPath } from '../store/workspace.js'
 import { useUI } from '../store/ui.js'
 import {
   addItem,
@@ -38,14 +38,14 @@ export function addEvent(calendarPath, fields) {
 }
 
 export function updateItem(path, id, patch) {
-  const events = path.startsWith('calendars/')
+  const events = isCalendarPath(path)
   ws().edit(path, (text) => editItem(text, id, patch, { events }).text)
 }
 
 export function toggleTask(path, id) {
-  const file = ws().files[path]
+  const file = fileAt(path)
   if (!file) return
-  const events = path.startsWith('calendars/')
+  const events = isCalendarPath(path)
   const item = parseItems(file.text, { events }).all.get(id)
   if (!item) return
   const nextStatus = isDone(item.status) ? ' ' : 'x'
@@ -69,9 +69,9 @@ export function toggleTask(path, id) {
 }
 
 export function deleteItem(path, id) {
-  const file = ws().files[path]
+  const file = fileAt(path)
   if (!file) return
-  const events = path.startsWith('calendars/')
+  const events = isCalendarPath(path)
   const parsed = parseItems(file.text, { events })
   const item = parsed.all.get(id)
   if (!item) return
@@ -89,13 +89,13 @@ export function deleteItem(path, id) {
 }
 
 export function moveItem(path, id, where) {
-  const events = path.startsWith('calendars/')
+  const events = isCalendarPath(path)
   ws().edit(path, (text) => moveItemInFile(text, id, where, { events }))
 }
 
 export function moveItemToFile(fromPath, id, toPath, where) {
-  const fromEvents = fromPath.startsWith('calendars/')
-  const toEvents = toPath.startsWith('calendars/')
+  const fromEvents = isCalendarPath(fromPath)
+  const toEvents = isCalendarPath(toPath)
   let block = null
   ws().edit(fromPath, (text) => {
     const r = removeItem(text, id, { events: fromEvents })
@@ -190,9 +190,10 @@ export function importIcs(calendarPath, icsText) {
 export function exportIcs(calendarPathOrAll) {
   const all = calendarPathOrAll === 'all' || calendarPathOrAll === '*' || calendarPathOrAll === true
   const items = []
-  for (const [path, file] of Object.entries(ws().files)) {
-    if (!path.startsWith('calendars/')) continue
-    if (!all && path !== calendarPathOrAll) continue
+  // everything here, or one calendar (from your candle, perhaps another space's)
+  const files = all ? Object.entries(ws().files) : [[calendarPathOrAll, fileAt(calendarPathOrAll)]]
+  for (const [path, file] of files) {
+    if (!file || !isCalendarPath(path)) continue
     for (const it of parseItems(file.text, { events: true }).items) items.push({ ...it, path })
   }
   return toIcs(items)

@@ -11,6 +11,7 @@ import { progressOf } from './taskQueries.js'
 import { colorFor, splitTitle } from '../../lib/colors.js'
 import { Label } from '../boards/Card.jsx'
 import './tasks.css'
+import { useSpaceLabels } from '../../store/spaces.js'
 
 const PRIORITY_COLOR = { highest: 'red', high: 'orange', medium: 'blue' }
 
@@ -38,6 +39,7 @@ export function taskMenu(item, lists, extra = []) {
 }
 
 function Meta({ item, today, showList, h12, hideDay }) {
+  const where = useSpaceLabels()[item.source?.space]
   const day = itemDay(item)
   const parts = []
   if (showList && item.source) {
@@ -45,6 +47,7 @@ function Meta({ item, today, showList, h12, hideDay }) {
       <span key="list" className="tmeta tmeta-list">
         <ColorDot color={item.source.color || 'gray'} size={6} />
         {item.source.name}
+        {where && <span className="tmeta-where"> · {where}</span>}
       </span>,
     )
   }

@@ -1,7 +1,9 @@
 // The calendar's panel, on the right: a small month to jump with, the day you
 // are on at a glance, which calendars and boards show (a coloured square per
 // source, filled when it shows), and tasks still waiting for a day. Each
-// section folds away, and remembers it on this device.
+// section folds away, and remembers it on this device. In your candle the
+// calendars come in groups, one per space (yours, each workspace, each person
+// sharing with you), and a whole space can be shown or hidden at once.
 import { useMemo, useRef, useState } from 'react'
 import { ChevronDown, Eye as EyeIcon, EyeOff, MoreHorizontal, Plus } from 'lucide-react'
 import { Menu, MiniMonth } from '../../components/ui/index.js'
@@ -53,7 +55,19 @@ function Source({ id, name, color, on, note, onToggle, menu }) {
   )
 }
 
-export function CalendarSide({ date, today, weekStart, marks, items, settings, calendars, lists, hidden, defaultCal, calMenu, inbox, onPick, onOpen, onNew, onNewCalendar, onToggleHidden }) {
+// a space's heading among the calendars, with its own show/hide (not for your candle)
+function SpaceHead({ label, on, onToggle }) {
+  const Eye = on ? EyeIcon : EyeOff
+  if (!onToggle) return <div className="cal-src-group-head">{label}</div>
+  return (
+    <button type="button" className={`cal-src-group-head is-toggle${on ? '' : ' is-hidden'}`} aria-pressed={on} aria-label={`${on ? 'Hide' : 'Show'} ${label}`} onClick={onToggle}>
+      <span>{label}</span>
+      <Eye size={13} aria-hidden="true" />
+    </button>
+  )
+}
+
+export function CalendarSide({ date, today, weekStart, marks, items, settings, calendars, lists, groups, where = {}, hidden, defaultCal, calMenu, inbox, onPick, onOpen, onNew, onNewCalendar, onToggleHidden, onToggleSpace }) {
   const [folded, setFolded] = useState(readFolded)
   const newRef = useRef(null)
   const fold = (id) =>
@@ -120,8 +134,14 @@ export function CalendarSide({ date, today, weekStart, marks, items, settings, c
           </button>
         }
       >
-        {calendars.map((cal) => (
-          <Source key={cal.path} id={`cal-${cal.id}`} name={cal.name} color={cal.color || 'blue'} on={!hidden.has(cal.path)} note={calendars.length > 1 && defaultCal?.path === cal.path ? 'Default' : null} onToggle={() => onToggleHidden(cal.path)} menu={calMenu(cal)} />
+        {(groups || [{ prefix: '', on: true, calendars }]).map((g) => (
+          <div key={g.prefix || 'here'} className="cal-src-group">
+            {groups && groups.length > 1 && <SpaceHead label={g.label} on={g.on} onToggle={g.prefix ? () => onToggleSpace(g.prefix) : null} />}
+            {g.on &&
+              g.calendars.map((cal) => (
+                <Source key={cal.path} id={`cal-${cal.id}`} name={cal.name} color={cal.color || 'blue'} on={!hidden.has(cal.path)} note={calendars.length > 1 && defaultCal?.path === cal.path ? 'Default' : null} onToggle={() => onToggleHidden(cal.path)} menu={calMenu(cal)} />
+              ))}
+          </div>
         ))}
         <p className="cal-side-hint">{calendars.length > 1 ? 'Each event belongs to one calendar; pick it when you add the event. Hide a calendar to see the rest.' : 'One calendar is enough. Add another to keep, say, work and personal apart, each with its own colour.'}</p>
       </Section>
@@ -129,7 +149,7 @@ export function CalendarSide({ date, today, weekStart, marks, items, settings, c
       {settings.showTasks && lists.length > 0 && (
         <Section id="boards" title="Tasks from boards" folded={folded} onFold={fold}>
           {lists.map((l) => (
-            <Source key={l.path} name={l.name} color={l.color || 'gray'} on={!hidden.has(l.path)} onToggle={() => onToggleHidden(l.path)} />
+            <Source key={l.path} name={where[l.space] ? `${l.name} · ${where[l.space]}` : l.name} color={l.color || 'gray'} on={!hidden.has(l.path)} onToggle={() => onToggleHidden(l.path)} />
           ))}
         </Section>
       )}

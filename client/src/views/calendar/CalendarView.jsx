@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Download, PanelRight, Search, SlidersHorizontal, Upload } from 'lucide-react'
 import { Button, Dialog, IconButton, Popover, Segmented, Select, Switch, Tooltip } from '../../components/ui/index.js'
-import { useCalendars, useLists } from '../../store/hooks.js'
+import { useAcross, useCalendarsAcross, useListsAcross } from '../../store/hooks.js'
+import { useSpaces, useSpaceLabels } from '../../store/spaces.js'
+import { useWorkspace, canEdit } from '../../store/workspace.js'
 import { usePrefs, setPrefs } from '../../store/prefs.js'
 import { useUI } from '../../store/ui.js'
 import { navigate } from '../../lib/router.js'
@@ -85,8 +87,13 @@ export default function CalendarView({ route }) {
   const prefs = usePrefs()
   const c = prefs.calendar
   const h12 = prefs.timeFormat === '12h'
-  const calendars = useCalendars()
-  const lists = useLists()
+  // in your candle, other spaces' calendars and boards too (docs/CANDLES.md)
+  const calendars = useCalendarsAcross()
+  const lists = useListsAcross()
+  const { across } = useAcross()
+  const spaces = useSpaces((s) => s.list)
+  const where = useSpaceLabels()
+  const treePaths = useWorkspace((s) => s.treePaths)
   const today = todayIso()
   // a saved view that no longer exists (the 3-day one) falls back to the week
   const known = (v) => VIEWS.some((x) => x.id === v)
@@ -128,7 +135,7 @@ export default function CalendarView({ route }) {
 
   const days = useMemo(() => viewDays(view, date, { weekStart: prefs.weekStart, showWeekends: c.showWeekends }), [view, date, prefs.weekStart, c.showWeekends])
   const hidden = useMemo(() => new Set(c.hidden || []), [c.hidden])
-  const defaultCal = calendars.find((x) => x.path === c.defaultCalendar) || calendars.find((x) => x.default) || calendars[0]
+  const defaultCal = calendars.find((x) => x.path === c.defaultCalendar) || calendars.find((x) => x.default && !x.space) || calendars.find((x) => !x.space) || calendars[0]
 
   const items = useMemo(() => {
     const out = []
@@ -313,7 +320,29 @@ export default function CalendarView({ route }) {
     [view, date],
   )
 
-  const calMenu = (cal) => [
+  // in your candle: a group per space; a space turned off still shows, to turn it back on
+  const off = prefs.across.off
+  const groups = useMemo(() => {
+    if (!across) return null
+    const hasCalendars = (pre) => treePaths.some((p) => p.startsWith(`${pre}calendars/`))
+    return [
+      { prefix: '', label: 'Your candle', on: true, calendars: calendars.filter((x) => !x.space) },
+      ...spaces
+        .filter((s) => s.prefix && hasCalendars(s.prefix))
+        .map((s) => ({ prefix: s.prefix, label: where[s.prefix], on: !off.includes(s.prefix), calendars: calendars.filter((x) => x.space === s.prefix) })),
+    ]
+  }, [across, calendars, spaces, where, off, treePaths])
+  const toggleSpace = (pre) => setPrefs({ across: { off: off.includes(pre) ? off.filter((p) => p !== pre) : [...off, pre] } })
+
+  // another space's calendar, seen from your candle: managed in its own space
+  const calMenu = (cal) =>
+    cal.space
+      ? [
+          ...(canEdit(cal.path) ? [{ label: 'Set as default', checked: defaultCal?.path === cal.path, onSelect: () => setPrefs({ calendar: { defaultCalendar: cal.path } }) }] : []),
+          { label: 'Export .ics', icon: Download, onSelect: () => download(`${cal.id}.ics`, exportIcs(cal.path)) },
+        ]
+      : ownCalMenu(cal)
+  const ownCalMenu = (cal) => [
     { label: 'Edit calendar…', onSelect: () => setCalEdit({ anchor: document.getElementById(`cal-${cal.id}`), cal }) },
     { label: 'Set as default', checked: defaultCal?.path === cal.path, onSelect: () => setPrefs({ calendar: { defaultCalendar: cal.path } }) },
     { label: 'Export .ics', icon: Download, onSelect: () => download(`${cal.id}.ics`, exportIcs(cal.path)) },
@@ -382,6 +411,8 @@ export default function CalendarView({ route }) {
             settings={settings}
             calendars={calendars}
             lists={lists}
+            groups={groups}
+            where={where}
             hidden={hidden}
             defaultCal={defaultCal}
             calMenu={calMenu}
@@ -391,6 +422,7 @@ export default function CalendarView({ route }) {
             onNew={(d, el) => openNew({ date: d, time: '09:00', duration: c.defaultDuration }, el)}
             onNewCalendar={(el) => setCalEdit({ anchor: el })}
             onToggleHidden={toggleHidden}
+            onToggleSpace={toggleSpace}
           />
         )}
       </div>

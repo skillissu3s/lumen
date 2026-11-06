@@ -27,13 +27,20 @@ export function selectConfig(state) {
   }
 }
 
-const idOf = (path, dir) => path.slice(dir.length + 1, -3)
+// boards and calendars of other spaces come with their place in the tree
+// (workspaces/<slug>/…, shared/<owner>/…) when a view shows several spaces
+const SPACE_RE = /^(workspaces|shared)\/[^/]+\//
+const spaceOfPath = (path) => SPACE_RE.exec(path)?.[0] || ''
+const LIST_FILE = /^((workspaces|shared)\/[^/]+\/)?lists\/[^/]+\.md$/
+const CALENDAR_FILE = /^((workspaces|shared)\/[^/]+\/)?calendars\/[^/]+\.md$/
+const idOf = (path, dir) => path.slice(spaceOfPath(path).length).slice(dir.length + 1, -3)
 
 function listShape(path, parsed, id) {
   const meta = parsed.meta || {}
   return {
     path,
     id,
+    space: spaceOfPath(path),
     name: meta.name || id,
     color: meta.color,
     icon: meta.icon,
@@ -52,7 +59,7 @@ export function selectLists(state) {
   const inbox = inboxRaw.includes('/') ? inboxRaw : `lists/${inboxRaw}.md`
   const out = []
   for (const path of state.paths) {
-    if (!/^lists\/[^/]+\.md$/.test(path)) continue
+    if (!LIST_FILE.test(path)) continue
     const f = state.files[path]
     if (!f) continue
     const parsed = parseMemo(path, f.text, (t) => parseItems(t))
@@ -65,7 +72,7 @@ export function selectLists(state) {
 export function selectCalendars(state) {
   const out = []
   for (const path of state.paths) {
-    if (!/^calendars\/[^/]+\.md$/.test(path)) continue
+    if (!CALENDAR_FILE.test(path)) continue
     const f = state.files[path]
     if (!f) continue
     const parsed = parseMemo(path, f.text, (t) => parseItems(t, { events: true }))
@@ -79,10 +86,10 @@ export function selectCalendars(state) {
 export function selectAllItems(state) {
   const out = []
   for (const l of selectLists(state)) {
-    for (const item of flatItems(l)) out.push({ ...item, path: l.path, source: { kind: 'list', name: l.name, color: l.color, icon: l.icon } })
+    for (const item of flatItems(l)) out.push({ ...item, path: l.path, source: { kind: 'list', name: l.name, color: l.color, icon: l.icon, space: l.space } })
   }
   for (const c of selectCalendars(state)) {
-    for (const item of flatItems(c)) out.push({ ...item, path: c.path, source: { kind: 'calendar', name: c.name, color: c.color, icon: c.icon } })
+    for (const item of flatItems(c)) out.push({ ...item, path: c.path, source: { kind: 'calendar', name: c.name, color: c.color, icon: c.icon, space: c.space } })
   }
   return out
 }

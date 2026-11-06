@@ -4,7 +4,7 @@
 import { useMemo, useState } from 'react'
 import { CalendarDays, ChevronLeft, ChevronRight, ListFilter, PanelRight, Plus, Search } from 'lucide-react'
 import { IconButton, Menu, Segmented } from '../../components/ui/index.js'
-import { useLists } from '../../store/hooks.js'
+import { useAcross, useListsAcross } from '../../store/hooks.js'
 import { usePrefs } from '../../store/prefs.js'
 import { useWorkspace } from '../../store/workspace.js'
 import { navigate } from '../../lib/router.js'
@@ -16,6 +16,7 @@ import { compareItems, isOpen, itemDay, priorityRank } from '../../../../shared/
 import { Card } from '../boards/Card.jsx'
 import { Composer } from '../boards/Composer.jsx'
 import { CardDialog } from '../boards/CardDialog.jsx'
+import { AcrossPicker } from '../shared/AcrossPicker.jsx'
 import '../boards/boards.css'
 import './alltasks.css'
 
@@ -196,8 +197,9 @@ function ScheduleRail({ cards, today, weekStart, onOpen, onHide }) {
 }
 
 export default function AllTasks({ route }) {
-  const lists = useLists()
-  const files = useWorkspace((s) => s.files)
+  // in your candle, other spaces' boards too (docs/CANDLES.md)
+  const lists = useListsAcross()
+  const { files } = useAcross()
   const prefs = usePrefs()
   const today = todayIso()
   const group = GROUPS.some((g) => g.value === route.query.group) ? route.query.group : prefs.tasks.group || 'status'
@@ -217,7 +219,7 @@ export default function AllTasks({ route }) {
     }
   }, [files])
 
-  const all = useMemo(() => lists.flatMap((l) => l.items.filter((i) => i.kind === 'task').map((i) => ({ ...i, path: l.path, source: { name: l.name, color: l.color || 'gray', icon: l.icon } }))), [lists])
+  const all = useMemo(() => lists.flatMap((l) => l.items.filter((i) => i.kind === 'task').map((i) => ({ ...i, path: l.path, source: { name: l.name, color: l.color || 'gray', icon: l.icon, space: l.space } }))), [lists])
   const labels = useMemo(() => [...new Set(all.flatMap((i) => i.tags || []))].sort(), [all])
   const needle = q.trim().toLowerCase()
   const cards = all.filter((i) => (!board || i.path === board) && (!label || i.tags?.includes(label)) && (!needle || i.title.toLowerCase().includes(needle)))
@@ -241,6 +243,7 @@ export default function AllTasks({ route }) {
         <h1 className="view-title">All tasks</h1>
         <span className="view-subtitle">{cards.filter((c) => isOpen(c.status)).length} open</span>
         <div className="view-actions">
+          <AcrossPicker />
           <label className="board-search">
             <Search size={14} />
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search tasks" aria-label="Search tasks" />

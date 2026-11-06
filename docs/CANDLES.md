@@ -263,3 +263,33 @@ brings the views across spaces.
 - [x] Checked in the browser with two accounts: making a workspace, an invite
   link, joining through it after signing in, sharing a board to view, the
   view-only refusal, the space menu and Move to.
+
+### Phase 3 progress
+
+- [x] In your candle, Today, All tasks, the schedule strip, Calendar and the
+  sidebar's counts take in the boards and calendars of your other spaces
+  (`useAcross` and the `…Across` hooks in `store/hooks.js`). Your candle's
+  prefix is empty, so a path in the tree is also a path you can edit there:
+  ticking another space's task or dragging its event uses the usual actions.
+  Anywhere else the views are that space's only.
+- [x] Which spaces: all, unless turned off (`prefs.across.off`, a list of
+  space prefixes), from the "Your candle and N more" picker on Today and All
+  tasks, or a space's heading in the calendar panel; one setting for all three
+  views. Single calendars still hide one by one (`prefs.calendar.hidden`).
+- [x] The calendar panel groups calendars by space (Your candle, each
+  workspace, each person sharing); a space turned off still shows its heading,
+  struck through, to turn back on. Another space's calendar is managed in its
+  own space; from the candle it can be the default or exported.
+- [x] Where things are from: a task from another space says so beside its
+  board ("Launch · Launch team"); boards in the calendar panel too.
+- [x] Where new things go: the event form offers every calendar and board you
+  may change (not what's shared with you to view only), each named with its
+  space; the default calendar is your candle's unless you pick another.
+- [x] Actions found files only in the open space and knew calendars only by
+  a leading `calendars/`: `fileAt` and `isCalendarPath` (store/workspace.js)
+  reach other spaces' files from the candle, and a card from another space
+  opens in the card dialog.
+- [x] Checked in the browser: a workspace task due today in the candle's
+  Today, labelled, ticked from there into the workspace's board; the team
+  calendar's event in the schedule strip and the week; grouped calendars;
+  hiding a space; the event form's places.

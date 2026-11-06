@@ -11,6 +11,13 @@
 - **Share one thing from your candle.** A board, calendar, doc or idea board
   can be shared with chosen people, each able to view or to edit. What others
   share with you appears in the menu as *Shared by* them.
+- **One view of everything, from your candle.** Today, All tasks and Calendar
+  in your candle also show the tasks and events of your workspaces and of what
+  people shared with you, each marked with where it's from. Choose which spaces
+  to include from "Your candle and N more", or from the calendar panel, where
+  calendars are grouped by space. Tick, move and edit them right there.
+- New events and tasks can go to any calendar or board you may change, in any
+  of your spaces.
 - **Move to…** a board, calendar, doc or idea board between your candle and
   your workspaces, with everything in it.
 - **Workspace members and invites** in Settings: roles, invite links, leaving,

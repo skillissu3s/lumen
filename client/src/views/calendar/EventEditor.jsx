@@ -8,6 +8,8 @@ import { joinIcon, splitIcon } from '../../../../shared/items.js'
 import { fromMinutes, formatTime, humanDuration, relativeDay, todayIso, toMinutes } from '../../../../shared/dates.js'
 import { describeRecurrence } from '../../../../shared/recurrence.js'
 import { RepeatField } from '../shared/RepeatField.jsx'
+import { useSpaceLabels } from '../../store/spaces.js'
+import { canEdit } from '../../store/workspace.js'
 
 /**
  * `value`: { kind: 'event'|'task', path, title, icon, date, endDate, time, duration,
@@ -49,7 +51,9 @@ export function EventEditor({ open, onClose, anchor, value, isNew, calendars, li
     })
   }
   const v = { ...f, ...typed }
-  const targets = f.kind === 'event' ? calendars : lists
+  // where it can go: places you may change, each named with its space when it isn't your own
+  const where = useSpaceLabels()
+  const targets = (f.kind === 'event' ? calendars : lists).filter((t) => t.path === f.path || canEdit(t.path))
   const allDay = !v.time
 
   const result = () => {
@@ -121,7 +125,7 @@ export function EventEditor({ open, onClose, anchor, value, isNew, calendars, li
 
         <div className="editor-grid">
           <span className="editor-label">{f.kind === 'event' ? 'Calendar' : 'Board'}</span>
-          <Select value={f.path} onChange={(e) => set({ path: e.target.value })} options={targets.map((t) => ({ value: t.path, label: t.name }))} aria-label={f.kind === 'event' ? 'Calendar' : 'Board'} disabled={!isNew && f.series} />
+          <Select value={f.path} onChange={(e) => set({ path: e.target.value })} options={targets.map((t) => ({ value: t.path, label: where[t.space] ? `${t.name} · ${where[t.space]}` : t.name }))} aria-label={f.kind === 'event' ? 'Calendar' : 'Board'} disabled={!isNew && f.series} />
 
           <span className="editor-label">Date</span>
           <div className="editor-inline">

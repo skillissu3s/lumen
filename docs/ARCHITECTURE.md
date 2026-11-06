@@ -113,7 +113,10 @@ tree and shows one space at a time: `files` and `paths` are the open space's,
 with paths inside it, so views work the same in a candle, a workspace or what
 someone shared. Preferences, plugins and plugin data are read and written in
 the candle (`editAt`, `ensureAt`…) wherever you are. A write the server
-refuses is dropped and the server's version put back.
+refuses is dropped and the server's version put back. In your candle, Today,
+All tasks and Calendar also take in other spaces' boards and calendars
+(`useAcross`): the candle's prefix is empty, so their tree paths work with the
+usual edit actions.
 
 ## Server mode
 

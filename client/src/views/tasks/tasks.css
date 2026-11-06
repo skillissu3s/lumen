@@ -703,3 +703,53 @@
     padding-left: 52px;
   }
 }
+.tmeta-where {
+  color: var(--text-faint);
+}
+
+/* which other spaces Today and All tasks take in, from your candle */
+.across-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.across-button:hover,
+.across-button.is-open {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.ui-popover.across-pop {
+  width: 240px;
+  padding: 6px;
+}
+.across-hint {
+  margin: 4px 6px 6px;
+  color: var(--text-faint);
+  font-size: var(--fs-sm);
+}
+.across-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 6px;
+  border-radius: 6px;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+.across-row:hover {
+  background: var(--bg-hover);
+}
+.across-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

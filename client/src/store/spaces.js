@@ -4,6 +4,7 @@
 // The list comes from the server; offline it's worked out from the files kept
 // here, which carry every space's place in the tree.
 
+import { useMemo } from 'react'
 import { create } from 'zustand'
 import { api } from '../lib/api.js'
 import { navigate } from '../lib/router.js'
@@ -84,6 +85,12 @@ export const useSpaces = create((set, get) => ({
     if (!quiet || to) navigate(to)
   },
 }))
+
+/** prefix → how to name that space beside an item from it ('' for your candle: no label) */
+export function useSpaceLabels() {
+  const list = useSpaces((s) => s.list)
+  return useMemo(() => Object.fromEntries(list.filter((s) => s.prefix).map((s) => [s.prefix, s.kind === 'shared' ? `Shared by ${s.name}` : s.name])), [list])
+}
 
 /** The space that's open now: { prefix, kind, name, role, … } */
 export function useCurrentSpace() {

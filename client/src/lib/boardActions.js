@@ -1,6 +1,6 @@
 // Board edits: cards moving between columns, columns themselves, and the
 // board's look. All go through the workspace store as text → text edits.
-import { useWorkspace } from '../store/workspace.js'
+import { useWorkspace, fileAt } from '../store/workspace.js'
 import { useUI } from '../store/ui.js'
 import { addItem, isOpen, moveItem, parseItems, removeItem, insertBlock, updateItem as editItem, newId } from '../../../shared/items.js'
 import { addColumn as addCol, archiveCard as archiveIn, archivedOf, boardOf, moveColumn as moveCol, nameLooseColumn, removeColumn as removeCol, renameColumn as renameCol, setBoardSettings, columnize, DEFAULT_COLUMNS } from '../../../shared/board.js'
@@ -118,7 +118,7 @@ export function createIdeaBoard({ name, color = 'violet', icon = 'lightbulb', sh
 
 /** Changes an idea board's name, colour, icon or sharing, keeping its cards */
 export function updateIdeaMeta(path, patch) {
-  const text = ws().files[path]?.text
+  const text = fileAt(path)?.text
   if (text == null) return
   const canvas = parseCanvas(text)
   ws().setText(path, serializeCanvas({ ...canvas, lumen: { ...canvas.lumen, ...patch } }))
@@ -136,7 +136,7 @@ export const nameLooseList = (path, name) => edit(path, (text) => nameLooseColum
 
 /** Puts a card away; Undo brings it back where it was */
 export function archiveCard(path, id) {
-  const before = ws().files[path]?.text
+  const before = fileAt(path)?.text
   edit(path, (text) => archiveIn(text, id))
   toast('Card archived', { action: { label: 'Undo', run: () => before != null && ws().setText(path, before) }, timeout: 7000 })
 }
@@ -154,7 +154,7 @@ export const archivedCards = (list, text) => archivedOf(list, text)
 
 /** Deletes a card; Undo puts it back */
 export function deleteCard(path, id) {
-  const before = ws().files[path]?.text
+  const before = fileAt(path)?.text
   edit(path, (text) => removeItem(text, id).text)
   toast('Card deleted', { action: { label: 'Undo', run: () => before != null && ws().setText(path, before) }, timeout: 7000 })
 }
@@ -199,7 +199,7 @@ export function moveAllCards(path, from, to) {
 
 /** Archives every card in a list */
 export function archiveColumn(path, column) {
-  const before = ws().files[path]?.text
+  const before = fileAt(path)?.text
   edit(path, (text) => {
     let t = text
     for (const c of boardOf(parseItems(t), t).columns.find((x) => x.name === column)?.items || []) t = archiveIn(t, c.id)
@@ -210,7 +210,7 @@ export function archiveColumn(path, column) {
 
 /** Deletes a list and its cards; Undo brings both back */
 export function deleteColumn(path, column) {
-  const before = ws().files[path]?.text
+  const before = fileAt(path)?.text
   edit(path, (text) => {
     let t = text
     for (const c of boardOf(parseItems(t), t).columns.find((x) => x.name === column)?.items || []) t = removeItem(t, c.id).text

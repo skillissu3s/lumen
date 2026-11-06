@@ -36,6 +36,8 @@ export const DEFAULT_PREFS = {
   },
   tasks: { defaultList: null, showCompleted: false, view: 'list', groupBy: 'section', sort: 'manual' },
   plugins: { disabled: [] },
+  // in your candle, Today, All tasks and Calendar take in other spaces too; these are turned off
+  across: { off: [] },
   sidebar: { collapsed: true },
   ideas: { minimap: false },
 }

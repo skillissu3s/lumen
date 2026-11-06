@@ -4,7 +4,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { AlignLeft, Archive, CalendarDays, Copy, Flag, ListChecks, Palette, Plus, Trash2, X } from 'lucide-react'
 import { DateField, DurationField, Popover, TimeField } from '../../components/ui/index.js'
-import { useLists } from '../../store/hooks.js'
+import { useAcross, useListsAcross } from '../../store/hooks.js'
 import { usePrefs } from '../../store/prefs.js'
 import { useWorkspace } from '../../store/workspace.js'
 import { addTask, deleteItem, updateItem } from '../../lib/actions.js'
@@ -218,8 +218,9 @@ function Checklist({ item }) {
 
 /** The live card for path + id */
 export function useCard(path, id) {
-  const lists = useLists()
-  const files = useWorkspace((s) => s.files)
+  // from your candle a card may be another space's (Today, All tasks, Calendar)
+  const lists = useListsAcross()
+  const { files } = useAcross()
   return useMemo(() => {
     const list = lists.find((l) => l.path === path)
     const item = list?.all.get(id)
@@ -231,7 +232,7 @@ export function useCard(path, id) {
 
 export function CardDialog({ path, id, onClose }) {
   const card = useCard(path, id)
-  const lists = useLists()
+  const lists = useListsAcross()
   const prefs = usePrefs()
   const titleEl = useRef(null)
   const item = card?.item

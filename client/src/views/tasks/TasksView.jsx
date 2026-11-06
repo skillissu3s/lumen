@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, CalendarDays, ChevronRight, Columns3, Kanban, List, MoreHorizontal, Plus, Sun } from 'lucide-react'
 import { Button, EmptyState, IconBadge, Menu, Segmented } from '../../components/ui/index.js'
-import { useAllItems, useCalendars, useConfig, useLists, inboxPath } from '../../store/hooks.js'
+import { useAllItemsAcross, useCalendarsAcross, useConfig, useListsAcross, inboxPath } from '../../store/hooks.js'
 import { usePrefs, setPrefs } from '../../store/prefs.js'
 import { useUI } from '../../store/ui.js'
 import { navigate } from '../../lib/router.js'
@@ -19,6 +19,7 @@ import { TaskRow } from './TaskRow.jsx'
 import { CardDialog } from '../boards/CardDialog.jsx'
 import { BoardView } from './BoardView.jsx'
 import { listGroups, todayGroups, upcomingGroups } from './taskQueries.js'
+import { AcrossPicker } from '../shared/AcrossPicker.jsx'
 import './tasks.css'
 
 function InlineAdd({ onAdd, label = 'Add task' }) {
@@ -62,8 +63,8 @@ function Group({ group, children, actions, count }) {
 }
 
 function TodaySchedule({ today }) {
-  const calendars = useCalendars()
-  const items = useAllItems()
+  const calendars = useCalendarsAcross()
+  const items = useAllItemsAcross()
   const prefs = usePrefs()
   const occ = useMemo(() => {
     const events = calendars.flatMap((c) => c.items.map((i) => ({ ...i, path: c.path, source: { color: c.color, name: c.name } })))
@@ -94,8 +95,9 @@ export default function TasksView({ route }) {
   const kind = route.parts[0] || 'today'
   const listId = kind === 'list' ? route.parts[1] : null
   const config = useConfig()
-  const lists = useLists()
-  const allItems = useAllItems()
+  // in your candle, other spaces' boards too (docs/CANDLES.md)
+  const lists = useListsAcross()
+  const allItems = useAllItemsAcross()
   const prefs = usePrefs()
   const today = todayIso()
   const inbox = inboxPath(config)
@@ -110,7 +112,7 @@ export default function TasksView({ route }) {
 
   const listPath = kind === 'inbox' ? inbox : listId ? `lists/${listId}.md` : null
   const list = lists.find((l) => l.path === listPath)
-  const tasks = useMemo(() => allItems.filter((i) => i.kind === 'task' && i.path.startsWith('lists/')), [allItems])
+  const tasks = useMemo(() => allItems.filter((i) => i.kind === 'task' && i.source?.kind === 'list'), [allItems])
   const defaultList = prefs.tasks.defaultList && lists.some((l) => l.path === prefs.tasks.defaultList) ? prefs.tasks.defaultList : inbox
   const listView = list ? (list.meta?.view || prefs.tasks.view) : 'list'
   const listPrefs = { groupBy: prefs.tasks.groupBy, sort: prefs.tasks.sort, showCompleted: prefs.tasks.showCompleted }
@@ -292,6 +294,7 @@ export default function TasksView({ route }) {
             {page.subtitle && <span className="view-subtitle">{page.subtitle}</span>}
           </h1>
           <div className="view-actions">
+            {(kind === 'today' || route.path === '/') && <AcrossPicker />}
             {page.list && (
               <Segmented
                 label="Layout"

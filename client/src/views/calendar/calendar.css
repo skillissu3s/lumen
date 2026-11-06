@@ -1594,3 +1594,35 @@ button.tgrid-day:disabled {
   overflow: auto;
   color: var(--text);
 }
+
+/* in your candle: the calendars of each space, under its name */
+.cal-src-group + .cal-src-group {
+  margin-top: 6px;
+}
+.cal-src-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: var(--radius);
+  color: var(--text-faint);
+  font-size: var(--fs-xs, 11px);
+  font-weight: 600;
+  text-align: left;
+}
+.cal-src-group-head.is-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--text-muted);
+}
+.cal-src-group-head svg {
+  opacity: 0;
+}
+.cal-src-group-head:hover svg,
+.cal-src-group-head.is-hidden svg {
+  opacity: 1;
+}
+.cal-src-group-head.is-hidden span {
+  text-decoration: line-through;
+}

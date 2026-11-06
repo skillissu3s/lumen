@@ -35,6 +35,15 @@ export function onProblem(fn) {
   return () => problems.off('problem', fn)
 }
 
+/** A file by its path in the open space; in your candle, other spaces' too (their tree paths) */
+export const fileAt = (path) => getState().tree[prefix + path]
+
+/** A calendar's file, in this space or (from your candle) another one */
+export const isCalendarPath = (path) => /^((workspaces|shared)\/[^/]+\/)?calendars\//.test(path)
+
+/** May this path in the tree be changed? (not when it's shared with you to view only) */
+export const canEdit = (path) => !readOnly.has(path)
+
 /** The space a path in the tree belongs to: 'workspaces/<slug>/', 'shared/<owner>/' or '' (the candle) */
 export const spaceOf = (path) => SPACE_RE.exec(path)?.[0] || ''
 

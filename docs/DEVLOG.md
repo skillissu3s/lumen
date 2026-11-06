@@ -676,3 +676,16 @@ settable right on a card; drop the calendar's New button.
 - Checked with two accounts in the browser. The pane's element references
   sometimes give wrong click positions; coordinates from screenshots worked.
 
+### Candles, phase 3: views across spaces
+- The candle is the one space whose prefix is empty, so a tree path there is
+  also an editable path. The unified views only had to be given more files
+  (`useAcross`: the candle's paths plus other spaces' boards and calendars);
+  the selectors learned to read a prefixed path (id from the part inside the
+  space, `space` on each board, calendar and item's source).
+- A few actions looked files up in the open space only, or told calendars by
+  `startsWith('calendars/')`; they use `fileAt` and `isCalendarPath` now.
+- One preference (`across.off`) drives Today, All tasks and Calendar, so the
+  counts in the sidebar always match what the views show.
+- Test data written with curl from Git Bash lost its emoji (`??`), so a task
+  looked undated; written from the browser it showed at once. Not an app bug.
+
