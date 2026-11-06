@@ -588,3 +588,16 @@ settable right on a card; drop the calendar's New button.
   from the theme setting, through the title-bar IPC.
 - The calendar panel is `CalendarSide.jsx`, on the right; folded sections are
   kept in localStorage (`lumen.cal.folded`), like the panel's open state.
+
+### Readability, measured against obi
+- Same font as obi (Inter, 13.5 px), so the gap was contrast. Lumen used
+  `--text-faint` for secondary text in 137 places (more than `--text-muted`),
+  and it measured 2.3:1 in light and 2.8:1 in dark on `--bg-muted`. obi keeps
+  its faintest tier for a few decorative spots and uses a ~4.5:1 grey for the
+  rest.
+- Every theme's `--text-muted` now reaches 6.3:1 and `--text-faint` 4.5:1 on
+  the worst of `--bg`, `--bg-subtle`, `--bg-muted` and `--surface`, each moved
+  toward the next-stronger tier so its hue stays. High contrast already met
+  both, so it is unchanged.
+- Body `--tracking` is 0 (was -0.006em); headings keep the tight tracking.
+  Docs line height is 1.7 (was 1.6; obi uses 1.75).

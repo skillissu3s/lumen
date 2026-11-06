@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **Easier to read.** Secondary text (dates, counts, section names, hints and
+  placeholders) is darker in light themes and brighter in dark ones, in every
+  theme. Body text is no longer squeezed together, and docs have a little more
+  space between lines.
+
 ## 0.7.0 — a calmer, tidier Lumen
 
 - **The sidebar is easier to read.** The top is your workspace: its settings,

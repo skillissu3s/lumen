@@ -230,6 +230,7 @@
   padding-left: 64px;
   outline: none;
   color: var(--text);
+  line-height: 1.7;
   caret-color: var(--accent);
 }
 .doc-prose:focus-visible {
