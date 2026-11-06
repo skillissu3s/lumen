@@ -13,8 +13,8 @@ with it).
   `Call Sam tomorrow 3pm for 30m !high every mon`.
 - **Idea boards** — an open canvas of notes, groups and arrows (JSON Canvas);
   turn any idea into a card when it is ready.
-- **Calendar** — a Structured-style **timeline** of your day plus day, 3-day,
-  week, month and agenda views. Drag to create, move and resize; drag tasks from
+- **Calendar** — a Structured-style **timeline** of your day plus day, week,
+  month and agenda views. Drag to create, move and resize; drag tasks from
   "To schedule" onto the day; repeating events ask *this / following / all*.
   Every option is adjustable (hours, hour height, snap, week start, colours,
   12/24 h, weekends, week numbers…) and everything works from the keyboard.

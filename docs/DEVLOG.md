@@ -601,3 +601,24 @@ settable right on a card; drop the calendar's New button.
   both, so it is unchanged.
 - Body `--tracking` is 0 (was -0.006em); headings keep the tight tracking.
   Docs line height is 1.7 (was 1.6; obi uses 1.75).
+
+### obi's theme by default, and a round of fixes
+- Default neutrals are obi's "sumi" palette mapped onto Lumen's tokens:
+  `--bg-subtle` takes obi's `--bg-sidebar`, `--surface` its `--bg-elev`, and
+  the borders are obi's tinted alphas flattened onto the page colour. Muted
+  and faint are nudged to the same 6.3:1 / 4.5:1 floor as the other themes.
+  The old neutrals are the `neutral` palette; `jade` is a new accent and the
+  default (`#24865f` light, so white text on it stays readable; obi's
+  `#2f9e78` in dark). People who saved a palette or accent keep it.
+- Idea boards: a press on a card calls `setPointerCapture` on the surface (for
+  dragging), so Chromium sends the `dblclick` to the surface, whose handler
+  made a new card. The surface now asks `elementFromPoint` what is under the
+  pointer and opens that card (`openNode`, shared with the cards' own handler).
+- Calendar: `3day` is gone from `VIEWS`; a saved `calendar.view` that no longer
+  exists falls back to the week. `.tgrid.is-h12` widens the hours column (76
+  px, 64 px narrow) and the now pill does not wrap.
+- Calendars are files in `calendars/`; each event names one (picked in the
+  editor), and each can be hidden or set as the default. The panel now says
+  so in a line under the list, since that was not obvious.
+- `sidebar.collapsed` defaults to `true`. It only changes people who never
+  toggled the sidebar; a saved choice wins.

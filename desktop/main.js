@@ -61,7 +61,7 @@ async function setSessionCookie(port) {
   })
 }
 
-const overlayColors = (dark) => (dark ? { color: '#111113', symbolColor: '#ededf0' } : { color: '#ffffff', symbolColor: '#18181b' })
+const overlayColors = (dark) => (dark ? { color: '#121211', symbolColor: '#ebe7df' } : { color: '#f6f4ed', symbolColor: '#201d18' })
 
 async function createWindow(port) {
   baseUrl = `http://127.0.0.1:${port}`
@@ -74,7 +74,7 @@ async function createWindow(port) {
     minWidth: 420,
     minHeight: 480,
     show: false,
-    backgroundColor: dark ? '#111113' : '#ffffff',
+    backgroundColor: dark ? '#121211' : '#fcfbf7',
     autoHideMenuBar: true,
     icon: iconPath,
     webPreferences: {

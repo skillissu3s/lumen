@@ -4,10 +4,9 @@ import { addDays, addMonths, daysBetween, monthGrid, rangeDays, weekStartOf, day
 export const VIEWS = [
   { id: 'timeline', label: 'Timeline', key: '1' },
   { id: 'day', label: 'Day', key: '2' },
-  { id: '3day', label: '3 days', key: '3' },
-  { id: 'week', label: 'Week', key: '4' },
-  { id: 'month', label: 'Month', key: '5' },
-  { id: 'agenda', label: 'Agenda', key: '6' },
+  { id: 'week', label: 'Week', key: '3' },
+  { id: 'month', label: 'Month', key: '4' },
+  { id: 'agenda', label: 'Agenda', key: '5' },
 ]
 
 /** The days a view shows around `date` */
@@ -17,8 +16,6 @@ export function viewDays(view, date, { weekStart = 1, showWeekends = true } = {}
       const days = rangeDays(weekStartOf(date, weekStart), 7)
       return showWeekends ? days : days.filter((d) => ![0, 6].includes(new Date(`${d}T12:00:00Z`).getUTCDay()))
     }
-    case '3day':
-      return rangeDays(date, 3)
     case 'month':
       return monthGrid(date, weekStart)
     case 'agenda':
@@ -33,8 +30,6 @@ export function stepDate(view, date, dir) {
   switch (view) {
     case 'week':
       return addDays(date, 7 * dir)
-    case '3day':
-      return addDays(date, 3 * dir)
     case 'month':
       return addMonths(date, dir)
     case 'agenda':

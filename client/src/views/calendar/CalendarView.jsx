@@ -86,7 +86,9 @@ export default function CalendarView({ route }) {
   const calendars = useCalendars()
   const lists = useLists()
   const today = todayIso()
-  const view = VIEWS.some((v) => v.id === route.query.view) ? route.query.view : c.view
+  // a saved view that no longer exists (the 3-day one) falls back to the week
+  const known = (v) => VIEWS.some((x) => x.id === v)
+  const view = known(route.query.view) ? route.query.view : known(c.view) ? c.view : 'week'
   const date = /^\d{4}-\d{2}-\d{2}$/.test(route.query.date || '') ? route.query.date : today
   const [q, setQ] = useState('')
   const [searching, setSearching] = useState(false)
@@ -363,7 +365,7 @@ export default function CalendarView({ route }) {
       <div className="cal-body">
         <div className="cal-main">
           {view === 'timeline' && <TimelineView date={date} {...common} />}
-          {(view === 'day' || view === '3day' || view === 'week') && <TimeGrid days={days} {...common} onMove={moveOcc} onDropItem={dropItem} draft={editor?.isNew ? editor.value : null} announce={announce} />}
+          {(view === 'day' || view === 'week') && <TimeGrid days={days} {...common} onMove={moveOcc} onDropItem={dropItem} draft={editor?.isNew ? editor.value : null} announce={announce} />}
           {view === 'month' && <MonthView days={days} focus={date} {...common} onMoveDay={moveDay} />}
           {view === 'agenda' && <AgendaView days={days} {...common} />}
         </div>

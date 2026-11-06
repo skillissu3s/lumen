@@ -596,6 +596,14 @@ export function IdeaCanvas({ path }) {
     if (editing && el && surface.current?.contains(el) && /^(INPUT|TEXTAREA)$/.test(el.tagName)) el.blur()
     setEditing(null)
   }
+  // double-click on a card: open a page, edit text; a group only by its label
+  // or its empty inside, so a double-click on a card in it reaches the card
+  const openNode = (n, target, el) => {
+    if (n.type === 'group') {
+      if (target.closest('.idea-group-label') || target === el) setEditing(n.id)
+    } else if (n.type === 'file') openPage(n)
+    else if (editable(n)) setEditing(n.id)
+  }
   const onSurfaceDown = (e) => {
     if (pen && e.button === 0 && !spaceDown) return startInk(e)
     if (e.target !== surface.current && !e.target.classList.contains('idea-world')) return
@@ -1011,7 +1019,15 @@ export function IdeaCanvas({ path }) {
         onPaste={onPaste}
         onContextMenu={surfaceMenu}
         onDoubleClick={(e) => {
-          if (pen || (e.target !== surface.current && !e.target.classList.contains('idea-world'))) return
+          if (pen) return
+          // a press on a card captures the pointer to the surface, so the
+          // double-click lands here even when it was on a card: ask what is
+          // really under the pointer
+          const hit = document.elementFromPoint(e.clientX, e.clientY) || e.target
+          const el = hit.closest?.('[data-node]')
+          const n = el && model.nodes.find((x) => x.id === el.dataset.node)
+          if (n) return openNode(n, hit, el)
+          if (hit !== surface.current && !hit.classList?.contains('idea-world')) return
           newIdea(toWorld(e.clientX, e.clientY))
         }}
       >
@@ -1026,7 +1042,7 @@ export function IdeaCanvas({ path }) {
               onContextMenu={nodeMenu(n)}
               onDoubleClick={(e) => {
                 e.stopPropagation()
-                if (e.target.closest('.idea-group-label') || e.target === e.currentTarget) setEditing(n.id)
+                openNode(n, e.target, e.currentTarget)
               }}
               onResize={onResize(n)}
               onEditDone={(v) => finishText(n, v)}
@@ -1115,8 +1131,7 @@ export function IdeaCanvas({ path }) {
               onContextMenu={nodeMenu(n)}
               onDoubleClick={(e) => {
                 e.stopPropagation()
-                if (n.type === 'file') openPage(n)
-                else if (editable(n)) setEditing(n.id)
+                openNode(n, e.target, e.currentTarget)
               }}
               onResize={onResize(n)}
               onConnect={onConnect(n)}

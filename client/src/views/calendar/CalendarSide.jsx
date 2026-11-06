@@ -3,7 +3,7 @@
 // source, filled when it shows), and tasks still waiting for a day. Each
 // section folds away, and remembers it on this device.
 import { useMemo, useRef, useState } from 'react'
-import { ChevronDown, MoreHorizontal, Plus } from 'lucide-react'
+import { ChevronDown, Eye as EyeIcon, EyeOff, MoreHorizontal, Plus } from 'lucide-react'
 import { Menu, MiniMonth } from '../../components/ui/index.js'
 import { formatTime, relativeDay } from '../../../../shared/dates.js'
 import { expand } from '../../../../shared/calendar.js'
@@ -36,14 +36,17 @@ function Section({ id, title, count, folded, onFold, action, children }) {
   )
 }
 
-// one source that can be shown or hidden: its colour is the tick
+// one source that can be shown or hidden: a colour dot, and an eye that says
+// which (always there while hidden, on hover otherwise)
 function Source({ id, name, color, on, note, onToggle, menu }) {
+  const Eye = on ? EyeIcon : EyeOff
   return (
-    <div id={id} className="cal-src">
-      <button type="button" role="checkbox" aria-checked={on} className="cal-src-toggle" style={{ '--sc': `var(--c-${color})` }} onClick={onToggle}>
-        <span className="cal-src-box" aria-hidden="true" />
+    <div id={id} className={`cal-src${on ? '' : ' is-hidden'}`}>
+      <button type="button" aria-pressed={on} aria-label={`${on ? 'Hide' : 'Show'} ${name}`} className="cal-src-toggle" style={{ '--sc': `var(--c-${color})` }} onClick={onToggle}>
+        <span className="cal-src-dot" aria-hidden="true" />
         <span className="cal-src-name">{name}</span>
         {note && <span className="cal-src-note">{note}</span>}
+        <Eye size={14} className="cal-src-eye" aria-hidden="true" />
       </button>
       {menu && <Menu align="end" items={menu} trigger={<button type="button" className="cal-src-more" aria-label={`${name} options`}><MoreHorizontal size={14} /></button>} />}
     </div>
@@ -118,12 +121,13 @@ export function CalendarSide({ date, today, weekStart, marks, items, settings, c
         }
       >
         {calendars.map((cal) => (
-          <Source key={cal.path} id={`cal-${cal.id}`} name={cal.name} color={cal.color || 'blue'} on={!hidden.has(cal.path)} note={defaultCal?.path === cal.path ? 'Default' : null} onToggle={() => onToggleHidden(cal.path)} menu={calMenu(cal)} />
+          <Source key={cal.path} id={`cal-${cal.id}`} name={cal.name} color={cal.color || 'blue'} on={!hidden.has(cal.path)} note={calendars.length > 1 && defaultCal?.path === cal.path ? 'Default' : null} onToggle={() => onToggleHidden(cal.path)} menu={calMenu(cal)} />
         ))}
+        <p className="cal-side-hint">{calendars.length > 1 ? 'Each event belongs to one calendar; pick it when you add the event. Hide a calendar to see the rest.' : 'One calendar is enough. Add another to keep, say, work and personal apart, each with its own colour.'}</p>
       </Section>
 
       {settings.showTasks && lists.length > 0 && (
-        <Section id="boards" title="Boards" folded={folded} onFold={fold}>
+        <Section id="boards" title="Tasks from boards" folded={folded} onFold={fold}>
           {lists.map((l) => (
             <Source key={l.path} name={l.name} color={l.color || 'gray'} on={!hidden.has(l.path)} onToggle={() => onToggleHidden(l.path)} />
           ))}

@@ -228,8 +228,11 @@ ever grows and git can always merge it.
 `users/<handle>/settings.json` holds one person's settings (theme, accent,
 calendar options, enabled plugins). It is plain JSON; unknown keys are kept.
 `theme` is the mode (`system`, `light`, `dark`); `palette` is the theme
-(`default`, `paper`, `slate`, `sage`, `dusk`, `contrast`); `sidebar.collapsed`
-and `ideas.minimap` remember the sidebar and the idea board's map.
+(`default` — obi's warm ink on paper — `neutral`, `paper`, `slate`, `sage`,
+`dusk`, `contrast`); `accent` is `jade` (the default), `indigo`, `blue`,
+`teal`, `green`, `orange`, `rose`, `violet` or `graphite`. `sidebar.collapsed`
+(default `true`, the icon rail) and `ideas.minimap` remember the sidebar and
+the idea board's map.
 
 ## Plugin data
 

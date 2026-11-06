@@ -11,7 +11,7 @@ const h12 = typeof navigator !== 'undefined' && /^en-US$/i.test(navigator.langua
 export const DEFAULT_PREFS = {
   theme: 'system',
   palette: 'default',
-  accent: 'indigo',
+  accent: 'jade',
   density: 'default',
   weekStart: 1,
   timeFormat: h12 ? '12h' : '24h',
@@ -36,7 +36,7 @@ export const DEFAULT_PREFS = {
   },
   tasks: { defaultList: null, showCompleted: false, view: 'list', groupBy: 'section', sort: 'manual' },
   plugins: { disabled: [] },
-  sidebar: { collapsed: false },
+  sidebar: { collapsed: true },
   ideas: { minimap: false },
 }
 

@@ -1,4 +1,4 @@
-// Day, 3-day and week views: hours down the side, a column per day. Drag on
+// Day and week views: hours down the side, a column per day. Drag on
 // empty space to create, drag a block to move it, drag its bottom edge to
 // resize; everything also works from the keyboard.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
@@ -257,7 +257,7 @@ export function TimeGrid({ days, occs, settings, h12, onCreate, onOpen, onMove, 
 
   const cols = days.length
   return (
-    <div className="tgrid" style={{ '--cols': cols, '--hour': `${hourHeight}px` }}>
+    <div className={`tgrid${h12 ? ' is-h12' : ''}`} style={{ '--cols': cols, '--hour': `${hourHeight}px` }}>
       <div className="tgrid-head">
         <div className="tgrid-gutter">{showWeekNumbers && <span className="weeknum">W{isoWeek(days[0])}</span>}</div>
         {days.map((d) => (

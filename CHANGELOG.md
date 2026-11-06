@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+- **obi's look is Lumen's default**: warm ink on paper, with obi's jade accent.
+  The earlier plain grey is still there as the Neutral theme, and indigo is
+  still an accent.
+- **The sidebar starts closed**, as the icon rail; open it with the button at
+  its top or `Ctrl+\`. Lumen still remembers what you chose.
+- **Double-click a card on an idea board to edit it.** It used to make a new
+  card instead.
+- **A calmer calendar panel**: more room between its parts, a colour dot for
+  each calendar and board instead of a checkbox (an eye shows which are
+  hidden), and a line saying what separate calendars are for.
+- **The 3-day view is gone.** The view keys are now 1 timeline, 2 day, 3 week,
+  4 month and 5 agenda.
+- With 12-hour times, the time now no longer wraps onto two lines, and the
+  hours have room.
+- **New folder sits at the top of the docs list**, next to New doc.
+
 ## 0.7.1 — easier to read
 
 - **Easier to read.** Secondary text (dates, counts, section names, hints and

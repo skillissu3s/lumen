@@ -20,16 +20,17 @@ import './settings.css'
 const PluginSettings = lazy(() => import('./PluginSettings.jsx'))
 const GitHubSettings = lazy(() => import('./GitHubSettings.jsx'))
 
-const ACCENTS = ['indigo', 'blue', 'teal', 'green', 'orange', 'rose', 'violet', 'graphite']
+const ACCENTS = ['jade', 'indigo', 'blue', 'teal', 'green', 'orange', 'rose', 'violet', 'graphite']
 const THEMES = [
   ['default', 'Lumen'],
+  ['neutral', 'Neutral'],
   ['paper', 'Paper'],
   ['slate', 'Slate'],
   ['sage', 'Sage'],
   ['dusk', 'Dusk'],
   ['contrast', 'High contrast'],
 ]
-const ACCENT_HEX = { indigo: '#5b5bd6', blue: '#0b6bcb', teal: '#0d7f72', green: '#18794e', orange: '#c2410c', rose: '#c62a5a', violet: '#7c3aed', graphite: '#3a3a37' }
+const ACCENT_HEX = { jade: '#24865f', indigo: '#5b5bd6', blue: '#0b6bcb', teal: '#0d7f72', green: '#18794e', orange: '#c2410c', rose: '#c62a5a', violet: '#7c3aed', graphite: '#3a3a37' }
 
 const when = (ms) => (ms ? `${relativeDay(isoOf(new Date(ms)))} at ${timeOf(new Date(ms))}` : 'never')
 

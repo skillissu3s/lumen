@@ -1,7 +1,7 @@
 // Docs: pages you write the way you would in Notion, kept as markdown files.
 // A tree on the left, the page on the right. Front matter stays out of sight.
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { ChevronRight, Download, FileText, FolderClosed, Image as ImageIcon, MoreHorizontal, MoveHorizontal, Plus, Search, Smile, Trash2 } from 'lucide-react'
+import { ChevronRight, Download, FileText, FolderClosed, FolderPlus, Image as ImageIcon, MoreHorizontal, MoveHorizontal, Plus, Search, Smile, Trash2 } from 'lucide-react'
 import { Button, ContextMenu, Dialog, EmptyState, IconBadge, IconPicker, Input, Menu, Popover, Spinner, Tooltip } from '../../components/ui/index.js'
 import { useDocs } from '../../store/hooks.js'
 import { useWorkspace } from '../../store/workspace.js'
@@ -378,26 +378,31 @@ export default function DocsView({ route }) {
       <aside className="docs-side">
         <div className="docs-side-head">
           <span className="view-title">Docs</span>
-          <Tooltip label="New doc">
-            <button type="button" className="ui-icon-button" aria-label="New doc" onClick={() => newDoc()}>
-              <Plus size={16} />
-            </button>
-          </Tooltip>
+          <span className="docs-side-actions">
+            <Tooltip label="New folder">
+              <button
+                type="button"
+                className="ui-icon-button"
+                aria-label="New folder"
+                onClick={() => {
+                  const p = newDoc(`Folder ${new Set(docs.map((d) => d.folder).filter(Boolean)).size + 1}`)
+                  toast(`Made the folder “${p.split('/').slice(1, -1).join('/')}” with a new doc in it.`)
+                }}
+              >
+                <FolderPlus size={16} />
+              </button>
+            </Tooltip>
+            <Tooltip label="New doc">
+              <button type="button" className="ui-icon-button" aria-label="New doc" onClick={() => newDoc()}>
+                <Plus size={16} />
+              </button>
+            </Tooltip>
+          </span>
         </div>
         <div className="docs-search">
           <Input size="sm" icon={Search} value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filter docs" aria-label="Filter docs" />
         </div>
         <Tree docs={docs} current={path} filter={filter.trim().toLowerCase()} onDelete={setRemoving} />
-        <button
-          type="button"
-          className="docs-new-folder"
-          onClick={() => {
-            const p = newDoc(`Folder ${new Set(docs.map((d) => d.folder).filter(Boolean)).size + 1}`)
-            toast(`Made the folder “${p.split('/').slice(1, -1).join('/')}” with a new doc in it.`)
-          }}
-        >
-          <FolderClosed size={14} /> New folder
-        </button>
       </aside>
       <Dialog
         open={!!removing}

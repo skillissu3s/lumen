@@ -7,7 +7,6 @@ test('view ranges', () => {
   assert.equal(viewDays('week', '2026-11-04', { weekStart: 1, showWeekends: false }).length, 5)
   assert.equal(viewDays('week', '2026-11-04', { weekStart: 0 })[0], '2026-11-01')
   assert.equal(viewDays('month', '2026-11-15', { weekStart: 1 }).length % 7, 0)
-  assert.deepEqual(viewDays('3day', '2026-11-04'), ['2026-11-04', '2026-11-05', '2026-11-06'])
   assert.equal(stepDate('month', '2026-01-31', 1), '2026-02-28')
   assert.equal(stepDate('week', '2026-11-04', -1), '2026-10-28')
 })
