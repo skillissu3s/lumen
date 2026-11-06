@@ -178,7 +178,7 @@ export function WorkspaceMenu({ compact = false }) {
           {server && manager && current.kind !== 'shared' && item(FolderGit2, 'Copy on GitHub', go('/settings/github'))}
           {mode === 'desktop' && item(GitBranch, 'Sync', go('/settings/sync'))}
         </div>
-        {server && (
+        {(server || spaces.length > 1) && (
           <div className="acct-items space-list" role="menu" aria-label="Move to">
             {groups.map(([label, list]) => (
               <div key={label || 'candle'} className="space-group">
@@ -202,8 +202,8 @@ export function WorkspaceMenu({ compact = false }) {
                 ))}
               </div>
             ))}
-            {item(Plus, 'New workspace…', () => setDialog('new'))}
-            {item(Link2, 'Join with a link…', () => setDialog('join'))}
+            {server && item(Plus, 'New workspace…', () => setDialog('new'))}
+            {server && item(Link2, 'Join with a link…', () => setDialog('join'))}
           </div>
         )}
       </Popover>

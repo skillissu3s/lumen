@@ -5,6 +5,7 @@ import express from 'express'
 import { DESKTOP, PUBLIC_URL } from './config.js'
 import { createSession, createUser, setSessionCookie, userByEmail, userByHandle } from './auth.js'
 import * as files from './files.js'
+import { getSetting } from './db.js'
 import * as spaces from './spaces.js'
 import * as view from './view.js'
 import { setUpAccount } from './accounts.js'
@@ -26,7 +27,11 @@ const mustBeIn = (user, id) => {
 }
 
 spacesRouter.get('/spaces', requireUser, (req, res) => {
-  if (req.user.desktop) return res.json({ spaces: [{ id: files.homeSpaceId(), kind: 'candle', name: '', slug: null, role: 'owner', prefix: '', home: true }], shared: [] })
+  if (req.user.desktop) {
+    // signed in to a server: the account's spaces, as of the last sync (their files are here too)
+    const cloud = getSetting('cloud') && getSetting('cloud.spaces')
+    return res.json(cloud || { spaces: [{ id: files.homeSpaceId(), kind: 'candle', name: '', slug: null, role: 'owner', prefix: '', home: true }], shared: [] })
+  }
   spaces.ensureCandle(req.user)
   res.json({
     spaces: spaces.spacesOf(req.user.id).map(shape),

@@ -180,6 +180,7 @@ export async function unlink() {
   stop()
   if (config()) await remote('POST', '/logout').catch(() => {})
   setSetting('cloud', null)
+  setSetting('cloud.spaces', null)
   setSetting('desktop.mode', { mode: 'local' })
   db.exec('DELETE FROM sync_files')
   status = { state: 'off', lastSync: null, lastError: null, conflicts: [], refused: [] }
@@ -215,6 +216,8 @@ async function push(p, text, baseSha) {
 }
 
 async function round() {
+  // the account's spaces, so the app here can move between them (docs/CANDLES.md)
+  setSetting('cloud.spaces', await remote('GET', '/spaces').catch(() => getSetting('cloud.spaces')))
   const theirs = new Map((await remote('GET', '/files')).files.map((f) => [f.path, f.sha]))
   const ours = new Map(files.list().map((f) => [f.path, f.sha]))
   const paths = [...new Set([...theirs.keys(), ...ours.keys()])].sort()
@@ -264,8 +267,13 @@ async function round() {
       }
     } catch (e) {
       if (e.status === 409) again = true // it moved on the server meanwhile: the next round merges it
-      else if (e.status === 403 || e.status === 400 || e.status === 413) {
-        // the server won't take this change (not yours to change, too big…): it stays here only
+      else if (e.status === 403 && rsha && /^(workspaces|shared)\//.test(p)) {
+        // someone else's space (shared to view, or settings for its admins): theirs comes back
+        refused.push({ path: p, reason: e.message })
+        const text = texts[p]?.text ?? (await readRemote([p]))[p]?.text
+        if (text != null) saveBase(p, text, rsha, await writeLocal(p, text))
+      } else if (e.status === 403 || e.status === 404 || e.status === 400 || e.status === 413) {
+        // the server won't take this change (not yours to change, gone, too big…): it stays here only
         refused.push({ path: p, reason: e.message })
         saveBase(p, b?.base ?? '', b?.remote_sha ?? null, lsha)
       } else throw e

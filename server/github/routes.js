@@ -98,8 +98,7 @@ githubRouter.use(jsonBody, csrf, loadUser, requireUser, (req, res, next) => {
 })
 
 githubRouter.get('/', (req, res) => {
-  const home = files.homeSpaceId()
-  res.json({ canWorkspace: !!home && ['owner', 'admin'].includes(spaces.roleIn(req.user.id, home)), connections: worker.list(req.user.id).map(view) })
+  res.json({ connections: worker.list(req.user.id).map(view) })
 })
 
 githubRouter.post('/connections', async (req, res) => {

@@ -166,7 +166,8 @@ user. The first run asks where data should live (the `desktop.mode` setting):
   local user. Data is in the app's own SQLite database; a folder from before is
   imported, and Settings → Sync can bring in another folder or a repository.
 - **A Lumen server**: you sign in from the local app, and this computer's
-  database becomes a copy of your account that the embedded server keeps in
+  database becomes a copy of your account (every space you can reach, at its
+  path in your tree, plus the list of spaces) that the embedded server keeps in
   step with the server (`server/sync/replica.js`, see *Devices and the cloud* in
   [DATABASE.md](DATABASE.md)). The window still shows the local app, so it works
   offline; changes go both ways when the server can be reached.

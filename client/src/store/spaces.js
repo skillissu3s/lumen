@@ -38,11 +38,9 @@ const nameIn = (tree, prefix) => {
   }
 }
 
-// without the server: every space that has files here
-function fromTree() {
-  const { tree, treePaths } = useWorkspace.getState()
-  const user = useSession.getState().user
-  const list = [{ prefix: '', kind: 'candle', name: nameIn(tree, '') || `${user?.name || 'My'}’s candle`, role: 'owner' }]
+// without the server: every space that has files here (the browser's copy keeps the whole tree)
+export function spacesFromTree(tree, treePaths, userName) {
+  const list = [{ prefix: '', kind: 'candle', name: nameIn(tree, '') || `${userName || 'My'}’s candle`, role: 'owner' }]
   const seen = new Set()
   for (const p of treePaths) {
     const m = /^(workspaces|shared)\/([^/]+)\//.exec(p)
@@ -53,11 +51,16 @@ function fromTree() {
   return list
 }
 
+const fromTree = () => {
+  const { tree, treePaths } = useWorkspace.getState()
+  return spacesFromTree(tree, treePaths, useSession.getState().user?.name)
+}
+
 export const useSpaces = create((set, get) => ({
   list: [{ prefix: '', kind: 'candle', name: '', role: 'owner' }],
 
   async load() {
-    if (useSession.getState().mode !== 'server') return set({ list: [{ prefix: '', kind: 'candle', name: '', role: 'owner', home: true }] })
+    // the desktop app answers for the server it's signed in to, if it is
     let list
     try {
       const r = await api('GET', '/spaces')

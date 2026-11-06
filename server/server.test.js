@@ -170,7 +170,7 @@ test('info → setup → info shows user and seeded files', async () => {
 test('github: connections need a repository and a token, and a signed-in person', async () => {
   let res = await api(adminJar, 'GET', '/api/github')
   assert.equal(res.status, 200)
-  assert.deepEqual(await res.json(), { canWorkspace: true, connections: [] })
+  assert.deepEqual(await res.json(), { connections: [] })
   res = await api(adminJar, 'POST', '/api/github/connections', { repo: 'not a repository', token: 'x' })
   assert.equal(res.status, 400)
   assert.match((await res.json()).error, /owner\/name/)

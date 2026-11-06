@@ -315,3 +315,26 @@ brings the views across spaces.
   private, the migration moving DMs. Checked in the browser: a message in a
   workspace's #general, a DM started from the workspace, the candle showing
   only direct messages.
+
+### Phase 5 progress
+
+- [x] The browser's copy keeps the whole tree (phase 2 made the store's
+  copy the tree), so every space opens offline; without the server the space
+  list is worked out from the copy (`spacesFromTree`).
+- [x] The desktop signed in to a server keeps the account's tree as it is
+  (workspaces/…, shared/… are plain files of its one candle) and takes the
+  account's spaces from the server at every round (`cloud.spaces`), so the
+  space menu, the views across spaces and view-only sharing work there too.
+  Making workspaces and joining stay on the server (the menu offers them only
+  there); chat needs the server, as before.
+- [x] The desktop's own file lookups treat everything as its candle; the
+  server judges what may change. An edit the server refuses in someone else's
+  space (shared to view, a workspace's settings) gets the server's version
+  back here and is listed under Settings → Account; other refusals stay here,
+  listed, as before. A 404 (access gone) no longer stops the round.
+- [x] GitHub: each repository holds one space. The form picks which (your
+  candle, or a workspace you own or administer; the open one if you may), a
+  connection says which it holds, and restoring goes back into it.
+- [x] Tests: the desktop gets the spaces and their files, sends a workspace
+  edit up, gets Bob's view-only board back; the offline space list. Checked
+  in the browser: the GitHub form's spaces.

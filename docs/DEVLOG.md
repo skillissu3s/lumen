@@ -700,3 +700,16 @@ settable right on a card; drop the calendar's New button.
 - Test data again: curl from Git Bash can't be trusted with emoji, so the
   browser check wrote through the app.
 
+### Candles, phase 5: devices and GitHub per space
+- The desktop replica already moved files by path, so a server's
+  `workspaces/…` and `shared/…` came down as plain files of the desktop's one
+  candle. Two gaps: the local server's tree lookup sent those paths looking
+  for spaces it doesn't have (fixed: on the desktop everything is the
+  candle), and the app didn't know the account's spaces (the replica now
+  keeps the server's `/api/spaces` answer each round).
+- A refused push used to keep the local change forever; for someone else's
+  space that left the desktop showing an edit nobody else could see. Now the
+  server's version comes back. A 404 used to stop the whole round.
+- The GitHub form now chooses a space instead of the old "whole workspace /
+  what I own" scope; the server already ran one mirror per space.
+

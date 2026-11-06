@@ -56,8 +56,8 @@ DATABASE.md, phase 4.
 
 | | | |
 |---|---|---|
-| `GET /api/github` | — | `{ canWorkspace, connections: [..] }` |
-| `POST /api/github/connections` | `{ repo: 'owner/name', token, branch?, prefix?, scope?, mode, schedule?, allowPublic?, adopt? }` | checks the token can see and write to the repository (and that it's private, unless `allowPublic`), then starts the first run (a full pass) → `{ connection }` |
+| `GET /api/github` | — | `{ connections: [..] }` |
+| `POST /api/github/connections` | `{ repo: 'owner/name', token, space?, branch?, prefix?, mode, schedule?, allowPublic?, adopt? }` (`space`: your candle, the default, or a workspace you own or administer) | checks the token can see and write to the repository (and that it's private, unless `allowPublic`), then starts the first run (a full pass) → `{ connection }` |
 | `PATCH /api/github/connections/:id` | `{ mode?, schedule?, branch?, prefix?, allowPublic?, resume?, adopt?, token? }` | a new branch or folder starts the mirror afresh there; a new token must open the same repository → `{ connection }` |
 | `DELETE /api/github/connections/:id` | — | `{ ok }`; the repository keeps what was written |
 | `POST /api/github/connections/:id/run` | `{ full? }` | runs now and waits → `{ connection }` |

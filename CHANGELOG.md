@@ -22,6 +22,13 @@
   your workspaces, with everything in it.
 - **Workspace members and invites** in Settings: roles, invite links, leaving,
   and deleting a workspace you own.
+- **The desktop app and offline browsers have your spaces too.** Signed in to
+  a server, the desktop app moves between your candle, workspaces and what's
+  shared with you like the web app, with everything kept on the computer.
+  Something shared with you to view only can't be changed there either: the
+  owner's version comes back.
+- **A GitHub copy per space.** Choose which space a repository keeps: your
+  candle, or a workspace you run. Restoring brings it back into the same.
 - **Chat per workspace.** Every workspace has its own channels, for the people
   in it. Direct messages are between the two of you, wherever you are: in a
   workspace beside its channels, and in your candle on their own.

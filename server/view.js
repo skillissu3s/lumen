@@ -49,6 +49,9 @@ export function shared(user) {
  * looking them up again for a batch.
  */
 export function resolve(user, viewPath, cache = {}) {
+  // on the desktop it's all one candle: a server's workspaces/ and shared/ are
+  // kept here as they came (sync/replica.js), and the server judges them
+  if (user.desktop) return { space: files.homeSpaceId(), path: String(viewPath), kind: 'candle', role: 'owner' }
   const m = cache.mounts || mounts(user)
   const parts = String(viewPath).split('/')
   if (parts[0] === 'workspaces' && parts.length > 2) {

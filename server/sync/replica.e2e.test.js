@@ -172,6 +172,38 @@ test('deleting on one side deletes on the other', async () => {
   assert.ok(!(await paths(cloud)).includes('lists/cloud.md'))
 })
 
+test('the account’s spaces come down too, and what is only shared to view gets the server’s version back', async () => {
+  // on the server: a workspace of Ada's, and Bob sharing a board with her to view
+  const ws = (await api(cloud, 'POST', '/api/spaces', { name: 'Crew' })).space
+  const inv = await api(cloud, 'POST', '/api/admin/invites', { role: 'member' })
+  const bob = { url: cloud.url, cookie: '' }
+  await api(bob, 'POST', `/api/invites/${inv.url.split('/invite/')[1]}/accept`, { name: 'Bob', email: 'bob@example.com', password: 'correct horse battery' })
+  await api(bob, 'PUT', '/api/files', { path: 'lists/bobs.md', text: '---\nname: Bobs\nshare: [ada:view]\n---\n\n- [ ] his\n', sha: null })
+  await syncNow()
+
+  // the desktop knows the spaces, and has their files
+  const sp = await api(desk, 'GET', '/api/spaces')
+  assert.ok(sp.spaces.some((s) => s.id === ws.id && s.prefix === 'workspaces/crew/'))
+  assert.deepEqual(sp.shared.map((s) => [s.prefix, s.path, s.can]), [['shared/bob/', 'lists/bobs.md', 'view']])
+  const here = await paths(desk)
+  assert.ok(here.includes('workspaces/crew/lists/inbox.md'))
+  assert.ok(here.includes('shared/bob/lists/bobs.md'))
+
+  // an edit here to the workspace goes up
+  const inbox = await read(desk, 'workspaces/crew/lists/inbox.md')
+  await api(desk, 'PUT', '/api/files', { path: 'workspaces/crew/lists/inbox.md', text: `${inbox.text}- [ ] from the desktop\n`, sha: inbox.sha })
+  await syncNow()
+  assert.match((await read(cloud, 'workspaces/crew/lists/inbox.md')).text, /from the desktop/)
+
+  // an edit to Bob's board isn't taken: his version comes back, and the app says why
+  const theirs = await read(desk, 'shared/bob/lists/bobs.md')
+  await api(desk, 'PUT', '/api/files', { path: 'shared/bob/lists/bobs.md', text: theirs.text.replace('his', 'mine now'), sha: theirs.sha })
+  const st = await syncNow()
+  assert.ok((st.refused || []).some((r) => r.path === 'shared/bob/lists/bobs.md'))
+  assert.match((await read(desk, 'shared/bob/lists/bobs.md')).text, /- \[ \] his/)
+  assert.match((await read(cloud, 'shared/bob/lists/bobs.md')).text, /- \[ \] his/)
+})
+
 test('signing out leaves this computer its copy', async () => {
   const before = await paths(desk)
   const st = await api(desk, 'POST', '/api/desktop/cloud/logout')

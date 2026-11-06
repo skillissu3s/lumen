@@ -4,9 +4,11 @@
 // asks it.
 import { useEffect, useState } from 'react'
 import { ExternalLink, RefreshCw, RotateCcw } from 'lucide-react'
-import { Button, Checkbox, Dialog, Field, Input, Segmented, Select, Spinner } from '../../components/ui/index.js'
+import { Button, Checkbox, Dialog, Field, Input, Select, Spinner } from '../../components/ui/index.js'
 import { api } from '../../lib/api.js'
 import { useUI } from '../../store/ui.js'
+import { useSession } from '../../store/session.js'
+import { useCurrentSpace, useSpaces } from '../../store/spaces.js'
 import { relativeDay, isoOf, timeOf } from '../../../../shared/dates.js'
 import { Row, Section } from './parts.jsx'
 
@@ -154,7 +156,7 @@ function Connection({ c, canRestore, onChange, onRestore }) {
           <ExternalLink size={13} aria-hidden="true" />
         </a>
       }
-      description={`${c.scope === 'workspace' ? 'Everything in the workspace' : 'What you own'}, on ${where}.`}
+      description={`${c.space ? (c.space.kind === 'candle' ? 'Your candle' : c.space.name) : c.scope === 'workspace' ? 'Everything in the workspace' : 'What you own'}, on ${where}.`}
     >
       <Row label="Status" hint={c.commitUrl && !c.paused ? <a href={c.commitUrl} target="_blank" rel="noreferrer">Last commit {c.lastCommit.slice(0, 7)}</a> : undefined}>
         <div className="gh-status">
@@ -200,7 +202,7 @@ function Connection({ c, canRestore, onChange, onRestore }) {
           </Button>
         </div>
       </Row>
-      <Row label="Repository" hint={canRestore ? 'Restoring brings its files into this workspace. Disconnecting leaves them on GitHub.' : 'Disconnecting leaves everything on GitHub.'}>
+      <Row label="Repository" hint={canRestore ? `Restoring brings its files into ${c.space?.kind === 'candle' ? 'your candle' : c.space?.name || 'this space'}. Disconnecting leaves them on GitHub.` : 'Disconnecting leaves everything on GitHub.'}>
         <div className="set-inline">
           {!tokenTrouble && (
             <Button variant="ghost" onClick={() => setDialog('token')}>
@@ -246,10 +248,23 @@ function Connection({ c, canRestore, onChange, onRestore }) {
   )
 }
 
-// a repository, a token for it, and where, what and when
-function ConnectForm({ first, canWorkspace, restored, onDone, onRestore }) {
+// the spaces whose copy you may keep: your candle, and workspaces you own or help run
+function useManaged() {
+  const list = useSpaces((s) => s.list)
+  const user = useSession((s) => s.user)
+  return list.filter((s) => s.id && (s.kind === 'candle' || s.role === 'owner' || s.role === 'admin')).map((s) => ({ value: s.id, label: s.kind === 'candle' ? s.name || `${user?.name || 'Your'}’s candle` : s.name }))
+}
+
+// a repository, a token for it, which space, and where and when
+function ConnectForm({ first, restored, onDone, onRestore }) {
   const toast = useUI((s) => s.toast)
-  const [form, setForm] = useState({ repo: '', token: '', branch: '', prefix: '', scope: canWorkspace ? 'workspace' : 'owner', allowPublic: false })
+  const managed = useManaged()
+  const current = useCurrentSpace()
+  const start = managed.some((m) => m.value === current.id) ? current.id : managed[0]?.value
+  const [form, setForm] = useState({ repo: '', token: '', branch: '', prefix: '', space: start, allowPublic: false })
+  useEffect(() => {
+    if (!form.space && start) setForm((f) => ({ ...f, space: start }))
+  }, [start, form.space])
   const [timing, setTiming] = useState({ mode: 'daily', schedule: defaultSchedule('daily') })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -294,16 +309,9 @@ function ConnectForm({ first, canWorkspace, restored, onDone, onRestore }) {
             <Input value={form.prefix} onChange={set('prefix')} placeholder="lumen" spellCheck={false} autoCapitalize="off" />
           </Field>
         </div>
-        {canWorkspace && (
-          <Field label="What to sync">
-            <Segmented
-              value={form.scope}
-              onChange={(scope) => setForm({ ...form, scope })}
-              options={[
-                { value: 'workspace', label: 'The whole workspace' },
-                { value: 'owner', label: 'What I own' },
-              ]}
-            />
+        {managed.length > 1 && (
+          <Field label="What to keep there" hint="Each repository holds one space. Restoring brings it back into the same.">
+            <Select value={form.space || ''} onChange={(e) => setForm({ ...form, space: e.target.value })} options={managed} />
           </Field>
         )}
         <Field label="When">
@@ -316,7 +324,7 @@ function ConnectForm({ first, canWorkspace, restored, onDone, onRestore }) {
             Start syncing
           </Button>
           {onRestore && (
-            <Button variant="ghost" icon={RotateCcw} disabled={!form.repo.trim()} onClick={() => onRestore({ repo: form.repo.trim(), token: form.token.trim(), branch: form.branch.trim(), prefix: form.prefix.trim() })}>
+            <Button variant="ghost" icon={RotateCcw} disabled={!form.repo.trim()} onClick={() => onRestore({ repo: form.repo.trim(), token: form.token.trim(), branch: form.branch.trim(), prefix: form.prefix.trim(), space: form.space })}>
               Restore from it
             </Button>
           )}
@@ -332,7 +340,7 @@ function RestoreDialog({ target, onClose, onRestored }) {
   const [report, setReport] = useState(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const body = { connectionId: target.connectionId, repo: target.repo, token: target.token, branch: target.branch, prefix: target.prefix, repoWins }
+  const body = { connectionId: target.connectionId, repo: target.repo, token: target.token, branch: target.branch, prefix: target.prefix, space: target.space, repoWins }
   useEffect(() => {
     setReport(null)
     setError('')
@@ -416,13 +424,13 @@ export default function GitHubSettings() {
 
   if (!data) return <Spinner size={16} />
   if (data.error) return <Section description={data.error} />
-  const canRestore = data.canWorkspace
+  // restoring writes into a space you manage: every connection's is one
   return (
     <>
       {data.connections.map((c) => (
-        <Connection key={c.id} c={c} canRestore={canRestore} onChange={load} onRestore={setRestore} />
+        <Connection key={c.id} c={c} canRestore onChange={load} onRestore={setRestore} />
       ))}
-      <ConnectForm first={!data.connections.length} canWorkspace={data.canWorkspace} restored={restored} onDone={load} onRestore={canRestore ? setRestore : null} />
+      <ConnectForm first={!data.connections.length} restored={restored} onDone={load} onRestore={setRestore} />
       {restore && (
         <RestoreDialog
           target={restore}
