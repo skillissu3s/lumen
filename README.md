@@ -97,8 +97,10 @@ shared/      the text formats and date/recurrence logic, used everywhere
 server/      Express + WebSocket: accounts, invites, file API with access control, chat, git sync
 desktop/     Electron shell and the activity tracker
 plugins/     starter plugins + registry.json (the in-app catalog)
-docs/        ARCHITECTURE, STORAGE, PLUGINS, API, DEVLOG
+docs/        ARCHITECTURE, STORAGE, PLUGINS, API, MCP, DEVLOG
 ```
+
+To let an AI agent such as Claude use Lumen, see [docs/MCP.md](docs/MCP.md).
 
 Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) first. What was built and
 why, step by step, is in [docs/DEVLOG.md](docs/DEVLOG.md).

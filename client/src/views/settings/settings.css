@@ -429,6 +429,12 @@
   background: none;
   font-size: var(--fs-sm);
 }
+.agent-made {
+  margin-top: 12px;
+}
+.agent-made .setting-desc {
+  margin-top: 8px;
+}
 .set-table {
   display: grid;
 }

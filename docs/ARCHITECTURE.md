@@ -124,7 +124,11 @@ usual edit actions.
   only things not stored as workspace text, because they are secrets (password
   hashes, session tokens). The admin is created from `ADMIN_EMAIL` /
   `ADMIN_PASSWORD`, or by the first-run setup screen when there are no users.
-  **There is no public sign-up**: only an admin can create invite links.
+  **There is no public sign-up**: only an admin can create invite links. A
+  sign-in lasts while it's used (renewed once a day of use).
+- **AI agents** ([MCP.md](MCP.md)). `/mcp` is a Model Context Protocol server:
+  an agent with a token its person made (read, edit or full) gets tools over
+  that person's tree, through the same access rules and saves as the file API.
 - **Spaces** ([CANDLES.md](CANDLES.md)). Every account has a **candle**, its
   own private space, and can create or join **workspaces** (invite links).
   Every record belongs to one space (`spaces.js` keeps spaces, members and

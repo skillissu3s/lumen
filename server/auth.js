@@ -114,7 +114,17 @@ export async function ensureEnvAdmin() {
 
 // ---------- sessions ----------
 
+// A sign-in lasts while it's used: on each day it's used it runs SESSION_DAYS
+// from then. Browsers keep cookies per host, not per port, so two Lumen servers
+// on one machine (localhost:3000 and localhost:8080) would overwrite each
+// other's and sign each other out; with a port in the address, the cookie's
+// name carries it. The plain name is still read, for cookies set before.
 const sha = (t) => crypto.createHash('sha256').update(t).digest('hex')
+
+export const cookieName = (host) => {
+  const port = /:(\d+)$/.exec(String(host || ''))?.[1]
+  return port ? `${COOKIE}_${port}` : COOKIE
+}
 
 export function createSession(userId, agent = '') {
   const token = crypto.randomBytes(32).toString('base64url')
@@ -132,29 +142,56 @@ function parseCookies(header) {
   return out
 }
 
-/** The signed-in user for a request (or a WebSocket upgrade), or null */
+/** This request's session token and the cookie it came in: { token, name }, or null */
+function sessionToken(req) {
+  const jar = parseCookies(req.headers.cookie)
+  const name = cookieName(req.headers.host)
+  if (jar[name]) return { token: jar[name], name }
+  return jar[COOKIE] ? { token: jar[COOKIE], name: COOKIE } : null
+}
+
+/**
+ * The signed-in user for a request (or a WebSocket upgrade), or null. A session
+ * last renewed over a day ago runs SESSION_DAYS from now, and `renew` on the
+ * user says the cookie should go out again ({ token, from: the cookie's name }).
+ */
 export function userFromRequest(req) {
-  const token = parseCookies(req.headers.cookie)[COOKIE]
-  if (!token) return null
-  const row = db.prepare('SELECT u.*, s.expires_at AS s_exp FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?').get(sha(token))
-  if (!row || row.s_exp < Date.now() || row.disabled) return null
+  const found = sessionToken(req)
+  if (!found) return null
+  const hash = sha(found.token)
+  const row = db.prepare('SELECT u.*, s.expires_at AS s_exp FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?').get(hash)
+  const now = Date.now()
+  if (!row || row.s_exp < now || row.disabled) return null
+  const expires = now + SESSION_DAYS * DAY
+  const stale = expires - row.s_exp > DAY
+  if (stale) db.prepare('UPDATE sessions SET expires_at = ? WHERE token_hash = ?').run(expires, hash)
+  if (stale || found.name !== cookieName(req.headers.host)) row.renew = { token: found.token, from: found.name }
   return row
 }
 
 /** The stored hash of this request's session, to tell it apart from the account's others */
 export function sessionHashOf(req) {
-  const token = parseCookies(req.headers.cookie)[COOKIE]
-  return token ? sha(token) : null
+  const found = sessionToken(req)
+  return found ? sha(found.token) : null
 }
 
 export function setSessionCookie(res, token) {
-  res.cookie(COOKIE, token, { httpOnly: true, sameSite: 'lax', secure: SECURE_COOKIES, maxAge: SESSION_DAYS * DAY, path: '/' })
+  res.cookie(cookieName(res.req.headers.host), token, { httpOnly: true, sameSite: 'lax', secure: SECURE_COOKIES, maxAge: SESSION_DAYS * DAY, path: '/' })
+}
+
+/** A renewed session's cookie goes out again, under this server's own name */
+export function renewSessionCookie(req, res) {
+  const r = req.user?.renew
+  if (!r) return
+  setSessionCookie(res, r.token)
+  if (r.from !== cookieName(req.headers.host)) res.clearCookie(r.from, { path: '/' })
 }
 
 export function endSession(req, res) {
-  const token = parseCookies(req.headers.cookie)[COOKIE]
-  if (token) db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(sha(token))
-  res.clearCookie(COOKIE, { path: '/' })
+  const found = sessionToken(req)
+  if (found) db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(sha(found.token))
+  res.clearCookie(cookieName(req.headers.host), { path: '/' })
+  if (found?.name === COOKIE) res.clearCookie(COOKIE, { path: '/' })
 }
 
 export const endUserSessions = (userId) => db.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId)

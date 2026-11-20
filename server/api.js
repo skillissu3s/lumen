@@ -3,7 +3,7 @@ import crypto from 'node:crypto'
 import express from 'express'
 import { APP_NAME, VERSION, DESKTOP, PUBLIC_URL, INVITE_DAYS } from './config.js'
 import { db, getSetting } from './db.js'
-import { HttpError, checkHandle, userFromRequest, countUsers, createUser, login, getUser, allUsers, changePassword, createInvite, listInvites, revokeInvite, findInvite, acceptInvite, createSession, setSessionCookie, endSession, endUserSessions, sessionHashOf, cleanEmail, hashPassword, validPassword, userByEmail } from './auth.js'
+import { HttpError, checkHandle, userFromRequest, countUsers, createUser, login, getUser, allUsers, changePassword, createInvite, listInvites, revokeInvite, findInvite, acceptInvite, createSession, setSessionCookie, endSession, endUserSessions, sessionHashOf, renewSessionCookie, cleanEmail, hashPassword, validPassword, userByEmail } from './auth.js'
 import * as files from './files.js'
 import { canReadAt, writeProblemAt, metaOf, SHARED_KINDS } from './access.js'
 import * as view from './view.js'
@@ -31,6 +31,7 @@ export const csrf = (req, res, next) => {
 
 export const loadUser = (req, res, next) => {
   req.user = userFromRequest(req)
+  renewSessionCookie(req, res)
   if (DESKTOP && req.user) req.user.desktop = true
   next()
 }

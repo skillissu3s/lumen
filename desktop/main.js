@@ -51,7 +51,7 @@ async function setSessionCookie(port) {
   const token = desktopSessionToken()
   await session.defaultSession.cookies.set({
     url: `http://127.0.0.1:${port}`,
-    name: 'lumen_session',
+    name: `lumen_session_${port}`,
     value: token,
     path: '/',
     httpOnly: true,

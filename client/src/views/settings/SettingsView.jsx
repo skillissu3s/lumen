@@ -1,6 +1,6 @@
 // Settings: one page per topic, saved as you change them.
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { CalendarDays, Copy, Database, ExternalLink, FolderGit2, FolderOpen, GitBranch, Info, Kanban, Keyboard, Palette, Puzzle, RefreshCw, Trash2, UserRound, Users, X } from 'lucide-react'
+import { Bot, CalendarDays, Copy, Database, ExternalLink, FolderGit2, FolderOpen, GitBranch, Info, Kanban, Keyboard, Palette, Puzzle, RefreshCw, Trash2, UserRound, Users, X } from 'lucide-react'
 import { Button, UserAvatar, Dialog, Field, Input, Kbd, Segmented, Select, Spinner, Switch } from '../../components/ui/index.js'
 import { useSession } from '../../store/session.js'
 import { useWorkspace } from '../../store/workspace.js'
@@ -21,6 +21,7 @@ import './settings.css'
 
 const PluginSettings = lazy(() => import('./PluginSettings.jsx'))
 const GitHubSettings = lazy(() => import('./GitHubSettings.jsx'))
+const AgentSettings = lazy(() => import('./AgentSettings.jsx'))
 
 const ACCENTS = ['jade', 'indigo', 'blue', 'teal', 'green', 'orange', 'rose', 'violet', 'graphite']
 const THEMES = [
@@ -603,6 +604,7 @@ export default function SettingsView({ route, onClose }) {
     { id: 'appearance', label: 'Appearance', icon: Palette, about: 'How Lumen looks on this account, on every device.', el: Appearance },
     // plugins are each person's, installed in their candle, wherever they are
     { id: 'plugins', label: 'Plugins', icon: Puzzle, about: 'Add features to Lumen, for you. Plugins run sandboxed with only the access you grant.', el: PluginsTab },
+    { id: 'agents', label: 'AI agents', icon: Bot, about: 'Let an AI agent such as Claude use Lumen for you: read and change your tasks, calendar and docs.', el: AgentsTab },
     { group: space.kind === 'candle' ? 'Your candle' : space.name || 'Workspace' },
     { id: 'workspace', label: 'General', icon: Database, about: space.kind === 'candle' ? 'Your candle: its name, where it lives, and a full export.' : space.kind === 'shared' ? `What ${space.name} shared with you.` : 'This workspace’s name, where it lives, and a full export.', el: Workspace },
     { id: 'tasks', label: 'Boards and tasks', icon: Kanban, about: 'Where new tasks land and how boards open.', el: TasksTab },
@@ -691,6 +693,14 @@ function GitHubTab() {
   return (
     <Suspense fallback={<Spinner size={16} />}>
       <GitHubSettings />
+    </Suspense>
+  )
+}
+
+function AgentsTab() {
+  return (
+    <Suspense fallback={<Spinner size={16} />}>
+      <AgentSettings />
     </Suspense>
   )
 }

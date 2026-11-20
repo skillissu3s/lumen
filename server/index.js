@@ -19,6 +19,8 @@ import { logMail } from './mail.js'
 import * as replica from './sync/replica.js'
 import { githubRouter, worker as mirror } from './github/routes.js'
 import { spacesRouter } from './spacesApi.js'
+import { agentsRouter } from './agentsApi.js'
+import { mcpRouter } from './mcp/routes.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.join(here, '..')
@@ -38,8 +40,12 @@ app.use((req, res, next) => {
 
 app.use('/api/github', githubRouter)
 app.use('/api', spacesRouter)
+app.use('/api', agentsRouter)
 app.use('/api', apiRouter)
 if (DESKTOP) app.use('/api', desktopRouter)
+
+// AI agents (docs/MCP.md)
+app.use('/mcp', mcpRouter)
 
 app.get('/healthz', (req, res) => res.send('ok'))
 

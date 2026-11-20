@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- **AI agents.** Let an agent such as Claude use Lumen for you: ask it what's
+  on this week, to add or move tasks, plan events, write docs or post in chat.
+  Make a token in Settings → AI agents, choose whether it may only look,
+  change, or also delete, and add Lumen to Claude with the command shown
+  there. An agent reaches what you can reach and nothing more, and you can
+  take its access away at any time. See docs/MCP.md.
+- **You stay signed in.** A sign-in now lasts as long as you keep using Lumen
+  (it used to end 30 days after signing in, however much you used it), on the
+  web and in the desktop app's link to your server. Two Lumen servers on one
+  computer, at different ports, no longer sign each other out.
+
 ## 0.8.0 — your own candle, and workspaces you share
 
 - **Your own candle, and workspaces you share.** Everyone now has a private

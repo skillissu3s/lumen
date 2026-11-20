@@ -74,7 +74,7 @@ async function api(side, method, url, body) {
     headers: { 'X-Lumen': '1', ...(side.cookie ? { cookie: side.cookie } : {}), ...(body ? { 'content-type': 'application/json' } : {}) },
     body: body ? JSON.stringify(body) : undefined,
   })
-  const c = /lumen_session=[^;]+/.exec(res.headers.get('set-cookie') || '')
+  const c = /lumen_session(?:_\d+)?=[^;]+/.exec(res.headers.get('set-cookie') || '')
   if (c) side.cookie = c[0]
   const json = await res.json().catch(() => null)
   if (!res.ok) throw Object.assign(new Error(json?.error || res.status), { status: res.status })

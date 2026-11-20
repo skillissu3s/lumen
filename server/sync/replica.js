@@ -83,7 +83,7 @@ async function call(server, token, method, url, body) {
     /* no body */
   }
   if (!res.ok) throw new RemoteError(json?.error || `The server answered ${res.status}.`, res.status, json)
-  const cookie = (res.headers.getSetCookie?.() || []).map((c) => /^lumen_session=([^;]+)/.exec(c)).find(Boolean)
+  const cookie = (res.headers.getSetCookie?.() || []).map((c) => /^lumen_session(?:_\d+)?=([^;]+)/.exec(c)).find(Boolean)
   return { json, token: cookie ? cookie[1] : null }
 }
 

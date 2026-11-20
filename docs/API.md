@@ -6,7 +6,10 @@ to the embedded server the same way). All bodies are JSON. Errors come back as
 
 **CSRF:** every request that isn't GET/HEAD must send the header `X-Lumen: 1`;
 otherwise the server answers 403. Sessions are the httpOnly cookie
-`lumen_session` (SameSite=Lax).
+`lumen_session` (SameSite=Lax), named `lumen_session_<port>` when the address
+has a port (cookies are kept per host, not per port), and the plain name is
+still accepted. A session lasts `SESSION_DAYS` from when it was last used:
+once a day of use renews it and sends the cookie again.
 
 ## Info and auth
 
@@ -25,6 +28,10 @@ otherwise the server answers 403. Sessions are the httpOnly cookie
 | `PATCH /api/me` | `{ name?, handle?, color?, avatar? }` | `{ user }`. A new handle (username: 2–24 lowercase letters, digits or dashes) is 409 if taken; sharing lists, channel members and message authors follow it, and files named after it move. `color` is an item colour name or `null`; `avatar` a `data:image/(png\|jpeg\|webp);base64,…` URL of at most 200 kB, or `null` to remove it. Everything is checked before anything is saved |
 | `GET /api/me/sessions` | — | `{ sessions: [{ id, createdAt, agent, current }] }`, newest first |
 | `DELETE /api/me/sessions` | — | ends every session but this one → `{ ended }` |
+| `GET /api/me/agents` | — | `{ agents: [{ id, name, access, createdAt, lastUsedAt }], url }` (`url`: the MCP address) |
+| `POST /api/me/agents` | `{ name, access }` | `access`: `read`, `edit` or `full` → `{ token, agent, url }`; the token is only ever returned here |
+| `PATCH /api/me/agents/:id` | `{ name?, access? }` | `{ agent }` |
+| `DELETE /api/me/agents/:id` | — | the token stops working → `{ ok }` |
 | `POST /api/me/password` | `{ current, next }` | `{ ok: true }` |
 | `GET /api/invites/:token` | — | `{ email \| null, role }` or 410 |
 | `POST /api/invites/:token/accept` | `{ name, password, email? }` | makes the account, signs in → `{ user }` |
@@ -126,6 +133,14 @@ the default). 404 when you aren't in that workspace or that conversation.
 | `GET /api/desktop/workspace` | — | `{ dir }` |
 | `PUT /api/desktop/workspace` | `{ dir }` | opens (and seeds if empty) that folder → `{ dir }` |
 | `GET /api/desktop/sync`, `PUT`, `POST /now` | as the admin sync endpoints | git sync of the local folder |
+
+## MCP `/mcp`
+
+The Model Context Protocol for AI agents ([MCP.md](MCP.md)): JSON-RPC 2.0 in a
+`POST /mcp` with `Authorization: Bearer <agent token>`, answered with JSON
+(202 for notifications). No session, no stream: `GET` answers 405. A request
+with an `Origin` from another site is refused. `GET /mcp/stdio.js` serves the
+stdio bridge.
 
 ## WebSocket `/ws`
 

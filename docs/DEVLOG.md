@@ -730,3 +730,28 @@ settable right on a card; drop the calendar's New button.
   it now reads "You no longer have access to this, so your change wasn't
   saved."
 
+### Staying signed in, and AI agents over MCP
+- Sessions ended a fixed SESSION_DAYS after signing in, however much they
+  were used, so everyone was signed out every month, the desktop app's link to
+  the server included. Now a session is renewed on the first request of each
+  day (the expiry moves, and the browser gets the cookie again).
+- Browsers keep cookies per host, not per port: two Lumen servers on
+  localhost (the dev server and a local Docker one, say) wrote the same
+  `lumen_session` cookie, and signing in to one signed you out of the other.
+  With a port in the address the cookie is `lumen_session_<port>`; the old
+  name is still read and moved over on the next request. The desktop app's
+  own cookie and the replica's sign-in follow the new name.
+- Lumen is an MCP server at `/mcp` (Streamable HTTP, JSON answers only, no
+  sessions). No SDK: the protocol part is small (`initialize`, `tools/list`,
+  `tools/call`), and packages can't be added. Agent tokens are separate from
+  sessions, kept hashed, scoped read / edit / full, and only open `/mcp`.
+- Tools resolve paths through view.js and save through files.space().write
+  with the same writeProblemAt check as the file API, so an agent gets exactly
+  its person's access, and realtime, desktop sync and the GitHub copy see its
+  changes like any other. Edits are read → change → save at that version,
+  redone if the file moved, so an agent never overwrites someone.
+- First try put new tasks at the end of the inbox, which is the Done column;
+  tools now place cards like the board does (first column) and a card moved
+  into or out of the done column is finished or reopened, as on the board.
+- `server/mcp/stdio.js` bridges apps that only start local programs (Claude
+  Desktop) to the HTTP endpoint, with nothing to install.
