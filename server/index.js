@@ -3,7 +3,8 @@
 import express from 'express'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { DESKTOP, HOST, PORT, WORKSPACE_DIR, TRUST_PROXY } from './config.js'
+import { DESKTOP, DATA_DIR, HOST, PORT, WORKSPACE_DIR, TRUST_PROXY } from './config.js'
+import { freshDatabase } from './db.js'
 import * as files from './files.js'
 import { ensureEnvAdmin, allUsers } from './auth.js'
 import { seedWorkspace } from './seed.js'
@@ -65,6 +66,9 @@ app.get('/', (req, res) => {
 
 // ---------- boot ----------
 
+// a server whose data folder isn't kept (no volume, or a different path after an
+// update) starts from nothing every time, and everyone is signed out: say so
+if (freshDatabase && !DESKTOP) console.warn(`[lumen] started with a new, empty database in ${DATA_DIR}. If this server had data before, its data folder isn't being kept between restarts: check that ${DATA_DIR} is a mounted volume.`)
 logMail()
 await ensureEnvAdmin()
 const desktopUser = DESKTOP ? await ensureDesktopUser() : null

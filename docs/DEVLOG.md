@@ -778,3 +778,18 @@ settable right on a card; drop the calendar's New button.
   workspace" in one list of identical rows. Spaces are now two-line rows with
   what each is, making and joining are a separate pair below, and the space's
   own settings sit under its name.
+
+### Signed out after a restart, and "Cannot read properties of null"
+- The desktop app's account on the server had a different id each time it
+  signed in again: the server had started from an empty database (a lost data
+  folder: a new compose project folder, `down -v`, or no volume), so every
+  session was gone. Nothing in Lumen ends sessions on a restart. The server
+  now warns on a new database, and compose pins `DATA_DIR=/data` so .env can't
+  point it off the volume.
+- Signing in again then asked nothing (this computer's files had come from the
+  account) and kept the server's copy: the empty one. Same server, same email,
+  new account id now means "restore": this computer's copy goes back up.
+- A round read `(await files.read(p)).text` for every file it listed; one that
+  listed but didn't read threw a TypeError that stopped the whole round with
+  no file named. Reads are guarded, and an unexpected error on one file is
+  logged with its path and reported, while the rest syncs.

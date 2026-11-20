@@ -139,11 +139,20 @@ const resuming = (server, user) => {
   return !!cfg && cfg.server === server && cfg.user?.id === user.id
 }
 
+// the same email on the same server, but a different account: the server
+// started again from an empty database. What this computer has is the newest
+// copy there is, so it goes back up rather than being replaced.
+const restoring = (server, user) => {
+  const cfg = config()
+  return !!cfg && cfg.server === server && cfg.user?.email === user.email && cfg.user?.id !== user.id
+}
+
 function signedIn(server, r) {
   if (!r.token || !r.json?.user) throw new RemoteError('The server didn’t sign you in.', 502)
-  pending = { server, token: r.token, user: r.json.user }
+  const restore = restoring(server, r.json.user)
+  pending = { server, token: r.token, user: r.json.user, restore }
   const resume = resuming(server, r.json.user)
-  return { user: r.json.user, resume, hasOwnData: !resume && hasOwnData() }
+  return { user: r.json.user, resume, restore, hasOwnData: !resume && !restore && hasOwnData() }
 }
 
 /** Email and password → { user, hasOwnData } or, for admins, { needsCode, challenge, email } */
@@ -192,11 +201,11 @@ async function backup() {
  */
 export async function link({ keep = 'server' } = {}) {
   if (!pending) throw new RemoteError('Sign in first.', 400)
-  const { server, token, user } = pending
+  const { server, token, user, restore } = pending
   pending = null
   let backedUp = null
   if (!resuming(server, user)) {
-    if (keep === 'server') {
+    if (keep === 'server' && !restore) {
       backedUp = await backup()
       for (const f of files.list()) await files.remove(f.path, { by: 'sync' })
     }
@@ -209,7 +218,7 @@ export async function link({ keep = 'server' } = {}) {
   status = { state: 'idle', lastSync: null, lastError: null, conflicts: [], refused: [] }
   start()
   await syncNow()
-  return { ...publicStatus(), backedUp }
+  return { ...publicStatus(), backedUp, ...(restore ? { restored: true } : {}) }
 }
 
 /** Signs out of the server; this computer keeps its copy, now on its own */
@@ -244,6 +253,9 @@ async function readRemote(paths) {
 
 // sends a version to the server (this computer's, or a merge); the server may
 // settle it (ids, formatting), and this computer then takes what the server has
+// this computer's text of a file it lists; null if it can't be read now
+const localText = async (p) => (await files.read(p))?.text ?? null
+
 async function push(p, text, baseSha) {
   const r = await remote('PUT', '/files', { path: p, text, sha: baseSha })
   const settled = r.text ?? text
@@ -273,6 +285,7 @@ async function round() {
   const texts = await readRemote(plan.filter((x) => x.rsha && x.remoteChanged).map((x) => x.p))
   const conflicts = []
   const refused = []
+  const failed = []
   for (const { p, b, rsha, lsha, remoteChanged, localChanged } of plan) {
     try {
       const rtext = rsha ? texts[p]?.text ?? null : null
@@ -283,14 +296,15 @@ async function round() {
           dropBase(p)
         }
       } else if (localChanged && !remoteChanged) {
-        if (lsha) await push(p, (await files.read(p)).text, b?.remote_sha ?? null)
+        const ltext = lsha ? await localText(p) : null
+        if (ltext != null) await push(p, ltext, b?.remote_sha ?? null)
         else if (b?.remote_sha) {
           await remote('DELETE', '/files', { path: p, sha: b.remote_sha })
           dropBase(p)
         } else dropBase(p)
       } else {
         // changed on both sides
-        const ltext = lsha ? (await files.read(p)).text : null
+        const ltext = lsha ? await localText(p) : null
         if (ltext == null && rtext == null) dropBase(p)
         else if (ltext == null) saveBase(p, rtext, rsha, await writeLocal(p, rtext)) // deleted here, changed there: kept
         else if (rtext == null) await push(p, ltext, null) // deleted there, changed here: kept
@@ -315,10 +329,15 @@ async function round() {
         // the server won't take this change (not yours to change, gone, too big…): it stays here only
         refused.push({ path: p, reason: e.message })
         saveBase(p, b?.base ?? '', b?.remote_sha ?? null, lsha)
-      } else throw e
+      } else if (e instanceof RemoteError) throw e
+      else {
+        // something wrong with this one file here: the rest still sync, and it's named
+        console.error('[sync]', p, e)
+        failed.push({ path: p, reason: e.message })
+      }
     }
   }
-  return { changed: plan.length, conflicts, refused }
+  return { changed: plan.length, conflicts, refused, failed }
 }
 
 /** One round now (or right after the one running) */
@@ -335,9 +354,9 @@ export function syncNow() {
         again = false
         const r = await round()
         setStatus({
-          state: 'idle',
+          state: r.failed?.length ? 'error' : 'idle',
           lastSync: new Date().toISOString(),
-          lastError: null,
+          lastError: r.failed?.length ? `Couldn’t sync ${r.failed.map((f) => f.path).join(', ')}: ${r.failed[0].reason}` : null,
           ...(r.conflicts?.length ? { conflicts: r.conflicts } : {}),
           ...(r.refused?.length ? { refused: r.refused } : {}),
         })

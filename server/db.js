@@ -2,9 +2,12 @@
 // folder, because they are secrets (password hashes, session tokens) or plain
 // bookkeeping (chat read markers). Everything people make is text in the workspace.
 import { DatabaseSync } from 'node:sqlite'
+import fs from 'node:fs'
 import path from 'node:path'
 import { DATA_DIR } from './config.js'
 
+/** true when this start made the database: a server that had data before lost its data folder */
+export const freshDatabase = !fs.existsSync(path.join(DATA_DIR, 'lumen.db'))
 export const db = new DatabaseSync(path.join(DATA_DIR, 'lumen.db'))
 db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;')
 

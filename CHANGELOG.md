@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- **Sync keeps going past a file it can't handle.** One file the desktop app
+  can't read or save no longer stops everything with a cryptic error ("Cannot
+  read properties of null"): the rest syncs, and the app names the file.
+- **A server that lost its data gets yours back.** If your server started again
+  with an empty database (its data folder wasn't kept), signing the desktop
+  app in again puts this computer's copy of your work back on the server,
+  instead of replacing it with the empty one.
+- **The server says when it starts with nothing.** Its log warns when the
+  database is new, the usual reason everyone is signed out after an update.
+  With Docker, the data folder is now always the volume.
+
 ## 0.10.0 — your name everywhere, and the desktop app as your account
 
 - **Your name and username, everywhere.** Making an account now asks for your

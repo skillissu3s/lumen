@@ -4,6 +4,9 @@ services:
     ports:
       - '3000:3000'
     env_file: .env
+    environment:
+      # always the volume below, whatever .env says: anywhere else is lost on rebuild
+      DATA_DIR: /data
     volumes:
       - lumen-data:/data
     restart: unless-stopped

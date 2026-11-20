@@ -228,6 +228,27 @@ test('signed in, the desktop app is the account: its name and email, making work
   assert.ok(messages.some((m) => m.text === 'from the desktop' && m.from === 'ada'))
 })
 
+test('a server that lost its data gets this computer’s copy back when you sign in again', async () => {
+  await api(desk, 'PUT', '/api/files', { path: 'lists/keep-me.md', text: '---\nname: Keep me\nowner: ada\n---\n- [ ] Still here\n', sha: null })
+  await syncNow()
+  // the server starts again from an empty data folder: the same email is a new account
+  cloud.child.kill()
+  await sleep(300)
+  cloud.dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lumen-cloud-'))
+  cloud.cookie = ''
+  await startCloud()
+  await api(cloud, 'POST', '/api/setup', { email: 'ada@example.com', name: 'Ada', password: 'correct horse battery' })
+  assert.equal((await syncNow()).state, 'signed-out')
+  const r = await api(desk, 'POST', '/api/desktop/cloud/login', { server: cloud.url, email: 'ada@example.com', password: 'correct horse battery' })
+  assert.equal(r.restore, true)
+  assert.equal(r.hasOwnData, false)
+  // what the app sends when there's nothing to choose: it must not empty this computer
+  const linked = await api(desk, 'POST', '/api/desktop/cloud/link', { keep: 'server' })
+  assert.equal(linked.restored, true)
+  assert.ok((await paths(desk)).includes('lists/keep-me.md'))
+  await until(async () => /Still here/.test((await read(cloud, 'lists/keep-me.md'))?.text || ''), 'the board back on the server')
+})
+
 test('signing out leaves this computer its copy', async () => {
   const before = await paths(desk)
   const st = await api(desk, 'POST', '/api/desktop/cloud/logout')

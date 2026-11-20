@@ -55,7 +55,12 @@ private repository and a fine-grained token for it (Contents: Read and write),
 and adds both in **Settings → GitHub**: the server syncs on the schedule they
 choose and can restore from there.
 Without `ADMIN_EMAIL`/`ADMIN_PASSWORD`, the first visit shows a setup screen.
-Everything lives in the `lumen-data` volume (`/data`).
+Everything lives in the `lumen-data` volume (`/data`). Keep it: run updates
+(`git pull`, then `docker compose up -d --build`) from the same folder, and
+don't use `docker compose down -v`. Compose names the volume after the folder,
+so a fresh clone somewhere else starts with an empty one, and everyone has to
+sign in again to a server with nothing on it. The server's log says when it
+starts with a new, empty database.
 
 ### Desktop app
 
