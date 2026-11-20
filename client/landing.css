@@ -454,6 +454,11 @@ main {
   color: var(--text-muted);
   font-size: 14.5px;
 }
+.grid p a {
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 
 /* modes */
 .mode-grid {
@@ -555,6 +560,10 @@ main {
   .mode-grid {
     grid-template-columns: 1fr 1fr;
   }
+  /* an odd card out fills the last row rather than leaving a hole */
+  .grid article:last-child:nth-child(odd) {
+    grid-column: span 2;
+  }
   .text {
     grid-template-columns: 1fr;
     gap: 20px;
@@ -583,6 +592,9 @@ main {
   .grid,
   .mode-grid {
     grid-template-columns: 1fr;
+  }
+  .grid article:last-child:nth-child(odd) {
+    grid-column: auto;
   }
   .features,
   .modes,
