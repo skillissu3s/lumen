@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.9.0 — AI agents, and staying signed in
 
 - **AI agents.** Let an agent such as Claude use Lumen for you: ask it what's
   on this week, to add or move tasks, plan events, write docs or post in chat.
