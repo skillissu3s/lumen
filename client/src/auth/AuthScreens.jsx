@@ -7,6 +7,7 @@ import { useSession } from '../store/session.js'
 import { api } from '../lib/api.js'
 import { navigate } from '../lib/router.js'
 import { Logo } from '../shell/Logo.jsx'
+import NameFields from './NameFields.jsx'
 
 function Card({ title, subtitle, children, footer }) {
   return (
@@ -264,20 +265,18 @@ export function ForgotPassword() {
 
 export function Setup() {
   const setup = useSession((s) => s.setup)
-  const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' })
+  const [form, setForm] = useState({ name: '', handle: '', email: '', password: '', confirm: '' })
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
   const { busy, error, submit, setError } = useSubmit(async () => {
     if (form.password !== form.confirm) throw new Error('The passwords don’t match.')
-    await setup({ name: form.name, email: form.email, password: form.password })
+    await setup({ name: form.name, handle: form.handle, email: form.email, password: form.password })
     navigate('/today', { replace: true })
   })
   useEffect(() => setError(''), [form, setError])
   return (
-    <Card title="Set up Lumen" subtitle="Create the admin account. Only the admin can invite other people.">
+    <Card title="Set up Lumen" subtitle="Create the first account. It runs this server: it can invite people and see every account.">
       <form className="auth-form" onSubmit={submit}>
-        <Field label="Your name">
-          <Input autoComplete="name" value={form.name} onChange={set('name')} required autoFocus />
-        </Field>
+        <NameFields form={form} onChange={(patch) => setForm({ ...form, ...patch })} />
         <Field label="Email">
           <Input type="email" autoComplete="email" value={form.email} onChange={set('email')} required />
         </Field>
@@ -300,7 +299,7 @@ export function AcceptInvite({ token }) {
   const accept = useSession((s) => s.acceptInvite)
   const [invite, setInvite] = useState(null)
   const [state, setState] = useState('loading')
-  const [form, setForm] = useState({ name: '', email: '', password: '' })
+  const [form, setForm] = useState({ name: '', handle: '', email: '', password: '' })
   useEffect(() => {
     api('GET', `/invites/${encodeURIComponent(token)}`)
       .then((inv) => {
@@ -328,9 +327,7 @@ export function AcceptInvite({ token }) {
   return (
     <Card title="You’re invited to Lumen" subtitle={invite.role === 'admin' ? 'You’ll join as an admin.' : 'Create your account to join.'}>
       <form className="auth-form" onSubmit={submit}>
-        <Field label="Your name">
-          <Input autoComplete="name" value={form.name} onChange={set('name')} required autoFocus />
-        </Field>
+        <NameFields form={form} onChange={(patch) => setForm({ ...form, ...patch })} />
         <Field label="Email">
           <Input type="email" autoComplete="email" value={form.email} onChange={set('email')} readOnly={!!invite.email} required />
         </Field>
@@ -340,6 +337,28 @@ export function AcceptInvite({ token }) {
         <ErrorLine error={error} />
         <Button variant="primary" type="submit" loading={busy} full>
           Join
+        </Button>
+      </form>
+    </Card>
+  )
+}
+
+/** An account made for you (by the server's settings) chooses its name and username before anything else */
+export function FinishProfile() {
+  const user = useSession((s) => s.user)
+  const [form, setForm] = useState({ name: '', handle: '' })
+  const { busy, error, submit, setError } = useSubmit(async () => {
+    const r = await api('PATCH', '/me', { name: form.name, handle: form.handle })
+    useSession.setState({ user: { ...user, ...r.user, needsProfile: false } })
+  })
+  useEffect(() => setError(''), [form, setError])
+  return (
+    <Card title="Finish your account" subtitle={`Signed in as ${user?.email}. Choose the name people see and your username; you can change both later in Settings.`}>
+      <form className="auth-form" onSubmit={submit}>
+        <NameFields form={form} onChange={(patch) => setForm({ ...form, ...patch })} />
+        <ErrorLine error={error} />
+        <Button variant="primary" type="submit" loading={busy} full>
+          Continue
         </Button>
       </form>
     </Card>
@@ -412,14 +431,18 @@ export function NoServer() {
 
 /** The desktop app's first question: a Lumen server, or this computer only */
 export function DesktopWelcome() {
-  const [step, setStep] = useState(null) // null · 'signin' · { code } · { keep }
+  const user = useSession((s) => s.user)
+  const [step, setStep] = useState(null) // null · 'signin' · 'local' · { code } · { keep }
   const [form, setForm] = useState({ server: '', email: '', password: '' })
+  const [name, setName] = useState(user?.name || '')
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
   const done = async () => {
     navigate('/today', { replace: true })
     await useSession.getState().boot()
   }
+  // no account, so no username: just the name your candle carries
   const local = useSubmit(async () => {
+    if (name.trim() && name.trim() !== user?.name) await api('PATCH', '/me', { name: name.trim() })
     await api('POST', '/desktop/mode', { mode: 'local' })
     await done()
   })
@@ -468,6 +491,20 @@ export function DesktopWelcome() {
         </div>
       </Card>
     )
+  if (step === 'local')
+    return (
+      <Card title="What should we call you?" subtitle="Your work stays on this computer, in your own candle. You can sign in to a server later to work with others." footer={<button type="button" className="auth-link" onClick={() => setStep(null)}>Back</button>}>
+        <form className="auth-form" onSubmit={local.submit}>
+          <Field label="Your name" hint="The name of your candle. You can change it in Settings.">
+            <Input autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} required autoFocus maxLength={80} />
+          </Field>
+          <ErrorLine error={local.error} />
+          <Button variant="primary" type="submit" loading={local.busy} iconRight={ArrowRight} full>
+            Start
+          </Button>
+        </form>
+      </Card>
+    )
   if (step === 'signin')
     return (
       <Card title="Sign in to a Lumen server" subtitle="Your account’s work stays on this computer too, so Lumen works offline and catches up when it’s back online." footer={<button type="button" className="auth-link" onClick={() => setStep(null)}>Back</button>}>
@@ -498,14 +535,13 @@ export function DesktopWelcome() {
             <small>Your account, on every device. Works offline here and catches up when you’re back online.</small>
           </span>
         </button>
-        <button type="button" className="auth-choice" onClick={local.submit} disabled={local.busy}>
+        <button type="button" className="auth-choice" onClick={() => setStep('local')}>
           <Monitor size={18} />
           <span>
             <b>Use on this computer only</b>
             <small>Everything stays here, with no account. You can sign in to a server later.</small>
           </span>
         </button>
-        <ErrorLine error={local.error} />
       </div>
     </Card>
   )

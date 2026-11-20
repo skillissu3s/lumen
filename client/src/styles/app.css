@@ -253,6 +253,7 @@ body.is-col-resizing * {
 .workspace-button.is-compact {
   justify-content: center;
   width: 34px;
+  height: 34px;
   padding: 0;
 }
 .app-rail-scroll {
@@ -380,7 +381,7 @@ body.is-col-resizing * {
   align-items: center;
   gap: 8px;
   width: 100%;
-  height: 34px;
+  height: 40px;
   padding: 0 6px;
   border-radius: var(--radius);
   text-align: left;
@@ -400,13 +401,24 @@ body.is-col-resizing * {
   font-size: 11.5px;
   font-weight: 600;
 }
-.workspace-name {
+.workspace-text {
+  display: grid;
   flex: 1;
   min-width: 0;
+  line-height: 1.25;
+}
+.workspace-name,
+.workspace-kind {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.workspace-name {
   font-weight: 600;
+}
+.workspace-kind {
+  color: var(--text-faint);
+  font-size: var(--fs-xs, 11px);
 }
 .workspace-chevron {
   color: var(--text-faint);
@@ -1173,34 +1185,118 @@ body.is-col-resizing * {
 }
 
 /* ---------- moving between spaces (the space menu) ---------- */
-.space-list {
-  margin-top: 4px;
+.ui-popover.space-menu {
+  width: 300px;
 }
 .space-group + .space-group {
-  margin-top: 4px;
+  margin-top: 6px;
 }
 .space-group-label {
-  padding: 6px 8px 2px;
+  padding: 6px 8px 4px;
   color: var(--text-faint);
   font-size: var(--fs-xs, 11px);
   font-weight: 600;
   letter-spacing: 0.02em;
 }
-.space-item span:not(.workspace-mark) {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* a place to go, not a command: two lines, a bigger mark, a check on where you are */
+.space-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 8px;
+  text-align: left;
+  transition: background var(--dur) var(--ease);
 }
-.space-item .workspace-mark {
-  flex: none;
+.space-item:hover,
+.space-item:focus-visible {
+  background: var(--bg-hover);
 }
 .space-item.is-current {
   background: var(--bg-active);
 }
+.space-item .workspace-mark {
+  flex: none;
+}
+.space-text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.3;
+}
+.space-name,
+.space-kind {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.space-name {
+  font-weight: 500;
+}
+.space-kind {
+  color: var(--text-faint);
+  font-size: var(--fs-sm);
+}
 .space-check {
+  flex: none;
   color: var(--accent);
+}
+.space-make {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.space-make button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 30px;
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px var(--border);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.space-make button:hover,
+.space-make button:focus-visible {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.space-account {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px 8px 8px;
+  border-top: 1px solid var(--border);
+  text-align: left;
+}
+.space-account > svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--text-muted);
+}
+.space-account > span {
+  display: grid;
+  gap: 2px;
+}
+.space-account span span {
+  color: var(--text-faint);
+  font-size: var(--fs-sm);
+}
+.space-account:hover b,
+.space-account:focus-visible b {
+  color: var(--accent);
+}
+.space-here {
+  margin-top: 8px;
+  padding-top: 2px;
 }
 .workspace-mark.is-candle {
   background: var(--accent);

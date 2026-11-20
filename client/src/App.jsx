@@ -7,7 +7,7 @@ import { rememberedSpace } from './store/spaces.js'
 import { usePrefs, applyTheme } from './store/prefs.js'
 import { useRoute, navigate } from './lib/router.js'
 import { connectSocket, onSocket } from './lib/socket.js'
-import { AcceptInvite, BootError, BootScreen, DesktopWelcome, ForgotPassword, NoServer, SignIn, Setup } from './auth/AuthScreens.jsx'
+import { AcceptInvite, BootError, BootScreen, DesktopWelcome, FinishProfile, ForgotPassword, NoServer, SignIn, Setup } from './auth/AuthScreens.jsx'
 import { AppShell } from './shell/AppShell.jsx'
 import JoinPage, { pendingJoin } from './auth/JoinPage.jsx'
 
@@ -69,6 +69,7 @@ export default function App() {
     return <SignIn />
   }
 
+  if (user?.needsProfile) return <FinishProfile />
   if (wsStatus === 'error') return <BootError message={wsError} onRetry={() => useWorkspace.getState().load()} />
   if (wsStatus !== 'ready') return <BootScreen />
   if (route.parts[0] === 'join' && route.parts[1]) return <JoinPage token={route.parts[1]} />

@@ -4,7 +4,7 @@
 import { useRef, useState } from 'react'
 import { CalendarDays, FileText, Kanban, Lightbulb, MessagesSquare, PanelLeftOpen, Plus, Search, Sun } from 'lucide-react'
 import { IconBadge, Tooltip } from '../components/ui/index.js'
-import { useSession } from '../store/session.js'
+import { useHasAccount } from '../store/session.js'
 import { useUI } from '../store/ui.js'
 import { useLists, usePlugins } from '../store/hooks.js'
 import { useCurrentSpace } from '../store/spaces.js'
@@ -29,7 +29,7 @@ function RailItem({ href, icon: Icon, tint, label, active, children }) {
 
 export function Rail({ route, closed }) {
   const space = useCurrentSpace()
-  const mode = useSession((s) => s.mode)
+  const account = useHasAccount()
   const lists = useLists()
   const plugins = usePlugins()
   const prefs = usePrefs()
@@ -62,7 +62,7 @@ export function Rail({ route, closed }) {
         <RailItem href="#/calendar" icon={CalendarDays} tint="blue" label="Calendar" active={at('/calendar')} />
         <RailItem href="#/ideas" icon={Lightbulb} tint="violet" label="Ideas" active={at('/ideas')} />
         <RailItem href="#/docs" icon={FileText} tint="teal" label="Docs" active={at('/docs')} />
-        {mode === 'server' && space.kind !== 'shared' && <RailItem href="#/chat" icon={MessagesSquare} tint="green" label="Chat" active={at('/chat')} />}
+        {account && space.kind !== 'shared' && <RailItem href="#/chat" icon={MessagesSquare} tint="green" label="Chat" active={at('/chat')} />}
         <span className="app-rail-sep" />
         {lists.map((l) => (
           <RailItem key={l.path} href={`#/board/${l.id}`} label={l.name} active={path === `/board/${l.id}`}>

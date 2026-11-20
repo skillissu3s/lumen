@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Camera, Check, LogOut, Monitor, RefreshCw, Smartphone, Trash2, Upload } from 'lucide-react'
 import { AVATAR_COLORS, Button, Dialog, Field, Input, Spinner, UserAvatar } from '../../components/ui/index.js'
 import { useSession } from '../../store/session.js'
+import { useSpaces } from '../../store/spaces.js'
 import { useUI } from '../../store/ui.js'
 import { api } from '../../lib/api.js'
 import { navigate } from '../../lib/router.js'
@@ -92,7 +93,8 @@ function Profile({ handle = true }) {
   const saveName = () => {
     const v = name.trim()
     if (!v) return setName(user?.name || '')
-    if (v !== user?.name) patch({ name: v }, 'name')
+    // your candle is named after you
+    if (v !== user?.name) patch({ name: v }, 'name').then((ok) => ok && useSpaces.getState().load())
   }
   const saveUsername = async () => {
     const v = username.trim().replace(/^@/, '').toLowerCase()
@@ -154,7 +156,7 @@ function Profile({ handle = true }) {
           <SavedHint on={saved === 'color'} />
         </div>
       </Row>
-      <Row label="Name" hint="How you’re shown to people in this workspace.">
+      <Row label="Name" hint={handle ? 'How people see you, and the name of your candle.' : 'The name of your candle.'}>
         <div className="set-inline">
           <Input value={name} onChange={(e) => setName(e.target.value)} onBlur={saveName} onKeyDown={enter} aria-label="Name" maxLength={80} />
           <SavedHint on={saved === 'name'} />
@@ -395,10 +397,12 @@ function DesktopLink() {
 
 export default function AccountSettings() {
   const mode = useSession((s) => s.mode)
+  const linked = useSession((s) => !!s.cloud?.linked)
+  // the desktop app on its own has no username; signed in, it is your account
   if (mode === 'desktop')
     return (
       <>
-        <Profile handle={false} />
+        <Profile handle={linked} />
         <DesktopLink />
       </>
     )

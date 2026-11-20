@@ -2,7 +2,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { Bot, CalendarDays, Copy, Database, ExternalLink, FolderGit2, FolderOpen, GitBranch, Info, Kanban, Keyboard, Palette, Puzzle, RefreshCw, Trash2, UserRound, Users, X } from 'lucide-react'
 import { Button, UserAvatar, Dialog, Field, Input, Kbd, Segmented, Select, Spinner, Switch } from '../../components/ui/index.js'
-import { useSession } from '../../store/session.js'
+import { useSession, useHasAccount } from '../../store/session.js'
 import { useWorkspace } from '../../store/workspace.js'
 import { useUI } from '../../store/ui.js'
 import { usePrefs, setPrefs } from '../../store/prefs.js'
@@ -419,7 +419,8 @@ function Workspace() {
   const [name, setName] = useState(space.name || config.name)
   const [busy, setBusy] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const server = mode === 'server'
+  // with an account, workspaces are the server's: their names and deleting go there
+  const server = useHasAccount()
   const canEdit = !server || space.kind === 'candle' || space.role === 'owner' || space.role === 'admin'
   useEffect(() => setName(space.name || config.name), [space.name, config.name])
   const save = async () => {
@@ -449,7 +450,7 @@ function Workspace() {
       setBusy(false)
     }
   }
-  const where = mode === 'desktop' ? 'The database on this computer' : space.kind === 'candle' ? 'This server’s database, private to you' : space.kind === 'shared' ? 'Their candle on this server' : 'This server’s database, shared by everyone in the workspace'
+  const where = mode === 'desktop' ? (server ? 'This computer, kept in sync with your server' : 'The database on this computer') : space.kind === 'candle' ? 'This server’s database, private to you' : space.kind === 'shared' ? 'Their candle on this server' : 'This server’s database, shared by everyone in the workspace'
   return (
     <>
       <Section>
@@ -597,6 +598,7 @@ export default function SettingsView({ route, onClose }) {
   const space = useCurrentSpace()
   const role = useSession((s) => s.user?.role)
   const server = mode === 'server'
+  const account = useHasAccount()
   const manages = space.kind === 'candle' || space.role === 'owner' || space.role === 'admin'
   const tabs = [
     { group: 'You' },
@@ -609,8 +611,8 @@ export default function SettingsView({ route, onClose }) {
     { id: 'workspace', label: 'General', icon: Database, about: space.kind === 'candle' ? 'Your candle: its name, where it lives, and a full export.' : space.kind === 'shared' ? `What ${space.name} shared with you.` : 'This workspace’s name, where it lives, and a full export.', el: Workspace },
     { id: 'tasks', label: 'Boards and tasks', icon: Kanban, about: 'Where new tasks land and how boards open.', el: TasksTab },
     { id: 'calendar', label: 'Calendar', icon: CalendarDays, about: 'Hours, colours and what the calendar shows.', el: CalendarTab },
-    ...(server && space.kind === 'workspace' ? [{ id: 'members', label: 'Members', icon: Users, about: 'Who is in this workspace, and invite links to bring people in.', el: SpaceMembers }] : []),
-    ...(server && manages && space.kind !== 'shared' ? [{ id: 'github', label: 'GitHub', icon: FolderGit2, about: 'A readable copy in a GitHub repository, written by this server on a schedule.', el: GitHubTab }] : []),
+    ...(account && space.kind === 'workspace' ? [{ id: 'members', label: 'Members', icon: Users, about: 'Who is in this workspace, and invite links to bring people in.', el: SpaceMembers }] : []),
+    ...(account && manages && space.kind !== 'shared' ? [{ id: 'github', label: 'GitHub', icon: FolderGit2, about: 'A readable copy in a GitHub repository, written by this server on a schedule.', el: GitHubTab }] : []),
     ...(!server ? [{ id: 'sync', label: 'Sync', icon: GitBranch, about: 'Keep your data in a GitHub repository, as plain text.', el: Sync }] : []),
     ...(server && role === 'admin'
       ? [

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Button, ColorPicker, IconBadge, IconPicker, Input, Popover, Segmented, Select } from '../components/ui/index.js'
 import { api } from '../lib/api.js'
-import { useSession } from '../store/session.js'
+import { useSession, useHasAccount } from '../store/session.js'
 import { useCurrentSpace } from '../store/spaces.js'
 
 // [sam, ana:view] → { sam: 'edit', ana: 'view' }, and back (docs/CANDLES.md)
@@ -19,18 +19,18 @@ const shareList = (map) => {
  * it already can, so there is nothing to choose.
  */
 export function ShareField({ value, onChange }) {
-  const mode = useSession((s) => s.mode)
+  const account = useHasAccount()
   const me = useSession((s) => s.user?.handle)
   const space = useCurrentSpace()
   const [people, setPeople] = useState([])
-  const inCandle = mode === 'server' && space.kind === 'candle'
+  const inCandle = account && space.kind === 'candle'
   useEffect(() => {
     if (!inCandle) return
     api('GET', '/users')
       .then((r) => setPeople(r.users.filter((u) => u.handle !== me)))
       .catch(() => {})
   }, [inCandle, me])
-  if (mode !== 'server') return null
+  if (!account) return null
   if (space.kind === 'workspace') return <p className="share-note">Everyone in {space.name} can see and edit this.</p>
   if (space.kind === 'shared') return <p className="share-note">Shared with you by {space.name}. Only they can change who has it.</p>
   const map = shareMap(value)

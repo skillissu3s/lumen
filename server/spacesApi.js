@@ -110,7 +110,7 @@ spacesRouter.post('/join/:token', serverOnly, requireUser, (req, res) => {
 spacesRouter.post('/join/:token/signup', serverOnly, async (req, res) => {
   if (!spaces.findInvite(req.params.token)) throw fail(410, 'This invite link has expired or was revoked.')
   if (userByEmail(String(req.body?.email || '').trim().toLowerCase())) throw fail(409, 'There is already an account with that email. Sign in, then open the link again.')
-  const user = await createUser({ email: req.body?.email, name: req.body?.name, password: req.body?.password, role: 'member' })
+  const user = await createUser({ email: req.body?.email, name: req.body?.name, handle: req.body?.handle, password: req.body?.password, role: 'member' })
   await setUpAccount(user)
   const s = spaces.acceptInvite(req.params.token, user)
   setSessionCookie(res, createSession(user.id, req.get('user-agent')))

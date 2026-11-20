@@ -755,3 +755,26 @@ settable right on a card; drop the calendar's New button.
   into or out of the done column is finished or reopened, as on the board.
 - `server/mcp/stdio.js` bridges apps that only start local programs (Claude
   Desktop) to the HTTP endpoint, with nothing to install.
+
+### Names, usernames, and the desktop app as the account
+- The first admin came from ADMIN_EMAIL with the name "Admin", so the account
+  was "Admin", @admin and "Admin's candle" everywhere, with nothing asking to
+  change it. Accounts made that way are now flagged (`needs_profile`; set for
+  existing ones still called by the default name) and the app asks for a name
+  and username before anything else. Every sign-up form asks for both.
+- The desktop replica copied the account's name and username once, when it
+  signed in, so a rename on the web never reached it. Each round now reads
+  `/api/me` and mirrors it into the local person (and the local candle's
+  name); the app shows the account's email.
+- Chat and workspaces were "server only" in the desktop app because its own
+  server has no accounts. Rather than copy them, the local server now passes
+  those routes to the real one as the account, and catches up (a round) after
+  anything that changes the spaces. The server's socket is kept open from the
+  replica: chat, typing and presence relay to the window, and a `files` notice
+  starts a round at once instead of within 30 seconds.
+- The client's checks for those features were `mode === 'server'`; they now
+  ask `hasAccount` (a server, or the desktop app signed in to one).
+- The space menu mixed the current space's settings, the spaces and "New
+  workspace" in one list of identical rows. Spaces are now two-line rows with
+  what each is, making and joining are a separate pair below, and the space's
+  own settings sit under its name.

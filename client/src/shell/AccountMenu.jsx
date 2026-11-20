@@ -13,7 +13,7 @@ const mod = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform) ?
 
 function whoLine(session) {
   const { user, mode, cloud } = session
-  if (mode === 'desktop') return cloud?.linked && cloud.user ? `@${cloud.user.handle}` : 'On this computer'
+  if (mode === 'desktop') return cloud?.linked && cloud.user ? [`@${cloud.user.handle}`, cloud.user.email].filter(Boolean).join(' · ') : 'On this computer, no account'
   return [user?.handle && `@${user.handle}`, user?.email].filter(Boolean).join(' · ')
 }
 

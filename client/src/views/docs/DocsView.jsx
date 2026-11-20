@@ -5,7 +5,7 @@ import { ChevronRight, Download, FileText, FolderClosed, FolderPlus, Image as Im
 import { Button, ContextMenu, Dialog, EmptyState, IconBadge, IconPicker, Input, Menu, Popover, Spinner, Tooltip } from '../../components/ui/index.js'
 import { useDocs } from '../../store/hooks.js'
 import { useWorkspace } from '../../store/workspace.js'
-import { useSession } from '../../store/session.js'
+import { useHasAccount } from '../../store/session.js'
 import { useUI } from '../../store/ui.js'
 import { navigate } from '../../lib/router.js'
 import { createDoc, deleteDoc, renameDoc, saveDoc } from '../../lib/actions.js'
@@ -136,7 +136,7 @@ function Editor({ path }) {
   const canMove = useCanMove()
   const file = useWorkspace((s) => s.files[path])
   const saving = useWorkspace((s) => s.saving)
-  const mode = useSession((s) => s.mode)
+  const account = useHasAccount()
   const [loaded, setLoaded] = useState(!!file)
   const [confirm, setConfirm] = useState(false)
   const [share, setShare] = useState(false)
@@ -207,7 +207,7 @@ function Editor({ path }) {
           <Menu
             align="end"
             items={[
-              ...(mode === 'server' ? [{ label: 'Share…', onSelect: () => setShare(true) }] : []),
+              ...(account ? [{ label: 'Share…', onSelect: () => setShare(true) }] : []),
               {
                 label: 'Download as Markdown',
                 icon: Download,

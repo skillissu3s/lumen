@@ -21,6 +21,7 @@ import { githubRouter, worker as mirror } from './github/routes.js'
 import { spacesRouter } from './spacesApi.js'
 import { agentsRouter } from './agentsApi.js'
 import { mcpRouter } from './mcp/routes.js'
+import { cloudRouter } from './sync/cloudApi.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.join(here, '..')
@@ -38,6 +39,8 @@ app.use((req, res, next) => {
   next()
 })
 
+// the desktop app signed in to a server: what only the server does goes there first
+if (DESKTOP) app.use('/api', cloudRouter)
 app.use('/api/github', githubRouter)
 app.use('/api', spacesRouter)
 app.use('/api', agentsRouter)

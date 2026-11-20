@@ -358,3 +358,15 @@ brings the views across spaces.
   wasn't saved.", and the files go from the app). No retries in any case.
 
 All six phases are done.
+
+### Accounts and the desktop app
+
+- An account has a name (what people see; it names the candle) and a
+  username (`@handle`, used in shares and files). Both are chosen when the
+  account is made; an account made from `ADMIN_EMAIL` (`needs_profile`) asks
+  for them at its first sign-in.
+- The desktop app without an account has one candle and no username: no chat,
+  workspaces or sharing. Signed in, it mirrors the account (name, username,
+  colour, photo, email; each round), passes what only the server does on to it
+  (`sync/cloudApi.js`) and keeps the server's socket open for chat and quick
+  rounds.

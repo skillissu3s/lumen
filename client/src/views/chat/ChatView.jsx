@@ -7,7 +7,7 @@ import { Button, Dialog, EmptyState, Input, Menu, Segmented, Spinner, UserAvatar
 import { api } from '../../lib/api.js'
 import { onSocket, sendSocket } from '../../lib/socket.js'
 import { navigate } from '../../lib/router.js'
-import { useSession } from '../../store/session.js'
+import { useSession, useHasAccount } from '../../store/session.js'
 import { useUI } from '../../store/ui.js'
 import { relativeDay, todayIso, isoOf, timeOf, formatTime } from '../../../../shared/dates.js'
 import { usePrefs } from '../../store/prefs.js'
@@ -147,7 +147,7 @@ function Message({ m, first, me, people, h12, onReply, onEdit, onDelete, editing
 }
 
 export default function ChatView({ route }) {
-  const mode = useSession((s) => s.mode)
+  const account = useHasAccount()
   const me = useSession((s) => s.user?.handle)
   const prefs = usePrefs()
   const h12 = prefs.timeFormat === '12h'
@@ -187,7 +187,7 @@ export default function ChatView({ route }) {
   const firstOf = (list) => list.find((c) => c.id === 'general' && !c.dm) || list[0]
 
   useEffect(() => {
-    if (mode !== 'server') return
+    if (!account) return
     setChannels(null)
     refreshChannels()
       .then((list) => {
@@ -196,7 +196,7 @@ export default function ChatView({ route }) {
       })
       .catch(() => setChannels([]))
     api('GET', '/users').then((r) => setPeople(r.users)).catch(() => {})
-  }, [mode, workspace]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [account, workspace]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const peopleMap = useMemo(() => new Map(people.map((p) => [p.handle, p])), [people])
   const channel = channels?.find((c) => c.id === channelId)
@@ -204,7 +204,7 @@ export default function ChatView({ route }) {
 
   // load the channel's history
   useEffect(() => {
-    if (!channelId || !place || mode !== 'server') return
+    if (!channelId || !place || !account) return
     let alive = true
     setLoading(true)
     setMessages([])
@@ -222,7 +222,7 @@ export default function ChatView({ route }) {
     return () => {
       alive = false
     }
-  }, [channelId, place, mode])
+  }, [channelId, place, account])
 
   // mark read when looking at it
   useEffect(() => {
@@ -353,11 +353,11 @@ export default function ChatView({ route }) {
     } else if (e.key === 'Escape' && reply) setReply(null)
   }
 
-  if (mode !== 'server')
+  if (!account)
     return (
       <div className="view">
-        <EmptyState icon={MessagesSquare} title="Chat needs a Lumen server">
-          Chat is for talking with people you invite, so it runs on a self-hosted Lumen server. Your tasks, calendar and docs work everywhere.
+        <EmptyState icon={MessagesSquare} title="Chat needs an account">
+          Chat is for talking with the people you work with. Sign in to a Lumen server in Settings → Account to use it here. Your tasks, calendar and docs work without one.
         </EmptyState>
       </div>
     )

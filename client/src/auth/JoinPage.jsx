@@ -8,6 +8,7 @@ import { navigate } from '../lib/router.js'
 import { useSession } from '../store/session.js'
 import { useSpaces } from '../store/spaces.js'
 import { Logo } from '../shell/Logo.jsx'
+import NameFields from './NameFields.jsx'
 
 const PENDING = 'lumen.join'
 
@@ -42,7 +43,7 @@ export default function JoinPage({ token }) {
   const signedIn = status === 'ready'
   const [info, setInfo] = useState(null)
   const [gone, setGone] = useState(false)
-  const [form, setForm] = useState({ name: '', email: '', password: '' })
+  const [form, setForm] = useState({ name: '', handle: '', email: '', password: '' })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -122,9 +123,7 @@ export default function JoinPage({ token }) {
   return (
     <Card title={`Join ${where} on Lumen`} subtitle="Make your account. You get your own private candle, and this workspace beside it.">
       <form className="auth-form" onSubmit={signup}>
-        <Field label="Your name">
-          <Input autoComplete="name" value={form.name} onChange={set('name')} required autoFocus />
-        </Field>
+        <NameFields form={form} onChange={(patch) => setForm({ ...form, ...patch })} />
         <Field label="Email">
           <Input type="email" autoComplete="email" value={form.email} onChange={set('email')} required />
         </Field>

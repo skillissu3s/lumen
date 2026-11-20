@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { Button, Dialog } from '../components/ui/index.js'
 import { api } from '../lib/api.js'
 import { navigate } from '../lib/router.js'
-import { useSession } from '../store/session.js'
+import { useSession, useHasAccount } from '../store/session.js'
 import { useSpaces, useCurrentSpace } from '../store/spaces.js'
 import { useUI } from '../store/ui.js'
 import { useWorkspace } from '../store/workspace.js'
@@ -15,9 +15,9 @@ const HOME = { lists: '/tasks', calendars: '/calendar', docs: '/docs', ideas: '/
 
 /** May things here move at all? (on a server, and not in what others shared with you) */
 export function useCanMove() {
-  const mode = useSession((s) => s.mode)
+  const account = useHasAccount()
   const current = useCurrentSpace()
-  return mode === 'server' && current.kind !== 'shared'
+  return account && current.kind !== 'shared'
 }
 
 /** The menu entry, for item menus */
@@ -31,10 +31,10 @@ export function MoveHost() {
 
 /** Spaces something here could move to (none on the desktop, or when only shared with you) */
 export function useMoveTargets() {
-  const mode = useSession((s) => s.mode)
+  const account = useHasAccount()
   const current = useCurrentSpace()
   const list = useSpaces((s) => s.list)
-  if (mode !== 'server' || current.kind === 'shared') return []
+  if (!account || current.kind === 'shared') return []
   return list.filter((s) => s.prefix !== current.prefix && (s.kind === 'candle' || s.kind === 'workspace'))
 }
 

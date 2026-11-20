@@ -28,6 +28,7 @@ once a day of use renews it and sends the cookie again.
 | `PATCH /api/me` | `{ name?, handle?, color?, avatar? }` | `{ user }`. A new handle (username: 2–24 lowercase letters, digits or dashes) is 409 if taken; sharing lists, channel members and message authors follow it, and files named after it move. `color` is an item colour name or `null`; `avatar` a `data:image/(png\|jpeg\|webp);base64,…` URL of at most 200 kB, or `null` to remove it. Everything is checked before anything is saved |
 | `GET /api/me/sessions` | — | `{ sessions: [{ id, createdAt, agent, current }] }`, newest first |
 | `DELETE /api/me/sessions` | — | ends every session but this one → `{ ended }` |
+| `PATCH /api/me` | `{ name?, handle?, color?, avatar? }` | a new name renames your candle; setting a name or username ends `needsProfile` → `{ user }` |
 | `GET /api/me/agents` | — | `{ agents: [{ id, name, access, createdAt, lastUsedAt }], url }` (`url`: the MCP address) |
 | `POST /api/me/agents` | `{ name, access }` | `access`: `read`, `edit` or `full` → `{ token, agent, url }`; the token is only ever returned here |
 | `PATCH /api/me/agents/:id` | `{ name?, access? }` | `{ agent }` |
@@ -133,6 +134,17 @@ the default). 404 when you aren't in that workspace or that conversation.
 | `GET /api/desktop/workspace` | — | `{ dir }` |
 | `PUT /api/desktop/workspace` | `{ dir }` | opens (and seeds if empty) that folder → `{ dir }` |
 | `GET /api/desktop/sync`, `PUT`, `POST /now` | as the admin sync endpoints | git sync of the local folder |
+
+## The desktop app signed in to a server
+
+Its own server passes these on to the server it is signed in to, as the
+account (`server/sync/cloudApi.js`): `/api/chat/*`, `POST /api/spaces`,
+`/api/spaces/:id/*`, `/api/join/*`, `GET /api/users`, `PATCH /api/me`,
+`/api/me/password`, `/api/me/agents/*`, `/api/github/*` and
+`POST /api/files/move`. Changes to spaces, moves and a new name are followed by
+a sync round before the answer. 503 when the server can't be reached. Its
+`/ws` relays the server's `chat`, `channels`, `typing` and `presence`, and
+sends typing on.
 
 ## MCP `/mcp`
 

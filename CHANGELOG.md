@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased
+
+- **Your name and username, everywhere.** Making an account now asks for your
+  name and a username together (the username follows the name until you
+  change it). An account the server made for you, like the first admin, asks
+  for both the first time you sign in, instead of staying "Admin". Your candle
+  is named after you, and changes with your name.
+- **The desktop app is your account.** Signed in to a server, it shows your
+  name, username and email as the server has them, and a change in either
+  place shows in the other. Chat, making and joining workspaces, members and
+  invites, sharing, moving between spaces, AI agents and GitHub copies all
+  work from the app too, going straight to your server.
+- **Faster sync in the desktop app.** It keeps a live connection to your
+  server: a change there arrives within a second, and chat messages and typing
+  show as they happen.
+- **Without an account, just your candle.** The desktop app used on its own
+  asks only for your name; chat, workspaces and sharing stay out of the way,
+  with a "Work with others" entry that explains how to get them.
+- **A clearer space menu.** Your candle, workspaces and what's shared with you
+  are listed as places, each saying what it is, with the space you're in
+  checked. Making or joining a workspace sits below the list, and the settings
+  of the space you're in are under its name.
+
 ## 0.9.0 — AI agents, and staying signed in
 
 - **AI agents.** Let an agent such as Claude use Lumen for you: ask it what's

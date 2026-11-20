@@ -81,21 +81,23 @@ export function makeHandle(name, email) {
   return h
 }
 
-export async function createUser({ email, name, password, role = 'member' }) {
+export async function createUser({ email, name, handle, password, role = 'member', needsProfile = false }) {
   const e = cleanEmail(email)
   if (userByEmail(e)) throw new HttpError(409, 'There is already an account with that email.')
   if (password != null) validPassword(password)
   const n = String(name || '').trim().slice(0, 80) || e.split('@')[0]
+  // a username chosen at sign-up; made from the name when none is given (older clients, tests)
+  const h = handle ? checkHandle(handle) : makeHandle(n, e)
   const user = {
     id: crypto.randomUUID(),
     email: e,
-    handle: makeHandle(n, e),
+    handle: h,
     name: n,
     pass_hash: password != null ? await hashPassword(password) : null,
     role,
     created_at: Date.now(),
   }
-  db.prepare('INSERT INTO users (id, email, handle, name, pass_hash, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(user.id, user.email, user.handle, user.name, user.pass_hash, user.role, user.created_at)
+  db.prepare('INSERT INTO users (id, email, handle, name, pass_hash, role, created_at, needs_profile) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(user.id, user.email, user.handle, user.name, user.pass_hash, user.role, user.created_at, needsProfile ? 1 : 0)
   return getUser(user.id)
 }
 
@@ -106,9 +108,11 @@ export async function ensureEnvAdmin() {
   if (existing) {
     if (existing.role !== 'admin') db.prepare("UPDATE users SET role = 'admin' WHERE id = ?").run(existing.id)
     if (!existing.pass_hash) db.prepare('UPDATE users SET pass_hash = ? WHERE id = ?').run(await hashPassword(ADMIN_PASSWORD), existing.id)
+    // made before names were asked for: still the default name means it was never chosen
+    if (existing.needs_profile == null) db.prepare('UPDATE users SET needs_profile = ? WHERE id = ?').run(existing.name === (ADMIN_NAME || 'Admin') ? 1 : 0, existing.id)
     return
   }
-  await createUser({ email: ADMIN_EMAIL, name: ADMIN_NAME || 'Admin', password: ADMIN_PASSWORD, role: 'admin' })
+  await createUser({ email: ADMIN_EMAIL, name: ADMIN_NAME || 'Admin', password: ADMIN_PASSWORD, role: 'admin', needsProfile: !ADMIN_NAME })
   console.log(`[auth] created admin ${ADMIN_EMAIL}`)
 }
 
@@ -222,10 +226,10 @@ export const listInvites = () =>
 
 export const revokeInvite = (id) => db.prepare('DELETE FROM invites WHERE substr(token_hash, 1, 16) = ? AND used_at IS NULL').run(String(id)).changes
 
-export async function acceptInvite(token, { name, password, email }) {
+export async function acceptInvite(token, { name, handle, password, email }) {
   const inv = findInvite(token)
   if (!inv) throw new HttpError(410, 'This invite link has expired or was already used. Ask for a new one.')
-  const user = await createUser({ email: inv.email || email, name, password, role: inv.role })
+  const user = await createUser({ email: inv.email || email, name, handle, password, role: inv.role })
   db.prepare('UPDATE invites SET used_at = ?, used_by = ? WHERE token_hash = ?').run(Date.now(), user.id, inv.token_hash)
   return user
 }

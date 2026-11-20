@@ -11,12 +11,14 @@
 // Rounds run on start, a moment after a change here, and every half minute.
 
 import fs from 'node:fs'
+import WebSocket from 'ws'
 import path from 'node:path'
 import { EventEmitter } from 'node:events'
 import { db, getSetting, setSetting } from '../db.js'
 import { DATA_DIR, decrypt, encrypt } from '../config.js'
 import * as files from '../files.js'
 import { merge3, copyPath } from './merge.js'
+import { renameCandleFor } from '../spaces.js'
 
 export const cloudEvents = new EventEmitter()
 
@@ -92,6 +94,42 @@ const remote = (method, url, body) => {
   return call(cfg.server, tokenOf(cfg), method, url, body).then((r) => r.json)
 }
 
+/** The account this computer is signed in to ({ id, email, handle, name, … }), or null */
+export const account = () => config()?.user || null
+
+/**
+ * A request for what only the server can do (chat, workspaces, the account),
+ * passed on as the account: { status, json }. status 0: the server can't be reached.
+ */
+export async function forward(method, url, body) {
+  const cfg = config()
+  if (!cfg) return { status: 404, json: { error: 'Not signed in to a server.' } }
+  try {
+    return { status: 200, json: (await call(cfg.server, tokenOf(cfg), method, url, body)).json }
+  } catch (e) {
+    if (e.status === 401) setStatus({ state: 'signed-out', lastError: 'Your session on the server ended. Sign in again.' })
+    return { status: e.status, json: e.body || { error: e.status === 0 ? 'Lumen can’t reach your server right now.' : e.message } }
+  }
+}
+
+/**
+ * The person here is the account's person: their name, username, colour and
+ * photo are kept as the server has them, so what they make here is theirs there.
+ */
+export function mirrorAccount(user) {
+  const cfg = config()
+  if (!cfg || !user) return
+  const same = ['handle', 'name', 'email', 'color', 'avatar', 'needsProfile'].every((k) => (cfg.user?.[k] ?? null) === (user[k] ?? null))
+  const local = db.prepare("SELECT id, name FROM users WHERE email = 'local@lumen.desktop'").get()
+  if (local) {
+    db.prepare('UPDATE users SET handle = ?, name = ?, color = ?, avatar = ? WHERE id = ?').run(user.handle, user.name, user.color ?? null, user.avatar ?? null, local.id)
+    renameCandleFor({ id: local.id, name: user.name }, local.name)
+  }
+  if (same) return
+  setSetting('cloud', { ...cfg, user })
+  cloudEvents.emit('status', publicStatus())
+}
+
 // ---------- signing in ----------
 
 // the same account on the same server again (a session that ran out): sync
@@ -165,9 +203,8 @@ export async function link({ keep = 'server' } = {}) {
     db.exec('DELETE FROM sync_files')
   }
   // the person here is the account's person, so what they make here is theirs there
-  const local = db.prepare("SELECT id FROM users WHERE email = 'local@lumen.desktop'").get()
-  if (local) db.prepare('UPDATE users SET handle = ?, name = ? WHERE id = ?').run(user.handle, user.name, local.id)
   setSetting('cloud', { server, token: encrypt(token), user, linkedAt: new Date().toISOString() })
+  mirrorAccount(user)
   setSetting('desktop.mode', { mode: 'cloud', server })
   status = { state: 'idle', lastSync: null, lastError: null, conflicts: [], refused: [] }
   start()
@@ -216,7 +253,9 @@ async function push(p, text, baseSha) {
 }
 
 async function round() {
-  // the account's spaces, so the app here can move between them (docs/CANDLES.md)
+  // who the account is now (a new name or username shows here too), and its
+  // spaces, so the app here can move between them (docs/CANDLES.md)
+  mirrorAccount((await remote('GET', '/me')).user)
   setSetting('cloud.spaces', await remote('GET', '/spaces').catch(() => getSetting('cloud.spaces')))
   const theirs = new Map((await remote('GET', '/files')).files.map((f) => [f.path, f.sha]))
   const ours = new Map(files.list().map((f) => [f.path, f.sha]))
@@ -319,6 +358,7 @@ export function start() {
   if (!config() || timer) return
   timer = setInterval(() => syncNow().catch(() => {}), EVERY)
   syncNow().catch(() => {})
+  openSocket()
 }
 
 export function stop() {
@@ -326,4 +366,52 @@ export function stop() {
   timer = null
   clearTimeout(soon)
   soon = null
+  closeSocket()
+}
+
+// ---------- the server's live notices ----------
+
+// While signed in, the app here keeps the server's socket open: a change there
+// starts a round at once (instead of at the next half minute), and chat,
+// typing and who's online pass through to the window (ws.js).
+let socket = null
+let reconnect = null
+const RELAYED = new Set(['chat', 'channels', 'typing', 'presence'])
+
+function openSocket() {
+  const cfg = config()
+  if (!cfg || socket) return
+  const ws = new WebSocket(`${cfg.server.replace(/^http/, 'ws')}/ws`, { headers: { Cookie: `lumen_session=${tokenOf(cfg)}` } })
+  socket = ws
+  ws.on('message', (data) => {
+    let msg
+    try {
+      msg = JSON.parse(data.toString())
+    } catch {
+      return
+    }
+    if (msg.type === 'files') {
+      clearTimeout(soon)
+      soon = setTimeout(() => syncNow().catch(() => {}), 200)
+    } else if (RELAYED.has(msg.type)) cloudEvents.emit('relay', msg)
+  })
+  ws.on('error', () => {})
+  ws.on('close', () => {
+    if (socket !== ws) return
+    socket = null
+    // the server restarting, or the network gone: try again while still signed in
+    if (timer) reconnect = setTimeout(openSocket, 5000)
+  })
+}
+
+function closeSocket() {
+  clearTimeout(reconnect)
+  const ws = socket
+  socket = null
+  ws?.terminate()
+}
+
+/** Passes something from the window (typing) on to the server */
+export function sendToServer(msg) {
+  if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(msg))
 }

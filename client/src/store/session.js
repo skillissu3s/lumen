@@ -35,6 +35,14 @@ async function fetchInfo() {
 
 let backendInstance = null
 
+/**
+ * Is there an account here? On a server, always; in the desktop app, once it's
+ * signed in to a server. Chat, workspaces, sharing and usernames need one; the
+ * candle works without.
+ */
+export const hasAccount = (s) => s.mode === 'server' || (s.mode === 'desktop' && !!s.cloud?.linked)
+export const useHasAccount = () => useSession(hasAccount)
+
 export const useSession = create((set, get) => ({
   status: 'booting',
   mode: null,
@@ -67,8 +75,8 @@ export const useSession = create((set, get) => ({
     return user
   },
 
-  async setup({ email, name, password }) {
-    const { user } = await api('POST', '/setup', { email, name, password })
+  async setup({ email, name, handle, password }) {
+    const { user } = await api('POST', '/setup', { email, name, handle, password })
     set({ status: 'ready', mode: 'server', user })
     return user
   },

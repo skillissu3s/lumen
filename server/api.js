@@ -15,7 +15,7 @@ import * as spaces from './spaces.js'
 import { mailEnabled, sendMail, codeMail, inviteMail } from './mail.js'
 import { issueCode, checkCode } from './codes.js'
 import { readRepo } from './github/readRepo.js'
-import { publicStatus as cloudStatus } from './sync/replica.js'
+import { publicStatus as cloudStatus, account as cloudAccount } from './sync/replica.js'
 
 const DAY = 86400000
 const router = express.Router()
@@ -32,7 +32,12 @@ export const csrf = (req, res, next) => {
 export const loadUser = (req, res, next) => {
   req.user = userFromRequest(req)
   renewSessionCookie(req, res)
-  if (DESKTOP && req.user) req.user.desktop = true
+  if (DESKTOP && req.user) {
+    req.user.desktop = true
+    // signed in to a server: you are that account here too
+    const a = cloudAccount()
+    if (a) Object.assign(req.user, { email: a.email, needs_profile: a.needsProfile ? 1 : 0 })
+  }
   next()
 }
 
@@ -47,7 +52,7 @@ export function requireAdmin(req, res, next) {
   next()
 }
 
-const toUser = (u) => u && { id: u.id, email: u.email, handle: u.handle, name: u.name, role: u.role, color: u.color || null, avatar: u.avatar || null }
+const toUser = (u) => u && { id: u.id, email: u.email, handle: u.handle, name: u.name, role: u.role, color: u.color || null, avatar: u.avatar || null, ...(u.needs_profile ? { needsProfile: true } : {}) }
 
 // the colours an avatar can take (the item colours), and a photo small enough
 // to send with every list of people
@@ -95,7 +100,7 @@ router.get('/info', (req, res) => {
 router.post('/setup', async (req, res, next) => {
   try {
     if (countUsers() !== 0) throw new HttpError(403, 'Setup is done — ask an admin to invite you.')
-    const user = await createUser({ email: req.body?.email, name: req.body?.name, password: req.body?.password, role: 'admin' })
+    const user = await createUser({ email: req.body?.email, name: req.body?.name, handle: req.body?.handle, password: req.body?.password, role: 'admin' })
     await setUpAccount(user, { joinHome: true })
     const home = spaces.rename(files.homeSpaceId(), user, { name: `${user.name}'s workspace` })
     await seedWorkspace({ handle: user.handle, name: user.name, title: home.name, chat: true })
@@ -212,6 +217,7 @@ router.patch('/me', requireUser, async (req, res) => {
   if (color !== undefined) db.prepare('UPDATE users SET color = ? WHERE id = ?').run(color, req.user.id)
   if (avatar !== undefined) db.prepare('UPDATE users SET avatar = ? WHERE id = ?').run(avatar, req.user.id)
   if (handle !== undefined && handle !== req.user.handle) await files.renameHandle(req.user.handle, handle, () => db.prepare('UPDATE users SET handle = ? WHERE id = ?').run(handle, req.user.id))
+  if (name || handle !== undefined) db.prepare('UPDATE users SET needs_profile = 0 WHERE id = ?').run(req.user.id)
   res.json({ user: toUser(getUser(req.user.id)) })
 })
 
@@ -244,7 +250,7 @@ router.get('/invites/:token', (req, res) => {
 
 router.post('/invites/:token/accept', async (req, res, next) => {
   try {
-    const user = await acceptInvite(req.params.token, { name: req.body?.name, password: req.body?.password, email: req.body?.email })
+    const user = await acceptInvite(req.params.token, { name: req.body?.name, handle: req.body?.handle, password: req.body?.password, email: req.body?.email })
     await setUpAccount(user, { joinHome: true })
     res.json({ user: signIn(req, res, user) })
   } catch (e) {

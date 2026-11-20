@@ -11,7 +11,7 @@ import * as view from './view.js'
 import { spaceEvents, isCandle, roleIn } from './spaces.js'
 import { DMS, chatEvents, membersOf } from './chat.js'
 import { syncEvents, status as syncStatus } from './git.js'
-import { cloudEvents } from './sync/replica.js'
+import { cloudEvents, sendToServer } from './sync/replica.js'
 
 let wss = null
 let heartbeat = null
@@ -46,6 +46,9 @@ export function attachWs(httpServer) {
     for (const s of sockets) if (filter(s)) send(s.ws, obj)
   }
   const online = () => [...new Set([...sockets].map((s) => s.user.handle))]
+  // the desktop app has one person; who's online is the server's to say (relayed below)
+  let serverPresence = null
+  const announce = () => (DESKTOP ? null : broadcast({ type: 'presence', online: online() }))
 
   // a workspace's channel: you're in the workspace, and in the channel; a DM: you're one of the two
   const canSee = (user, space, members) => {
@@ -60,7 +63,8 @@ export function attachWs(httpServer) {
     // known: path → sha of every file this person was told about
     const entry = { ws, user, alive: true, known: new Map(view.list(user).map((f) => [f.path, f.sha])) }
     sockets.add(entry)
-    broadcast({ type: 'presence', online: online() })
+    announce()
+    if (DESKTOP && serverPresence) send(ws, serverPresence)
     if (user.role === 'admin') send(ws, { type: 'sync', status: syncStatus() })
 
     ws.on('pong', () => {
@@ -75,13 +79,15 @@ export function attachWs(httpServer) {
       }
       if (msg.type === 'ping') return send(ws, { type: 'pong' })
       const space = String(msg.space || DMS)
+      // the desktop app signed in to a server: chat lives there
+      if (DESKTOP && msg.type === 'typing' && msg.channel) return sendToServer({ type: 'typing', space, channel: String(msg.channel) })
       if (msg.type === 'typing' && msg.channel && canSeeChannel(user, space, msg.channel)) {
         broadcast({ type: 'typing', space, channel: msg.channel, handle: user.handle }, (s) => s !== entry && canSeeChannel(s.user, space, msg.channel))
       }
     })
     ws.on('close', () => {
       sockets.delete(entry)
-      broadcast({ type: 'presence', online: online() })
+      announce()
     })
     ws.on('error', () => {})
   })
@@ -148,6 +154,11 @@ export function attachWs(httpServer) {
 
   syncEvents.on('status', (st) => broadcast({ type: 'sync', status: st }, (s) => s.user.role === 'admin'))
   cloudEvents.on('status', (st) => broadcast({ type: 'cloud', status: st }))
+  // chat, typing and who's online, from the server the desktop app is signed in to
+  cloudEvents.on('relay', (msg) => {
+    if (msg.type === 'presence') serverPresence = msg
+    broadcast(msg)
+  })
 }
 
 export function closeWs() {

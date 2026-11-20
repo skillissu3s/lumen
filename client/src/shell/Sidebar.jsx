@@ -4,7 +4,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { CalendarDays, CircleAlert, CloudOff, FileText, Kanban, Lightbulb, MessagesSquare, PanelLeftClose, Plus, Search, Sun } from 'lucide-react'
 import { Button, ContextMenu, Dialog, IconBadge, Spinner, Tooltip } from '../components/ui/index.js'
-import { useSession } from '../store/session.js'
+import { useSession, useHasAccount } from '../store/session.js'
 import { useWorkspace } from '../store/workspace.js'
 import { useUI } from '../store/ui.js'
 import { useLists, useListsAcross, usePlugins } from '../store/hooks.js'
@@ -88,7 +88,7 @@ export function SyncStatus() {
 }
 
 export function Sidebar({ route, onNavigate, closed }) {
-  const mode = useSession((s) => s.mode)
+  const account = useHasAccount()
   // chat: a workspace's channels and your messages; in your candle, your messages
   const space = useCurrentSpace()
   const canMove = useCanMove()
@@ -145,7 +145,7 @@ export function Sidebar({ route, onNavigate, closed }) {
           <NavItem href="#/calendar" icon={CalendarDays} tint="blue" label="Calendar" active={at('/calendar')} />
           <NavItem href="#/ideas" icon={Lightbulb} tint="violet" label="Ideas" active={at('/ideas')} />
           <NavItem href="#/docs" icon={FileText} tint="teal" label="Docs" active={at('/docs')} />
-          {mode === 'server' && space.kind !== 'shared' && <NavItem href="#/chat" icon={MessagesSquare} tint="green" label="Chat" count={chatUnread} active={at('/chat')} />}
+          {account && space.kind !== 'shared' && <NavItem href="#/chat" icon={MessagesSquare} tint="green" label="Chat" count={chatUnread} active={at('/chat')} />}
         </div>
 
         <div className="nav-section">

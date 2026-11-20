@@ -204,6 +204,30 @@ test('the account’s spaces come down too, and what is only shared to view gets
   assert.match((await read(cloud, 'shared/bob/lists/bobs.md')).text, /- \[ \] his/)
 })
 
+test('signed in, the desktop app is the account: its name and email, making workspaces and chat go through the server', async () => {
+  // a new name on the web shows here after a round, candle and all
+  await api(cloud, 'PATCH', '/api/me', { name: 'Ada Lovelace' })
+  await syncNow()
+  const me = (await api(desk, 'GET', '/api/info')).user
+  assert.equal(me.name, 'Ada Lovelace')
+  assert.equal(me.email, 'ada@example.com')
+  assert.ok((await api(desk, 'GET', '/api/spaces')).spaces.some((s) => s.kind === 'candle' && s.name === 'Ada Lovelace’s candle'))
+  // and a new name here is the account's
+  await api(desk, 'PATCH', '/api/me', { name: 'Ada' })
+  assert.equal((await api(cloud, 'GET', '/api/me')).user.name, 'Ada')
+  assert.equal((await api(desk, 'GET', '/api/info')).user.name, 'Ada')
+  // a workspace made here is made on the server, and its files come down at once
+  const lab = (await api(desk, 'POST', '/api/spaces', { name: 'Lab' })).space
+  assert.ok((await api(cloud, 'GET', '/api/spaces')).spaces.some((s) => s.id === lab.id))
+  assert.ok((await paths(desk)).includes('workspaces/lab/lists/inbox.md'))
+  // its chat works from here
+  const { channels } = await api(desk, 'GET', `/api/chat/channels?space=${lab.id}`)
+  const general = channels.find((c) => c.name === 'general')
+  await api(desk, 'POST', '/api/chat/messages', { space: lab.id, channel: general.id, text: 'from the desktop' })
+  const { messages } = await api(cloud, 'GET', `/api/chat/messages?space=${lab.id}&channel=${general.id}`)
+  assert.ok(messages.some((m) => m.text === 'from the desktop' && m.from === 'ada'))
+})
+
 test('signing out leaves this computer its copy', async () => {
   const before = await paths(desk)
   const st = await api(desk, 'POST', '/api/desktop/cloud/logout')

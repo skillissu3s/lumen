@@ -65,6 +65,8 @@ CREATE TABLE IF NOT EXISTS codes (
 const userColumns = new Set(db.prepare('PRAGMA table_info(users)').all().map((c) => c.name))
 if (!userColumns.has('color')) db.exec('ALTER TABLE users ADD COLUMN color TEXT')
 if (!userColumns.has('avatar')) db.exec('ALTER TABLE users ADD COLUMN avatar TEXT')
+// 1: the account was made for someone (from ADMIN_EMAIL) and still has to choose its name and username
+if (!userColumns.has('needs_profile')) db.exec('ALTER TABLE users ADD COLUMN needs_profile INTEGER')
 
 export function getSetting(key, fallback = null) {
   const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key)

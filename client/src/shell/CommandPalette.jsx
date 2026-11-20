@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarDays, CalendarRange, CircleCheck, Command, FileText, Kanban, Lightbulb, MessagesSquare, Plus, Search, Settings, Sun } from 'lucide-react'
 import { useUI } from '../store/ui.js'
-import { useSession } from '../store/session.js'
+import { useHasAccount } from '../store/session.js'
 import { useAllItems, useDocs, useIdeas, useLists, usePlugins } from '../store/hooks.js'
 import { navigate } from '../lib/router.js'
 import { createDoc } from '../lib/actions.js'
@@ -33,7 +33,7 @@ export function CommandPalette() {
   const open = useUI((s) => s.paletteOpen)
   const close = useUI((s) => s.closePalette)
   const commandMap = useUI((s) => s.commandMap)
-  const mode = useSession((s) => s.mode)
+  const account = useHasAccount()
   const lists = useLists()
   const ideas = useIdeas()
   const docs = useDocs()
@@ -61,7 +61,7 @@ export function CommandPalette() {
       { section: 'Go to', label: 'Calendar', icon: CalendarDays, run: go('/calendar') },
       { section: 'Go to', label: 'Ideas', icon: Lightbulb, run: go('/ideas') },
       { section: 'Go to', label: 'Docs', icon: FileText, run: go('/docs') },
-      ...(mode === 'server' ? [{ section: 'Go to', label: 'Chat', icon: MessagesSquare, run: go('/chat') }] : []),
+      ...(account ? [{ section: 'Go to', label: 'Chat', icon: MessagesSquare, run: go('/chat') }] : []),
       { section: 'Go to', label: 'Settings', icon: Settings, run: go('/settings') },
       ...ideas.map((b) => ({ section: 'Idea boards', label: b.name, icon: iconByName(b.icon, Lightbulb), run: go(`/ideas/${b.id}`) })),
       ...lists.map((l) => ({ section: 'Boards', label: l.name, icon: iconByName(l.icon, Kanban), run: go(`/board/${l.id}`) })),
@@ -89,7 +89,7 @@ export function CommandPalette() {
       ...Object.values(commandMap).map((c) => ({ section: c.section || 'Commands', label: c.title, icon: Command, shortcut: c.shortcut, run: c.run })),
     ]
     return out
-  }, [lists, ideas, plugins, mode, commandMap])
+  }, [lists, ideas, plugins, account, commandMap])
 
   const results = useMemo(() => {
     const needle = q.trim().toLowerCase()

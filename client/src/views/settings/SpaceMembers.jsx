@@ -102,7 +102,9 @@ export default function SpaceMembers() {
       <Section title={`In ${space.name}`}>
         <div className="set-table">
           {members.map((u) => {
-            const canChange = u.id !== me?.id && u.role !== 'owner' && (space.role === 'owner' || (space.role === 'admin' && u.role === 'member'))
+            // by username: in the desktop app you are the server's account, not this computer's
+            const mine = u.handle === me?.handle
+            const canChange = !mine && u.role !== 'owner' && (space.role === 'owner' || (space.role === 'admin' && u.role === 'member'))
             return (
               <div key={u.id} className="set-table-row member">
                 <span className="member-who">
@@ -119,7 +121,7 @@ export default function SpaceMembers() {
                   </>
                 ) : (
                   <span className="faint">
-                    {u.id === me?.id ? 'You · ' : ''}
+                    {mine ? 'You · ' : ''}
                     {ROLE_NAME[u.role]}
                   </span>
                 )}
@@ -131,7 +133,7 @@ export default function SpaceMembers() {
       {space.role !== 'owner' && (
         <Section>
           <Row label="Leave this workspace" hint="You lose access to everything in it. Others keep working as before.">
-            <Button variant="danger" onClick={() => setRemoving(me)}>
+            <Button variant="danger" onClick={() => setRemoving(members.find((u) => u.handle === me?.handle) || me)}>
               Leave
             </Button>
           </Row>
@@ -141,8 +143,8 @@ export default function SpaceMembers() {
         open={!!removing}
         onClose={() => setRemoving(null)}
         size="sm"
-        title={removing?.id === me?.id ? `Leave ${space.name}?` : `Remove ${removing?.name}?`}
-        description={removing?.id === me?.id ? 'You can come back with a new invite link.' : 'They lose access right away. What they made stays in the workspace.'}
+        title={removing?.handle === me?.handle ? `Leave ${space.name}?` : `Remove ${removing?.name}?`}
+        description={removing?.handle === me?.handle ? 'You can come back with a new invite link.' : 'They lose access right away. What they made stays in the workspace.'}
         footer={
           <>
             <Button variant="ghost" onClick={() => setRemoving(null)}>
@@ -152,7 +154,7 @@ export default function SpaceMembers() {
               variant="danger"
               onClick={() =>
                 run(async () => {
-                  const leaving = removing.id === me?.id
+                  const leaving = removing.handle === me?.handle
                   await api('DELETE', `${base}/members/${removing.id}`)
                   setRemoving(null)
                   if (leaving) {
@@ -163,7 +165,7 @@ export default function SpaceMembers() {
                 })
               }
             >
-              {removing?.id === me?.id ? 'Leave' : 'Remove'}
+              {removing?.handle === me?.handle ? 'Leave' : 'Remove'}
             </Button>
           </>
         }
