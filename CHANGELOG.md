@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.10.0 — your name everywhere, and the desktop app as your account
 
 - **Your name and username, everywhere.** Making an account now asks for your
   name and a username together (the username follows the name until you
