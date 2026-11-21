@@ -36,6 +36,8 @@ let soon = null
 let running = null
 let again = false
 let pending = null // a sign-in waiting for the person's choice: { server, token, user }
+// the first round after a server lost its data: this computer's copy is the real one
+let restoringRound = false
 let status = { state: 'off', lastSync: null, lastError: null, conflicts: [], refused: [] }
 
 const config = () => getSetting('cloud')
@@ -150,7 +152,7 @@ const restoring = (server, user) => {
 function signedIn(server, r) {
   if (!r.token || !r.json?.user) throw new RemoteError('The server didn’t sign you in.', 502)
   const restore = restoring(server, r.json.user)
-  pending = { server, token: r.token, user: r.json.user, restore }
+  pending = { server, token: r.token, user: r.json.user, restore, before: restore ? config().user : null }
   const resume = resuming(server, r.json.user)
   return { user: r.json.user, resume, restore, hasOwnData: !resume && !restore && hasOwnData() }
 }
@@ -201,7 +203,7 @@ async function backup() {
  */
 export async function link({ keep = 'server' } = {}) {
   if (!pending) throw new RemoteError('Sign in first.', 400)
-  const { server, token, user, restore } = pending
+  const { server, token, user, restore, before } = pending
   pending = null
   let backedUp = null
   if (!resuming(server, user)) {
@@ -216,6 +218,14 @@ export async function link({ keep = 'server' } = {}) {
   mirrorAccount(user)
   setSetting('desktop.mode', { mode: 'cloud', server })
   status = { state: 'idle', lastSync: null, lastError: null, conflicts: [], refused: [] }
+  if (restore) {
+    // the new account takes the name and username it had, instead of asking again
+    if (user.needsProfile && before?.name && before?.handle) {
+      const r = await remote('PATCH', '/me', { name: before.name, handle: before.handle }).catch(() => null)
+      if (r?.user) mirrorAccount(r.user)
+    }
+    restoringRound = true
+  }
   start()
   await syncNow()
   return { ...publicStatus(), backedUp, ...(restore ? { restored: true } : {}) }
@@ -281,14 +291,38 @@ async function round() {
     const localChanged = lsha !== (b?.local_sha ?? null)
     if (remoteChanged || localChanged) plan.push({ p, b, rsha, lsha, remoteChanged, localChanged })
   }
+  // putting a server that lost its data back: what it made fresh (its first
+  // tasks and welcome doc) gives way to what this computer has, and what it made
+  // in your candle that you don't have here goes. Workspaces may hold others'
+  // work, so nothing there is removed.
+  const restore = restoringRound
+  restoringRound = false
+  if (restore) {
+    for (const x of plan) {
+      if (x.b || !x.rsha) continue
+      if (x.lsha) x.preferLocal = true
+      else if (!/^(workspaces|shared)\//.test(x.p)) x.dropRemote = true
+    }
+  }
   if (!plan.length) return { changed: 0 }
   const texts = await readRemote(plan.filter((x) => x.rsha && x.remoteChanged).map((x) => x.p))
   const conflicts = []
   const refused = []
   const failed = []
-  for (const { p, b, rsha, lsha, remoteChanged, localChanged } of plan) {
+  for (const { p, b, rsha, lsha, remoteChanged, localChanged, preferLocal, dropRemote } of plan) {
     try {
       const rtext = rsha ? texts[p]?.text ?? null : null
+      if (dropRemote) {
+        await remote('DELETE', '/files', { path: p, sha: rsha })
+        continue
+      }
+      if (preferLocal) {
+        const ltext = await localText(p)
+        if (ltext != null) {
+          await push(p, ltext, rsha)
+          continue
+        }
+      }
       if (remoteChanged && !localChanged) {
         if (rsha && rtext != null) saveBase(p, rtext, rsha, await writeLocal(p, rtext))
         else if (!rsha) {

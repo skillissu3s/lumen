@@ -12,6 +12,7 @@ import { withFrontMatter, splitFrontMatter } from '../../shared/frontmatter.js'
 import { addDays, todayIso, isIsoDate } from '../../shared/dates.js'
 import { DEFAULT_COLUMNS, boardOf } from '../../shared/board.js'
 import { ToolError } from './protocol.js'
+import { reaches } from '../agents.js'
 import { target, readAt, editAt, removeAt, spacesFor, prefixFor, filesFor, itemsFor, kindOf, placeOf } from './tree.js'
 
 const STATUS = { ' ': 'open', '/': 'in_progress', x: 'done', X: 'done', '-': 'cancelled' }
@@ -158,14 +159,21 @@ async function itemAt(user, path, id) {
 }
 
 /** A workspace as the agent names it (name, prefix or id) → the chat place; nothing → direct messages */
-function chatPlace(user, workspace) {
+function chatPlace(user, workspace, need = 'read') {
   if (DESKTOP) throw new ToolError('Chat is only on a Lumen server.')
-  if (workspace == null || workspace === '' || workspace === chat.DMS) return chat.DMS
-  const { spaces } = spacesFor(user)
-  const m = spaces.find((s) => s.space === workspace) || spaces.find((s) => s.prefix === prefixFor(user, workspace))
-  if (m.kind !== 'workspace') throw new ToolError('Chat channels belong to a workspace; leave workspace out for direct messages.')
-  return m.space
+  let place = chat.DMS
+  if (workspace != null && workspace !== '' && workspace !== chat.DMS) {
+    const { spaces } = spacesFor(user)
+    const m = spaces.find((s) => s.space === workspace) || spaces.find((s) => s.prefix === prefixFor(user, workspace))
+    if (m.kind !== 'workspace') throw new ToolError('Chat channels belong to a workspace; leave workspace out for direct messages.')
+    place = m.space
+  }
+  if (!reaches(chatLevel(user, place), need)) throw new ToolError(`This agent may not ${need === 'read' ? 'read' : 'write in'} ${place === chat.DMS ? 'your direct messages' : 'that workspace’s chat'}. The person can change that in Lumen under Settings → AI agents.`)
+  return place
 }
+
+// direct messages are their own place an agent may or may not reach
+const chatLevel = (user, place) => (user.reach ? user.reach(place) : 'full')
 
 async function update(a, { user }) {
   const { events } = await itemAt(user, a.path, a.id)
@@ -528,7 +536,9 @@ export const tools = [
     annotations: READ,
     run: async (a, { user }) => {
       const names = new Map(spacesFor(user).spaces.map((s) => [s.space, s.name]))
-      const channels = await chat.listChannels(user, chatPlace(user, a.workspace))
+      const place = chatPlace(user, a.workspace)
+      // direct messages come with every list; only the ones this agent may read
+      const channels = (await chat.listChannels(user, place)).filter((c) => reaches(chatLevel(user, c.space), 'read'))
       return { channels: channels.map((c) => drop({ id: c.id, name: c.name, workspace: c.dm ? undefined : names.get(c.space), direct: c.dm || undefined, members: c.members, unread: c.unread })) }
     },
   },
@@ -548,7 +558,7 @@ export const tools = [
     description: 'Posts a message in a channel, as you. People see it at once.',
     inputSchema: schema({ channel: str('Channel id from list_channels'), workspace: str('Its workspace (leave out for a direct message)'), text: str('The message') }, ['channel', 'text']),
     annotations: { ...ADD, openWorldHint: true },
-    run: async (a, { user }) => ({ sent: await chat.postMessage(user, chatPlace(user, a.workspace), String(a.channel), a.text) }),
+    run: async (a, { user }) => ({ sent: await chat.postMessage(user, chatPlace(user, a.workspace, 'edit'), String(a.channel), a.text) }),
   },
 
   // ---------- deleting (an agent needs full access) ----------
@@ -561,7 +571,7 @@ export const tools = [
     annotations: DELETE,
     run: async (a, { user }) => {
       const { item, events } = await itemAt(user, a.path, a.id)
-      await editAt(user, a.path, (text) => removeItem(text, String(a.id), { events }).text)
+      await editAt(user, a.path, (text) => removeItem(text, String(a.id), { events }).text, { need: 'full' })
       return { deleted: itemOut({ ...item, path: a.path }) }
     },
   },

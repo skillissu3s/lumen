@@ -94,6 +94,8 @@ router.get('/info', (req, res) => {
     ...(DESKTOP && !getSetting('desktop.mode') ? { desktopChoice: true } : {}),
     // and when it's signed in to one, how keeping in step with it is going
     ...(DESKTOP && req.user ? { cloud: cloudStatus() } : {}),
+    // when this server's database was made: an admin hears of it, in case it had data before
+    ...(!DESKTOP && req.user?.role === 'admin' && getSetting('server.freshAt') ? { freshAt: getSetting('server.freshAt') } : {}),
   })
 })
 

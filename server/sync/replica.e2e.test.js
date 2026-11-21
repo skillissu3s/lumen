@@ -231,6 +231,8 @@ test('signed in, the desktop app is the account: its name and email, making work
 test('a server that lost its data gets this computer’s copy back when you sign in again', async () => {
   await api(desk, 'PUT', '/api/files', { path: 'lists/keep-me.md', text: '---\nname: Keep me\nowner: ada\n---\n- [ ] Still here\n', sha: null })
   await syncNow()
+  const inbox = (await read(desk, 'lists/inbox.md')).text
+  const copies = (await paths(desk)).filter((p) => p.includes('(this computer)')).length
   // the server starts again from an empty data folder: the same email is a new account
   cloud.child.kill()
   await sleep(300)
@@ -247,6 +249,11 @@ test('a server that lost its data gets this computer’s copy back when you sign
   assert.equal(linked.restored, true)
   assert.ok((await paths(desk)).includes('lists/keep-me.md'))
   await until(async () => /Still here/.test((await read(cloud, 'lists/keep-me.md'))?.text || ''), 'the board back on the server')
+  // what the empty server made fresh gives way: no second set of first tasks, no copies beside them
+  assert.equal((await read(cloud, 'lists/inbox.md')).text, inbox)
+  assert.equal((await read(desk, 'lists/inbox.md')).text, inbox)
+  assert.equal((await paths(desk)).filter((p) => p.includes('(this computer)')).length, copies)
+  assert.deepEqual((await paths(cloud)).filter((p) => !p.startsWith('workspaces/')), (await paths(desk)).filter((p) => !p.startsWith('workspaces/') && !p.startsWith('shared/')))
 })
 
 test('signing out leaves this computer its copy', async () => {

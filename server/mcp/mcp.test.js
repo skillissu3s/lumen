@@ -241,6 +241,31 @@ test('deleting needs full access, and a read-only agent only looks', async () =>
   assert.match((await tool(reader, 'add_task', { title: 'x' })).error, /only look/)
 })
 
+test('per space: an agent reaches only the spaces it was given, each at its own level', async () => {
+  const candle = (await call(ada, 'GET', '/api/spaces')).json.spaces.find((s) => s.kind === 'candle')
+  const { token } = (await call(ada, 'POST', '/api/me/agents', { name: 'Planner', access: 'edit', scopes: { [candle.id]: 'read', [crew.id]: 'edit' } })).json
+  const { spaces } = await tool(token, 'list_spaces')
+  assert.deepEqual(spaces.map((s) => [s.prefix, s.agent_may]).sort(), [['', 'read'], ['workspaces/crew/', 'edit']])
+  // looks in the candle, changes only in Crew
+  assert.ok((await tool(token, 'list_tasks', { status: 'all' })).tasks.length > 0)
+  assert.match((await tool(token, 'add_task', { title: 'Not here' })).error, /may not change your candle/)
+  const plan = (await tool(token, 'create_board', { name: 'Scoped', space: 'Crew' })).created
+  assert.equal((await tool(token, 'add_task', { title: 'Here', board: plan })).added.path, plan)
+  // a workspace left out is out of sight
+  const narrow = (await call(ada, 'POST', '/api/me/agents', { name: 'Crew only', access: 'read', scopes: { [crew.id]: 'read' } })).json
+  assert.ok((await tool(narrow.token, 'list_files')).files.every((f) => f.path.startsWith('workspaces/crew/')))
+  assert.match((await tool(narrow.token, 'read_file', { path: 'lists/inbox.md' })).error, /Nothing you can see/)
+  // chat follows the same: no direct messages unless given, and reading isn't writing
+  const { channels } = await tool(narrow.token, 'list_channels', { workspace: 'Crew' })
+  assert.ok(channels.length && channels.every((c) => !c.direct))
+  const general = channels.find((c) => c.name === 'general')
+  assert.match((await tool(narrow.token, 'list_channels')).error || '', /direct messages/)
+  // changing the spaces later takes effect at once
+  await call(ada, 'PATCH', `/api/me/agents/${narrow.agent.id}`, { scopes: null, access: 'edit' })
+  assert.ok((await tool(narrow.token, 'send_message', { workspace: 'Crew', channel: general.id, text: 'widened' })).sent)
+  await assert.rejects(call(ada, 'POST', '/api/me/agents', { name: 'Bad', access: 'edit', scopes: { nowhere: 'edit' } }), /Unknown space/)
+})
+
 test('chat: channels of a workspace, reading and sending', async () => {
   const { token } = await agent('edit')
   const { channels } = await tool(token, 'list_channels', { workspace: 'Crew' })

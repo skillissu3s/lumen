@@ -30,8 +30,8 @@ once a day of use renews it and sends the cookie again.
 | `DELETE /api/me/sessions` | — | ends every session but this one → `{ ended }` |
 | `PATCH /api/me` | `{ name?, handle?, color?, avatar? }` | a new name renames your candle; setting a name or username ends `needsProfile` → `{ user }` |
 | `GET /api/me/agents` | — | `{ agents: [{ id, name, access, createdAt, lastUsedAt }], url }` (`url`: the MCP address) |
-| `POST /api/me/agents` | `{ name, access }` | `access`: `read`, `edit` or `full` → `{ token, agent, url }`; the token is only ever returned here |
-| `PATCH /api/me/agents/:id` | `{ name?, access? }` | `{ agent }` |
+| `POST /api/me/agents` | `{ name, access, scopes? }` | `access`: `read`, `edit` or `full`; `scopes`: null (every space at `access`) or `{ <space id> \| "shared" \| "dm": level }` → `{ token, agent, url }`; the token is only ever returned here |
+| `PATCH /api/me/agents/:id` | `{ name?, access?, scopes? }` | `{ agent }` |
 | `DELETE /api/me/agents/:id` | — | the token stops working → `{ ok }` |
 | `POST /api/me/password` | `{ current, next }` | `{ ok: true }` |
 | `GET /api/invites/:token` | — | `{ email \| null, role }` or 410 |

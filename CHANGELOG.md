@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- **AI agents, space by space.** Give an agent all your spaces at one level,
+  or choose spaces one by one: look only in your candle, change and delete in
+  a workspace, nothing in another, and separately what's shared with you and
+  your direct messages. Change it any time; it applies to the agent's next
+  request.
+- **Signing in again to a server that lost its data no longer starts over.**
+  The desktop app puts your work back as it was: no second set of first tasks
+  and welcome doc, no "(this computer)" copies, and your name and username are
+  set again without asking.
+- **Admins are told when the server started with an empty database**, the
+  reason everyone is signed out and asked for their name after an update.
+
 ## 0.10.1 — sync that keeps going, and a server that gets its data back
 
 - **Sync keeps going past a file it can't handle.** One file the desktop app

@@ -7,6 +7,21 @@ import { ConflictError } from '../files.js'
 import { canReadAt, writeProblemAt, metaOf } from '../access.js'
 import { parseItems, flatItems, ItemMissingError } from '../../shared/items.js'
 import { ToolError } from './protocol.js'
+import { reaches } from '../agents.js'
+
+const NEEDS = { read: 'look at', edit: 'change', full: 'delete in' }
+
+/** The key an agent's reach is kept under: a space's id, or 'shared' for what others share */
+const keyOf = (t) => (t.shared ? 'shared' : t.space)
+/** What the agent may do there; a person without an agent may do everything their access allows */
+export const levelAt = (user, t) => (user.reach ? user.reach(keyOf(t)) : 'full')
+
+/** The space name a refusal can say */
+function spaceNameOf(user, t, cache) {
+  if (t.shared) return 'what’s shared with you'
+  const m = (cache?.mounts || view.mounts(user)).find((x) => x.space === t.space)
+  return m?.kind === 'candle' ? 'your candle' : m?.name || 'that space'
+}
 
 const PLACE = /^(workspaces|shared)\/[^/]+\//
 /** The tree prefix a path sits under: '' (your candle), 'workspaces/<slug>/' or 'shared/<owner>/' */
@@ -23,12 +38,16 @@ export function kindOf(path) {
 }
 export const isItemFile = (path) => ['board', 'calendar'].includes(kindOf(path))
 
-/** A path in the person's tree → where it lives, or a ToolError saying why not */
-export function target(user, raw, cache) {
+/**
+ * A path in the person's tree → where it lives, or a ToolError saying why not:
+ * nothing there, or (`need`: read, edit or full) not this agent's to do there.
+ */
+export function target(user, raw, cache, need = 'read') {
   const p = files.cleanPath(raw)
   if (!p) throw new ToolError(`That isn’t a valid path: ${raw}`)
   const t = view.resolve(user, p, cache)
-  if (!t || !canReadAt(t, t.path)) throw new ToolError(`Nothing you can see is at ${p}. list_files gives the paths.`)
+  if (!t || !canReadAt(t, t.path) || !levelAt(user, t)) throw new ToolError(`Nothing you can see is at ${p}. list_files gives the paths.`)
+  if (!reaches(levelAt(user, t), need)) throw new ToolError(`This agent may not ${NEEDS[need]} ${spaceNameOf(user, t, cache)}. The person can change that in Lumen under Settings → AI agents.`)
   return { ...t, view: p }
 }
 
@@ -49,8 +68,8 @@ const refusals = (user, t, text) => (cur) => {
  * changed it in between (else read again and redone). `create`: a missing
  * file starts empty. `sha`: the version the agent read; anything newer refuses.
  */
-export async function editAt(user, path, fn, { create = false, sha } = {}) {
-  const t = target(user, path)
+export async function editAt(user, path, fn, { create = false, sha, need = 'edit' } = {}) {
+  const t = target(user, path, undefined, need)
   const place = files.space(t.space)
   for (let i = 0; i < 5; i++) {
     const cur = await place.read(t.path)
@@ -75,7 +94,7 @@ export async function editAt(user, path, fn, { create = false, sha } = {}) {
 }
 
 export async function removeAt(user, path) {
-  const t = target(user, path)
+  const t = target(user, path, undefined, 'full')
   const r = await files.space(t.space).remove(t.path, { check: refusals(user, t, null), by: user.handle })
   if (!r.deleted) throw new ToolError(`Nothing is at ${t.view}.`)
   return { path: t.view }
@@ -84,9 +103,10 @@ export async function removeAt(user, path) {
 /** The person's spaces: [{ prefix, name, kind, role }] and what's shared with them */
 export function spacesFor(user) {
   const cache = view.lookups(user)
+  const level = (key) => (user.reach ? user.reach(key) : 'full')
   return {
-    spaces: cache.mounts.map((m) => ({ prefix: m.prefix, name: m.kind === 'candle' ? m.name || 'Your candle' : m.name, kind: m.kind, role: m.role, slug: m.slug, space: m.space })),
-    shared: cache.shared.map((s) => ({ path: `${s.prefix}${s.path}`, owner: s.owner, can: s.can })),
+    spaces: cache.mounts.filter((m) => level(m.space)).map((m) => ({ prefix: m.prefix, name: m.kind === 'candle' ? m.name || 'Your candle' : m.name, kind: m.kind, role: m.role, slug: m.slug, space: m.space, ...(user.reach ? { agent_may: level(m.space) } : {}) })),
+    shared: level('shared') ? cache.shared.map((s) => ({ path: `${s.prefix}${s.path}`, owner: s.owner, can: s.can })) : [],
   }
 }
 
@@ -101,8 +121,14 @@ export function prefixFor(user, name) {
   return found.prefix
 }
 
-/** Every file the person can see, in their tree */
-export const filesFor = (user) => view.list(user)
+/** Every file the person can see, in their tree, in the spaces this agent may look at */
+export function filesFor(user) {
+  const cache = view.lookups(user)
+  return view.list(user, cache).filter((f) => {
+    const t = view.resolve(user, f.path, cache)
+    return t && levelAt(user, t)
+  })
+}
 
 /** Items of boards and calendars, each with its path and the file's name: `only` keeps some files */
 export async function itemsFor(user, only = () => true) {
@@ -111,7 +137,8 @@ export async function itemsFor(user, only = () => true) {
   for (const f of view.list(user, cache)) {
     if (!isItemFile(f.path) || !only(f.path)) continue
     const t = view.resolve(user, f.path, cache)
-    const r = t && (await files.space(t.space).read(t.path))
+    if (!t || !levelAt(user, t)) continue
+    const r = await files.space(t.space).read(t.path)
     if (!r) continue
     const events = kindOf(f.path) === 'calendar'
     const parsed = parseItems(r.text, { events })

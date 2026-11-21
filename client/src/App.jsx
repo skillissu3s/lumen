@@ -1,6 +1,7 @@
 // Boot: find out where we are (a Lumen server, or the desktop app's own), sign
 // in, load the workspace, then show the app. Nothing shows before signing in.
 import { useEffect } from 'react'
+import { useUI } from './store/ui.js'
 import { useSession } from './store/session.js'
 import { useWorkspace } from './store/workspace.js'
 import { rememberedSpace } from './store/spaces.js'
@@ -44,6 +45,21 @@ export default function App() {
     return () => off?.()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, mode, user?.handle])
+
+  // an admin hears once that the server started with an empty database
+  useEffect(() => {
+    const at = useSession.getState().info?.freshAt
+    if (status !== 'ready' || !at) return
+    const key = `lumen.fresh.${at}`
+    try {
+      if (localStorage.getItem(key)) return
+      localStorage.setItem(key, '1')
+    } catch {
+      /* storage unavailable: say it anyway */
+    }
+    const day = new Date(at).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })
+    useUI.getState().toast(`This server started with an empty database on ${day}. If it had data before, its data folder isn’t kept between updates: see “Self-hosted” in the README.`, { tone: 'danger', timeout: 600000 })
+  }, [status])
 
   useEffect(() => applyTheme(prefs), [prefs.theme, prefs.palette, prefs.accent, prefs.density]) // eslint-disable-line react-hooks/exhaustive-deps
 

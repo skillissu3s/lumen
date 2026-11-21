@@ -59,6 +59,14 @@ in Settings → AI agents.
 | `edit` | Look and change | also adding, changing, moving and chat |
 | `full` | Change and delete | also deleting tasks, events and files |
 
+**Per space.** Instead of one level everywhere, a token can be given chosen
+spaces, each at its own level: look only in your candle, change and delete in
+one workspace, nothing in another. "Shared with you" (what others share) and
+"Direct messages" are chosen the same way. A space left out is out of sight:
+the agent doesn't see its files, tasks or chat at all. A workspace you join
+later isn't reached until you add it. Set this when making the token, or with
+**Change** beside it.
+
 A tool the token can't use is left out of the agent's tool list, and calling
 it anyway says how to allow it. Tools are marked as reading, adding or
 destructive, so an app like Claude asks you before running the destructive

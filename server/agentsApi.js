@@ -13,9 +13,9 @@ const mcpUrl = (req) => `${(!DESKTOP && PUBLIC_URL) || `${req.protocol}://${req.
 
 agentsRouter.get('/me/agents', (req, res) => res.json({ agents: listTokens(req.user.id), url: mcpUrl(req) }))
 
-agentsRouter.post('/me/agents', (req, res) => res.json({ ...createToken(req.user, { name: req.body?.name, access: req.body?.access }), url: mcpUrl(req) }))
+agentsRouter.post('/me/agents', (req, res) => res.json({ ...createToken(req.user, { name: req.body?.name, access: req.body?.access, scopes: req.body?.scopes }), url: mcpUrl(req) }))
 
-agentsRouter.patch('/me/agents/:id', (req, res) => res.json({ agent: updateToken(req.user.id, req.params.id, { name: req.body?.name, access: req.body?.access }) }))
+agentsRouter.patch('/me/agents/:id', (req, res) => res.json({ agent: updateToken(req.user.id, req.params.id, { name: req.body?.name, access: req.body?.access, scopes: req.body?.scopes }) }))
 
 agentsRouter.delete('/me/agents/:id', (req, res) => {
   revokeToken(req.user.id, req.params.id)

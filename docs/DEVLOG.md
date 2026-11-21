@@ -793,3 +793,22 @@ settable right on a card; drop the calendar's New button.
   listed but didn't read threw a TypeError that stopped the whole round with
   no file named. Reads are guarded, and an unexpected error on one file is
   logged with its path and reported, while the rest syncs.
+
+### Agents per space, and putting a lost server back cleanly
+- Agent tokens gained `scopes`: null keeps the old meaning (every space at
+  `access`); otherwise a level per space id, plus `shared` and `dm`. tree.js
+  checks the level for every read, change and delete (`target(…, need)`) and
+  filters what lists and searches see; chat checks the workspace or `dm`. The
+  tool list follows the highest level the token has anywhere.
+- The first try's "highest level" reduced from null and never rose (a
+  comparison with `RANK[null]`), so a token with chosen spaces could do
+  nothing. Caught by the new test.
+- The server reset again on the user's next update (a new account id once
+  more), so the restore from 0.10.1 ran for real and showed its rough edges:
+  the empty server's fresh seed (inbox, welcome doc) merged with this
+  computer's into "(this computer)" copies, and the account asked for a name
+  again. The restoring round now pushes this computer's version over anything
+  the fresh server made, removes what it made in the candle that this
+  computer doesn't have, and sets the old name and username on the new account.
+- Admins see a notice when the server's database is new (`server.freshAt`),
+  since the log alone went unread.

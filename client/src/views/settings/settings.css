@@ -429,6 +429,19 @@
   background: none;
   font-size: var(--fs-sm);
 }
+.agent-form {
+  display: grid;
+  gap: 12px;
+  max-width: 520px;
+}
+.agent-reach {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+.agent-places {
+  width: 100%;
+}
 .agent-made {
   margin-top: 12px;
 }
