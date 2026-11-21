@@ -159,11 +159,11 @@ export default function AgentSettings() {
             <p className="setting-desc">Copy the token now: Lumen won’t show it again.</p>
             <Copyable text={made.token} label="Token" />
             <p className="setting-desc">For Claude Code, run this in a terminal:</p>
-            <Copyable text={`claude mcp add --transport http lumen ${made.url} --header "X-Lumen-Token: ${made.token}"`} label="Command" />
+            <Copyable text={`claude mcp add --transport http lumen ${made.url} --header "X-Token: ${made.token}"`} label="Command" />
           </div>
         )}
       </Section>
-      <Section title="Address" description="Agents that take a URL connect here, with the token in a header named X-Lumen-Token (or Authorization: Bearer, where an app allows it).">
+      <Section title="Address" description="Agents that take a URL connect here, with the token in a header named X-Token. X-API-Key works too, and so does Authorization: Bearer, where an app allows it.">
         <Copyable text={url} label="Address" />
       </Section>
       <Section title="Connected agents">

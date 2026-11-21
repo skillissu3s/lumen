@@ -26,7 +26,7 @@ async function pass(line) {
   try {
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream', 'x-lumen-token': token },
+      headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream', 'x-token': token },
       body: JSON.stringify(msg),
     })
     if (res.status === 202) return

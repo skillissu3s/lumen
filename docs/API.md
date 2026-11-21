@@ -149,7 +149,7 @@ sends typing on.
 ## MCP `/mcp`
 
 The Model Context Protocol for AI agents ([MCP.md](MCP.md)): JSON-RPC 2.0 in a
-`POST /mcp` with `X-Lumen-Token: <agent token>` (or `Authorization: Bearer <agent token>`), answered with JSON
+`POST /mcp` with `X-Token: <agent token>` (or `X-API-Key`, or `Authorization: Bearer <agent token>`), answered with JSON
 (202 for notifications). No session, no stream: `GET` answers 405. A request
 with an `Origin` from another site is refused. `GET /mcp/stdio.js` serves the
 stdio bridge.

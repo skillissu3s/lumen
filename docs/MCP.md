@@ -16,7 +16,7 @@ once, like anyone else's.
 **Claude Code** (the command is on the settings page, ready to copy):
 
 ```bash
-claude mcp add --transport http lumen https://lumen.example.com/mcp --header "X-Lumen-Token: lumen_…"
+claude mcp add --transport http lumen https://lumen.example.com/mcp --header "X-Token: lumen_…"
 ```
 
 Add `--scope user` to have it in every project. Then ask, for example, "what's
@@ -42,8 +42,9 @@ It needs Node 18 or newer and nothing else.
 
 **Anything else** that speaks MCP over HTTP: the address is your server with
 `/mcp` (shown on the settings page), and the token goes in an
-`X-Lumen-Token` header. `Authorization: Bearer lumen_…` works too, for apps
-that let you set it; many keep that header for their own sign-in.
+`X-Token` header. `X-API-Key` works too, for apps that only offer a few
+header names, and `Authorization: Bearer lumen_…` for apps that let you set it
+(many keep that header for their own sign-in).
 
 On the desktop app the address is the app's own local server
 (`http://127.0.0.1:7720/mcp` or the next free port) and works while the app is
@@ -112,7 +113,7 @@ shared core's text functions, so the files stay exactly as the app writes them.
                 │  JSON-RPC 2.0: initialize → tools/list → tools/call
                 │  (Claude Desktop: through stdio.js, which turns lines into POSTs)
                 ▼
-  POST https://your-server/mcp        X-Lumen-Token: lumen_…
+  POST https://your-server/mcp        X-Token: lumen_…
                 │
                 ▼
  server/mcp/routes.js ── the token → you + its level (server/agents.js)

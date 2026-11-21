@@ -99,11 +99,13 @@ export function revokeToken(userId, id) {
   if (!r.changes) throw new HttpError(404, 'No such agent.')
 }
 
-// the token as an agent sends it: `X-Lumen-Token: lumen_…`, or
-// `Authorization: Bearer lumen_…` for apps that let you set that header
+// the token as an agent sends it: in X-Token, or one of the other headers apps
+// allow (some won't take a custom name, some keep Authorization for their own
+// sign-in), or as `Authorization: Bearer lumen_…`
+const TOKEN_HEADERS = ['x-token', 'x-api-key', 'x-lumen-token']
 function tokenOf(req) {
   const bearer = /^Bearer\s+(\S+)$/i.exec(String(req.headers.authorization || ''))?.[1]
-  const t = String(req.headers['x-lumen-token'] || bearer || '').trim()
+  const t = String(TOKEN_HEADERS.map((h) => req.headers[h]).find(Boolean) || bearer || '').trim()
   return t.startsWith(PREFIX) ? t : null
 }
 
