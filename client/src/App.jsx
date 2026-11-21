@@ -11,6 +11,7 @@ import { connectSocket, onSocket } from './lib/socket.js'
 import { AcceptInvite, BootError, BootScreen, DesktopWelcome, FinishProfile, ForgotPassword, NoServer, SignIn, Setup } from './auth/AuthScreens.jsx'
 import { AppShell } from './shell/AppShell.jsx'
 import JoinPage, { pendingJoin } from './auth/JoinPage.jsx'
+import AuthorizePage, { pendingAuthorize, rememberAuthorize } from './auth/AuthorizePage.jsx'
 
 const AUTH_ROUTES = ['signin', 'setup', 'invite', 'forgot']
 
@@ -42,6 +43,9 @@ export default function App() {
     // a workspace link opened before signing in carries on now
     const join = pendingJoin()
     if (join) navigate(`/join/${join}`, { replace: true })
+    // an app asked to connect while you were signed out: back to its approval
+    const authorize = pendingAuthorize()
+    if (authorize) navigate(authorize, { replace: true })
     return () => off?.()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, mode, user?.handle])
@@ -82,6 +86,7 @@ export default function App() {
     if (first === 'join' && second && mode === 'server') return <JoinPage token={second} />
     if (status === 'needs-setup') return <Setup />
     if (first === 'forgot' && mode === 'server') return <ForgotPassword />
+    if (first === 'authorize') rememberAuthorize()
     return <SignIn />
   }
 
@@ -89,5 +94,6 @@ export default function App() {
   if (wsStatus === 'error') return <BootError message={wsError} onRetry={() => useWorkspace.getState().load()} />
   if (wsStatus !== 'ready') return <BootScreen />
   if (route.parts[0] === 'join' && route.parts[1]) return <JoinPage token={route.parts[1]} />
+  if (route.parts[0] === 'authorize') return <AuthorizePage query={route.query} />
   return <AppShell route={route} />
 }

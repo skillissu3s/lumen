@@ -1314,3 +1314,11 @@ body.is-col-resizing * {
   justify-content: flex-start;
   gap: 10px;
 }
+
+/* an app asking to connect as an AI agent: room for the space picker */
+.authorize-card {
+  max-width: 460px;
+}
+.authorize-reach {
+  margin: 4px 0 16px;
+}

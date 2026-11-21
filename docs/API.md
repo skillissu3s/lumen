@@ -154,6 +154,19 @@ The Model Context Protocol for AI agents ([MCP.md](MCP.md)): JSON-RPC 2.0 in a
 with an `Origin` from another site is refused. `GET /mcp/stdio.js` serves the
 stdio bridge.
 
+## OAuth (apps connecting as an AI agent; servers only)
+
+| | | |
+|---|---|---|
+| `GET /.well-known/oauth-protected-resource` (`/mcp` too) | — | `{ resource, authorization_servers }` |
+| `GET /.well-known/oauth-authorization-server` | — | the endpoints below, PKCE S256, `authorization_code` and `refresh_token` |
+| `POST /oauth/register` | `{ client_name, redirect_uris, token_endpoint_auth_method? }` | 201 `{ client_id, client_secret? … }`; redirects must be https, an app scheme, or loopback http |
+| `GET /oauth/authorize` | `response_type=code, client_id, redirect_uri, code_challenge, code_challenge_method=S256, state` | 302 to `/app.html#/authorize?…`; an unknown app or redirect is a 400 page |
+| `POST /oauth/token` | form or JSON: `grant_type=authorization_code` (`code, code_verifier, client_id`) or `refresh_token` | `{ access_token, token_type, expires_in, refresh_token }` |
+| `POST /oauth/revoke` | `token` | 200 |
+| `GET /api/oauth/request?…` | (signed in) the approval's query | `{ client: { name, host } }` |
+| `POST /api/oauth/request` | (signed in) `{ ask, allow, access, scopes }` | `{ redirect }` back to the app, with `code` or `error=access_denied` |
+
 ## WebSocket `/ws`
 
 Authenticated by the session cookie. Server → client (JSON per frame):

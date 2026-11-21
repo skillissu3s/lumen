@@ -820,3 +820,20 @@ settable right on a card; drop the calendar's New button.
   `workspace-2`, `workspace-3`… since slugs of deleted spaces stay taken. The
   home is now kept while its row exists at all; it stays out of every list,
   and nobody new is put in it.
+
+### Signing apps in (OAuth for MCP)
+- Claude's connectors take only an address and expect the MCP authorization
+  flow: protected-resource metadata, authorization-server metadata, dynamic
+  client registration, authorization code with PKCE, refresh tokens. Lumen is
+  its own authorization server for that (`server/oauth.js`), with no new
+  packages: the codes and tokens are random strings kept as hashes.
+- What an app gets is an agent: `agentForApp` makes (or, on reconnecting,
+  updates) an `agent_tokens` row with the app's id and the reach chosen on the
+  approval page, and its access and refresh tokens live in `agent_grants`,
+  deleted with the agent. So per-space reach, the tool list and removing it
+  from Settings all work as for tokens made by hand.
+- The approval is a page of the app (`#/authorize`), signed in like any other,
+  reusing the space picker from Settings (moved to `views/settings/Reach.jsx`).
+  Opened signed out, it waits in sessionStorage through signing in.
+- `/mcp` without a token answers with `WWW-Authenticate: Bearer
+  resource_metadata=…` again, now that there is somewhere to sign in.

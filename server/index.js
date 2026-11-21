@@ -23,6 +23,7 @@ import { spacesRouter } from './spacesApi.js'
 import { agentsRouter } from './agentsApi.js'
 import { mcpRouter } from './mcp/routes.js'
 import { cloudRouter } from './sync/cloudApi.js'
+import { oauthRouter } from './oauth.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.join(here, '..')
@@ -40,6 +41,8 @@ app.use((req, res, next) => {
   next()
 })
 
+// apps signing in to connect as an AI agent (docs/MCP.md), on a server
+if (!DESKTOP) app.use(oauthRouter)
 // the desktop app signed in to a server: what only the server does goes there first
 if (DESKTOP) app.use('/api', cloudRouter)
 app.use('/api/github', githubRouter)

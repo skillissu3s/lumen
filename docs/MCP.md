@@ -7,7 +7,35 @@ you allow it, delete. An agent reaches exactly what you can reach, through the
 same access rules as the app, and its changes show up in everyone's app at
 once, like anyone else's.
 
-## Connect one
+## Connect by signing in (Claude on the web, desktop and phone)
+
+Apps that connect with just an address, like Claude's custom connectors, sign
+in to Lumen instead of taking a token:
+
+1. In claude.ai, open **Settings → Connectors → Add custom connector**. Name
+   it Lumen, enter your server's address with `/mcp` (for example
+   `https://lumen.example.com/mcp`) and leave the advanced fields empty.
+2. Press **Connect**. Lumen opens: sign in if you need to, choose what Claude
+   may do (everywhere, or space by space) and press **Allow**.
+3. It works in Claude on the web, the desktop app and your phone. It shows in
+   Lumen under **Settings → AI agents**, where you can change its spaces or
+   remove it, which disconnects it at once.
+
+The server must be reachable over HTTPS from the internet (the app connects
+from its own servers) and should have `PUBLIC_URL` set to its address.
+
+How it works: `/mcp` without a token answers 401 with a
+`WWW-Authenticate` header pointing to
+`/.well-known/oauth-protected-resource/mcp`, which names Lumen as its
+authorization server; `/.well-known/oauth-authorization-server` lists the
+endpoints. The app registers itself (`POST /oauth/register`, RFC 7591), sends
+the person to `/oauth/authorize` (OAuth 2.1, PKCE S256 required), which
+opens `#/authorize` in the app for the approval, and swaps the one-time code
+at `/oauth/token` for an access token (an hour) and a refresh token (two
+months, spent on each use). Both belong to an agent like any other, with the
+reach chosen on the approval page (`server/oauth.js`).
+
+## Connect one with a token
 
 1. In Lumen, open **Settings → AI agents**. Name the agent, choose what it may
    do and press **Create token**. Copy the token: it is shown once.

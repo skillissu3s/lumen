@@ -23,6 +23,18 @@ CREATE TABLE IF NOT EXISTS agent_tokens (
 // tokens made before per-space access reach every space
 const columns = new Set(db.prepare('PRAGMA table_info(agent_tokens)').all().map((c) => c.name))
 if (!columns.has('scopes')) db.exec('ALTER TABLE agent_tokens ADD COLUMN scopes TEXT')
+// an agent an app connected by signing in (oauth.js): which app, and the
+// short-lived tokens it was given (an access token and the refresh token that renews it)
+if (!columns.has('client_id')) db.exec('ALTER TABLE agent_tokens ADD COLUMN client_id TEXT')
+db.exec(`
+CREATE TABLE IF NOT EXISTS agent_grants (
+  token_hash TEXT PRIMARY KEY,
+  agent_id TEXT NOT NULL REFERENCES agent_tokens(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL,
+  client_id TEXT NOT NULL,
+  expires_at INTEGER NOT NULL
+);
+`)
 
 export const ACCESS = ['read', 'edit', 'full']
 const RANK = { read: 0, edit: 1, full: 2 }
@@ -36,7 +48,7 @@ const parseScopes = (s) => {
     return {}
   }
 }
-const shape = (r) => ({ id: r.id, name: r.name, access: r.access, scopes: parseScopes(r.scopes), createdAt: r.created_at, lastUsedAt: r.last_used_at ?? null })
+const shape = (r) => ({ id: r.id, name: r.name, access: r.access, scopes: parseScopes(r.scopes), createdAt: r.created_at, lastUsedAt: r.last_used_at ?? null, ...(r.client_id ? { connected: true } : {}) })
 
 /** null (every space), or { key: level } with only real keys and levels; 'none' leaves a space out */
 function checkScopes(scopes) {
@@ -49,6 +61,12 @@ function checkScopes(scopes) {
     out[key] = checkAccess(level)
   }
   return out
+}
+
+/** An agent's reach checked as making one would → the scopes to keep */
+export function checkReach(access, scopes) {
+  checkAccess(access)
+  return checkScopes(scopes)
 }
 
 /** The level a token has in a space ('read' | 'edit' | 'full'), or null when it's out of reach */
@@ -109,11 +127,62 @@ function tokenOf(req) {
   return t.startsWith(PREFIX) ? t : null
 }
 
+// ---------- agents an app connected by signing in (oauth.js) ----------
+
+const MINUTE = 60000
+const ACCESS_FOR = 60 * MINUTE
+const REFRESH_FOR = 60 * 24 * 60 * MINUTE
+
+/**
+ * The agent for an app a person approved: the one it had (its reach set anew),
+ * or a new one named after the app. Its own token is never shown or used;
+ * the app holds grants instead. → the agent's id
+ */
+export function agentForApp(user, client, { access, scopes }) {
+  const a = checkAccess(access)
+  const s = checkScopes(scopes)
+  const have = db.prepare('SELECT id FROM agent_tokens WHERE user_id = ? AND client_id = ?').get(user.id, client.id)
+  if (have) {
+    db.prepare('UPDATE agent_tokens SET access = ?, scopes = ? WHERE id = ?').run(a, s ? JSON.stringify(s) : null, have.id)
+    return have.id
+  }
+  const id = crypto.randomBytes(8).toString('hex')
+  db.prepare('INSERT INTO agent_tokens (id, user_id, name, token_hash, access, scopes, client_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(id, user.id, checkName(client.name), sha(crypto.randomBytes(32).toString('hex')), a, s ? JSON.stringify(s) : null, client.id, Date.now())
+  return id
+}
+
+/** A fresh access token (an hour) and refresh token (two months) for an agent → the token response */
+export function issueGrant(agentId, clientId) {
+  const now = Date.now()
+  db.prepare('DELETE FROM agent_grants WHERE expires_at < ?').run(now)
+  const access = `${PREFIX}at_${crypto.randomBytes(32).toString('base64url')}`
+  const refresh = `${PREFIX}rt_${crypto.randomBytes(32).toString('base64url')}`
+  const add = db.prepare('INSERT INTO agent_grants (token_hash, agent_id, kind, client_id, expires_at) VALUES (?, ?, ?, ?, ?)')
+  add.run(sha(access), agentId, 'access', clientId, now + ACCESS_FOR)
+  add.run(sha(refresh), agentId, 'refresh', clientId, now + REFRESH_FOR)
+  return { access_token: access, token_type: 'Bearer', expires_in: ACCESS_FOR / 1000, refresh_token: refresh, scope: 'lumen' }
+}
+
+/** A refresh token → a new pair (the old refresh token is spent), or null */
+export function refreshGrant(token, clientId) {
+  const row = db.prepare("SELECT * FROM agent_grants WHERE token_hash = ? AND kind = 'refresh' AND client_id = ? AND expires_at > ?").get(sha(String(token || '')), String(clientId || ''), Date.now())
+  if (!row) return null
+  db.prepare('DELETE FROM agent_grants WHERE token_hash = ?').run(row.token_hash)
+  return issueGrant(row.agent_id, clientId)
+}
+
+export const revokeGrant = (token) => db.prepare('DELETE FROM agent_grants WHERE token_hash = ?').run(sha(String(token || '')))
+
 /** The agent a request comes from → { user, agent }, or null */
 export function agentFromRequest(req) {
   const token = tokenOf(req)
   if (!token) return null
-  const row = db.prepare('SELECT a.id AS a_id, a.name AS a_name, a.access AS a_access, a.scopes AS a_scopes, a.last_used_at AS a_used, u.* FROM agent_tokens a JOIN users u ON u.id = a.user_id WHERE a.token_hash = ?').get(sha(token))
+  const hash = sha(token)
+  const pick = 'SELECT a.id AS a_id, a.name AS a_name, a.access AS a_access, a.scopes AS a_scopes, a.last_used_at AS a_used, u.* FROM agent_tokens a JOIN users u ON u.id = a.user_id'
+  const row =
+    db.prepare(`${pick} WHERE a.token_hash = ?`).get(hash) ||
+    // an app's access token, while it lasts
+    db.prepare(`${pick} JOIN agent_grants g ON g.agent_id = a.id WHERE g.token_hash = ? AND g.kind = 'access' AND g.expires_at > ?`).get(hash, Date.now())
   if (!row || row.disabled) return null
   const now = Date.now()
   // when it was last used, to the minute: enough to tell which agents still run

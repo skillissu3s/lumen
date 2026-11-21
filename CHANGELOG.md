@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **Connect Claude on the web, desktop and phone.** Add Lumen as a custom
+  connector with just its address: Lumen asks you to sign in, choose which
+  spaces Claude reaches and what it may do there, and allow it. It shows in
+  Settings → AI agents like any other agent, where you can change or remove it.
+  Any app that connects to MCP servers by signing in (OAuth) works the same way.
+
 ## 0.11.3 — a deleted workspace stays deleted
 
 - **A workspace you delete stays deleted.** Deleting the server's first

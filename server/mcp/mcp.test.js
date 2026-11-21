@@ -122,8 +122,8 @@ test('tokens: made, listed without the secret, and only good for /mcp', async ()
     const r = await fetch(`${base}/mcp`, { method: 'POST', headers: { 'content-type': 'application/json', [header]: made.token }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' }) })
     assert.equal(r.status, 200, header)
   }
-  // no OAuth to send an app looking for
-  assert.equal((await fetch(`${base}/mcp`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).headers.get('www-authenticate'), null)
+  // without a token, where an app can sign in instead
+  assert.match((await fetch(`${base}/mcp`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).headers.get('www-authenticate'), new RegExp(`resource_metadata="${base}/\\.well-known/oauth-protected-resource/mcp"`))
   // revoked: gone
   await call(ada, 'DELETE', `/api/me/agents/${made.agent.id}`)
   assert.equal((await rpc(made.token, 'ping')).status, 401)

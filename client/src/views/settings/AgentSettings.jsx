@@ -4,33 +4,14 @@
 // only its name, its reach and when it was last used.
 import { useEffect, useState } from 'react'
 import { Copy, Trash2 } from 'lucide-react'
-import { Button, Dialog, Input, Segmented, Select } from '../../components/ui/index.js'
+import { Button, Dialog, Input } from '../../components/ui/index.js'
 import { api } from '../../lib/api.js'
 import { useUI } from '../../store/ui.js'
-import { useHasAccount } from '../../store/session.js'
-import { useSpaces } from '../../store/spaces.js'
 import { relativeDay, isoOf } from '../../../../shared/dates.js'
 import { Row, Section } from './parts.jsx'
+import { LABEL, Reach, usePlaces } from './Reach.jsx'
 
-const ACCESS = [
-  { value: 'read', label: 'Look only' },
-  { value: 'edit', label: 'Look and change' },
-  { value: 'full', label: 'Change and delete' },
-]
-const LEVELS = [{ value: 'none', label: 'No access' }, ...ACCESS]
-const LABEL = Object.fromEntries(ACCESS.map((a) => [a.value, a.label]))
-const RANK = { read: 0, edit: 1, full: 2 }
 const used = (ms) => (ms ? `Last used ${relativeDay(isoOf(new Date(ms))).replace(/^(Today|Yesterday)$/, (d) => d.toLowerCase())}` : 'Not used yet')
-
-/** The places an agent can be given, as the server names them: spaces by id, then what's shared, then direct messages */
-function usePlaces() {
-  const spaces = useSpaces((s) => s.list)
-  const account = useHasAccount()
-  const out = spaces.filter((s) => s.id && s.kind !== 'shared').map((s) => ({ key: s.id, name: s.kind === 'candle' ? 'Your candle' : s.name }))
-  if (spaces.some((s) => s.kind === 'shared')) out.push({ key: 'shared', name: 'Shared with you' })
-  if (account) out.push({ key: 'dm', name: 'Direct messages' })
-  return out
-}
 
 /** "Look and change, everywhere" / "2 spaces" */
 function reachText(agent, places) {
@@ -39,50 +20,6 @@ function reachText(agent, places) {
   if (!keys.length) return 'No spaces yet'
   if (keys.length === 1) return `${LABEL[agent.scopes[keys[0]]]}, ${places.find((p) => p.key === keys[0])?.name || '1 space'}`
   return `${keys.length} spaces`
-}
-
-/** How far an agent reaches: one level everywhere, or a level per space. value: { access, scopes } */
-function Reach({ value, onChange }) {
-  const places = usePlaces()
-  const chosen = !!value.scopes
-  const set = (patch) => onChange({ ...value, ...patch })
-  return (
-    <div className="agent-reach">
-      <Segmented
-        label="Where"
-        value={chosen ? 'chosen' : 'all'}
-        onChange={(v) => set({ scopes: v === 'all' ? null : Object.fromEntries(places.map((p) => [p.key, value.access])) })}
-        options={[
-          { value: 'all', label: 'All your spaces' },
-          { value: 'chosen', label: 'Chosen spaces' },
-        ]}
-      />
-      {chosen ? (
-        <div className="set-table agent-places">
-          {places.map((p) => (
-            <div key={p.key} className="set-table-row">
-              <span>{p.name}</span>
-              <Select
-                value={value.scopes[p.key] || 'none'}
-                onChange={(e) => {
-                  const scopes = { ...value.scopes }
-                  if (e.target.value === 'none') delete scopes[p.key]
-                  else scopes[p.key] = e.target.value
-                  // the most it may do anywhere, for the list and the server's checks
-                  const access = Object.values(scopes).reduce((a, l) => (RANK[l] > RANK[a] ? l : a), 'read')
-                  set({ scopes, access })
-                }}
-                options={LEVELS}
-                aria-label={`What it may do in ${p.name}`}
-              />
-            </div>
-          ))}
-        </div>
-      ) : (
-        <Select value={value.access} onChange={(e) => set({ access: e.target.value })} options={ACCESS} aria-label="What it may do" />
-      )}
-    </div>
-  )
 }
 
 function Copyable({ text, label }) {
