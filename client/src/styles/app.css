@@ -1322,3 +1322,12 @@ body.is-col-resizing * {
 .authorize-reach {
   margin: 4px 0 16px;
 }
+
+/* a board dragged over another goes before it: a line where it will land */
+.nav-item.is-drop-before {
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+.nav-note {
+  color: var(--text-faint);
+  font-size: var(--fs-xs);
+}

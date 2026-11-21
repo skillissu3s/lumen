@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- **Your workspaces' boards in your candle.** The sidebar of your candle lists
+  the boards of your workspaces (and those shared with you) beside your own,
+  each marked with where it is. Clicking one opens it in its workspace; cards
+  can be dropped on it from anywhere.
+- **Boards in any order.** Drag boards up and down the sidebar, or use Move up
+  and Move down on right-click. The order is yours, on every device.
+
 ## 0.12.1 — right-click everywhere, and chat edits you can leave
 
 - **Editing a chat message never traps you.** Esc leaves the edit wherever

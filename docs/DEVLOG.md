@@ -851,3 +851,17 @@ settable right on a card; drop the calendar's New button.
   save. While editing, Esc now cancels from anywhere (a menu's own Esc is
   marked handled so it closes just the menu), the box takes the focus after
   the menu lets go, and there are Cancel and Save buttons.
+
+### Every board in the candle's sidebar, in the order you like
+- The candle's views (Today, All tasks, Calendar) already took in other
+  spaces through `useListsAcross`; the sidebar used `useLists`, the open
+  space only. In the candle it now uses the lists across spaces, marking each
+  with its space; a board elsewhere opens in its space (`spaces.open(prefix,
+  { to })`), since the board page works in the open space. Edits, deletes and
+  card drops on it already worked by tree path from the candle (its prefix is
+  empty).
+- The order is a list of tree paths in the person's settings
+  (`sidebar.boardOrder`), so it follows them across devices and holds in each
+  space; boards not in it keep their usual order after the ones that are.
+  Boards drag as `application/x-lumen-board`, apart from cards, which still
+  drop onto a board to move there.

@@ -8,7 +8,7 @@ import { useSession, useHasAccount } from '../store/session.js'
 import { useWorkspace } from '../store/workspace.js'
 import { useUI } from '../store/ui.js'
 import { useLists, useListsAcross, usePlugins } from '../store/hooks.js'
-import { useCurrentSpace } from '../store/spaces.js'
+import { useCurrentSpace, useSpaceLabels, useSpaces } from '../store/spaces.js'
 import { moveItem, useCanMove } from './MoveTo.jsx'
 import { usePrefs, setPrefs } from '../store/prefs.js'
 import { deleteList, updateListMeta } from '../lib/actions.js'
@@ -24,27 +24,57 @@ import { WorkspaceMenu } from './WorkspaceMenu.jsx'
 
 const countOpen = (list) => list.items.filter((i) => i.kind === 'task' && isOpen(i.status)).length
 
-function NavItem({ href, icon: Icon, tint, label, count, active, children, onDrop, ...props }) {
-  const [over, setOver] = useState(false)
-  const dropProps = onDrop
+// a board being dragged to a new place in the list (its key), apart from cards dropped on a board
+const BOARD = 'application/x-lumen-board'
+
+/**
+ * `onDrop`: a card dropped on it. `order`: { key, onPlace(fromKey) } makes it a
+ * board that can be dragged, and placed before when another is dropped on it.
+ * `note`: a word after the name (the workspace a board is in).
+ */
+function NavItem({ href, icon: Icon, tint, label, note, count, active, children, onDrop, order, ...props }) {
+  const [over, setOver] = useState(null) // 'card' | 'board'
+  const kindOf = (e) => (order && e.dataTransfer.types.includes(BOARD) ? 'board' : onDrop && e.dataTransfer.types.includes('application/x-lumen-item') ? 'card' : null)
+  const dropProps =
+    onDrop || order
+      ? {
+          onDragOver: (e) => {
+            const kind = kindOf(e)
+            if (!kind) return
+            e.preventDefault()
+            setOver(kind)
+          },
+          onDragLeave: () => setOver(null),
+          onDrop: (e) => {
+            const kind = kindOf(e)
+            setOver(null)
+            if (kind === 'board') {
+              e.preventDefault()
+              const from = e.dataTransfer.getData(BOARD)
+              if (from && from !== order.key) order.onPlace(from)
+              return
+            }
+            const raw = e.dataTransfer.getData('application/x-lumen-item')
+            if (raw) onDrop(JSON.parse(raw))
+          },
+        }
+      : {}
+  const dragProps = order
     ? {
-        onDragOver: (e) => {
-          if (!e.dataTransfer.types.includes('application/x-lumen-item')) return
-          e.preventDefault()
-          setOver(true)
-        },
-        onDragLeave: () => setOver(false),
-        onDrop: (e) => {
-          setOver(false)
-          const raw = e.dataTransfer.getData('application/x-lumen-item')
-          if (raw) onDrop(JSON.parse(raw))
+        draggable: true,
+        onDragStart: (e) => {
+          e.dataTransfer.setData(BOARD, order.key)
+          e.dataTransfer.effectAllowed = 'move'
         },
       }
     : {}
   return (
-    <a href={href} className={`nav-item${active ? ' is-active' : ''}${over ? ' is-drop' : ''}`} style={tint ? { '--tint': `var(--c-${tint})` } : undefined} aria-current={active ? 'page' : undefined} {...dropProps} {...props}>
+    <a href={href} className={`nav-item${active ? ' is-active' : ''}${over === 'card' ? ' is-drop' : ''}${over === 'board' ? ' is-drop-before' : ''}`} style={tint ? { '--tint': `var(--c-${tint})` } : undefined} aria-current={active ? 'page' : undefined} {...dragProps} {...dropProps} {...props}>
       <span className="nav-icon">{Icon ? <Icon size={16} strokeWidth={1.9} /> : children}</span>
-      <span className="nav-label">{label}</span>
+      <span className="nav-label">
+        {label}
+        {note && <span className="nav-note"> · {note}</span>}
+      </span>
       {count ? <span className="nav-count">{count}</span> : null}
     </a>
   )
@@ -92,9 +122,43 @@ export function Sidebar({ route, onNavigate, closed }) {
   // chat: a workspace's channels and your messages; in your candle, your messages
   const space = useCurrentSpace()
   const canMove = useCanMove()
-  const lists = useLists()
   const plugins = usePlugins()
   const prefs = usePrefs()
+  const prefix = useWorkspace((s) => s.prefix)
+  const labels = useSpaceLabels()
+  // in your candle, the boards of your workspaces (and shared with you) are here
+  // too, marked with where they are; in a workspace, its own
+  const own = useLists()
+  const across = useListsAcross()
+  const shown = space.kind === 'candle' ? across : own
+  // each board by its path in your tree, in the order you dragged them, the rest after
+  const keyOf = (l) => `${prefix}${l.path}`
+  const order = prefs.sidebar.boardOrder || []
+  const lists = useMemo(() => {
+    const at = new Map(order.map((k, i) => [k, i]))
+    return shown.map((l, i) => ({ l, i, at: at.get(`${prefix}${l.path}`) ?? Infinity })).sort((a, b) => a.at - b.at || a.i - b.i).map((x) => x.l)
+  }, [shown, order, prefix])
+  const place = (from, before) => {
+    const keys = lists.map(keyOf).filter((k) => k !== from)
+    const at = before ? keys.indexOf(before) : keys.length
+    keys.splice(at < 0 ? keys.length : at, 0, from)
+    // boards not shown here (another space's) keep their place after these
+    setPrefs({ sidebar: { boardOrder: [...keys, ...order.filter((k) => !keys.includes(k))] } })
+  }
+  const nudge = (l, by) => {
+    const keys = lists.map(keyOf)
+    const i = keys.indexOf(keyOf(l))
+    const to = keys[i + by + (by > 0 ? 1 : 0)]
+    if (i + by < 0 || i + by >= keys.length) return
+    place(keyOf(l), to)
+  }
+  // a board in another space opens there
+  const elsewhere = (l) => !!l.space && l.space !== prefix
+  const openBoard = (l) => (e) => {
+    if (!elsewhere(l)) return
+    e.preventDefault()
+    useSpaces.getState().open(l.space, { to: `/board/${l.id}` })
+  }
   const openPalette = useUI((s) => s.openPalette)
   const pluginBadges = useUI((s) => s.pluginBadges)
   const pluginStatus = useUI((s) => s.pluginStatus)
@@ -114,8 +178,12 @@ export function Sidebar({ route, onNavigate, closed }) {
   const statuses = Object.entries(pluginStatus).filter(([, t]) => t)
 
   const boardMenu = (l) => [
-    { label: 'Edit board…', onSelect: () => setEditor({ anchor: document.getElementById(`nav-${l.id}`), list: l }) },
-    ...(canMove ? [moveItem(l.path, l.name)] : []),
+    ...(elsewhere(l) ? [{ label: `Open in ${labels[l.space] || 'its space'}`, onSelect: () => useSpaces.getState().open(l.space, { to: `/board/${l.id}` }) }, 'separator'] : []),
+    { label: 'Edit board…', onSelect: () => setEditor({ anchor: document.getElementById(`nav-${keyOf(l)}`), list: l }) },
+    ...(canMove && !elsewhere(l) ? [moveItem(l.path, l.name)] : []),
+    'separator',
+    { label: 'Move up', disabled: lists[0] === l, onSelect: () => nudge(l, -1) },
+    { label: 'Move down', disabled: lists.at(-1) === l, onSelect: () => nudge(l, 1) },
     'separator',
     { label: 'Delete board…', danger: true, onSelect: () => setConfirm(l) },
   ]
@@ -157,12 +225,32 @@ export function Sidebar({ route, onNavigate, closed }) {
           </div>
           {lists.map((l) => (
             <ContextMenu key={l.path} items={boardMenu(l)}>
-              <NavItem id={`nav-${l.id}`} href={`#/board/${l.id}`} label={l.name} count={countOpen(l)} active={path === `/board/${l.id}`} onDrop={({ path: from, id }) => from !== l.path && moveCard(from, id, l.path, null)}>
+              <NavItem
+                id={`nav-${keyOf(l)}`}
+                href={`#/board/${l.id}`}
+                label={l.name}
+                note={elsewhere(l) ? labels[l.space] : null}
+                count={countOpen(l)}
+                active={!elsewhere(l) && path === `/board/${l.id}`}
+                onClick={openBoard(l)}
+                onDrop={({ path: from, id }) => from !== l.path && moveCard(from, id, l.path, null)}
+                order={{ key: keyOf(l), onPlace: (from) => place(from, keyOf(l)) }}
+              >
                 <IconBadge name={l.icon} color={l.color || 'gray'} size={18} fallback={Kanban} />
               </NavItem>
             </ContextMenu>
           ))}
-          <button type="button" className="nav-hint" onClick={() => setEditor({ anchor: addRef.current })}>
+          <button
+            type="button"
+            className="nav-hint"
+            onClick={() => setEditor({ anchor: addRef.current })}
+            // a board dropped here goes last
+            onDragOver={(e) => e.dataTransfer.types.includes(BOARD) && e.preventDefault()}
+            onDrop={(e) => {
+              const from = e.dataTransfer.getData(BOARD)
+              if (from) place(from, null)
+            }}
+          >
             <Plus size={14} /> New board
           </button>
         </div>

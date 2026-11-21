@@ -38,7 +38,8 @@ export const DEFAULT_PREFS = {
   plugins: { disabled: [] },
   // in your candle, Today, All tasks and Calendar take in other spaces too; these are turned off
   across: { off: [] },
-  sidebar: { collapsed: true },
+  // boardOrder: the sidebar's boards in the order you dragged them (their paths in your tree)
+  sidebar: { collapsed: true, boardOrder: [] },
   ideas: { minimap: false },
 }
 
