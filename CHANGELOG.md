@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.12.0 — connect Claude by signing in
 
 - **Connect Claude on the web, desktop and phone.** Add Lumen as a custom
   connector with just its address: Lumen asks you to sign in, choose which
