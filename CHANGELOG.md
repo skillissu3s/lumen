@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.11.2 — agent tokens in X-Token
 
 - **AI agents send their token as `X-Token`.** For apps that don't allow a
   header named Authorization or a custom one: Lumen takes the token in
