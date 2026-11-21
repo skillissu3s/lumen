@@ -47,7 +47,9 @@ function claim(home) {
 /** → { home, migrating } */
 export function prepareSpaces({ desktopUser } = {}) {
   const have = getSetting('spaces.home')
-  if (have && spaces.get(have)) return { home: have, migrating: false }
+  // still the home when its workspace was deleted: a new, empty one on every start
+  // isn't what deleting it meant (it stays out of everyone's list)
+  if (have && db.prepare('SELECT 1 FROM spaces WHERE id = ?').get(have)) return { home: have, migrating: false }
   let home
   if (DESKTOP) home = spaces.ensureCandle(desktopUser).space.id
   else {

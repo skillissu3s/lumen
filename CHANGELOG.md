@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **A workspace you delete stays deleted.** Deleting the server's first
+  workspace (the "Workspace" every server starts with) no longer brings back a
+  new, empty one each time the server is updated or restarted.
+
 ## 0.11.2 — agent tokens in X-Token
 
 - **AI agents send their token as `X-Token`.** For apps that don't allow a

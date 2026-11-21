@@ -812,3 +812,11 @@ settable right on a card; drop the calendar's New button.
   computer doesn't have, and sets the old name and username on the new account.
 - Admins see a notice when the server's database is new (`server.freshAt`),
   since the log alone went unread.
+
+### A deleted home workspace came back on every start
+- `prepareSpaces` kept the server's home space only while `spaces.get`
+  found it, and that skips deleted spaces. Delete the home workspace (people
+  who make their own do) and the next start made a new "Workspace", named
+  `workspace-2`, `workspace-3`… since slugs of deleted spaces stay taken. The
+  home is now kept while its row exists at all; it stays out of every list,
+  and nobody new is put in it.
