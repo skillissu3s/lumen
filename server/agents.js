@@ -99,11 +99,19 @@ export function revokeToken(userId, id) {
   if (!r.changes) throw new HttpError(404, 'No such agent.')
 }
 
-/** `Authorization: Bearer lumen_…` → { user, agent }, or null */
+// the token as an agent sends it: `X-Lumen-Token: lumen_…`, or
+// `Authorization: Bearer lumen_…` for apps that let you set that header
+function tokenOf(req) {
+  const bearer = /^Bearer\s+(\S+)$/i.exec(String(req.headers.authorization || ''))?.[1]
+  const t = String(req.headers['x-lumen-token'] || bearer || '').trim()
+  return t.startsWith(PREFIX) ? t : null
+}
+
+/** The agent a request comes from → { user, agent }, or null */
 export function agentFromRequest(req) {
-  const m = /^Bearer\s+(\S+)$/i.exec(String(req.headers.authorization || ''))
-  if (!m || !m[1].startsWith(PREFIX)) return null
-  const row = db.prepare('SELECT a.id AS a_id, a.name AS a_name, a.access AS a_access, a.scopes AS a_scopes, a.last_used_at AS a_used, u.* FROM agent_tokens a JOIN users u ON u.id = a.user_id WHERE a.token_hash = ?').get(sha(m[1]))
+  const token = tokenOf(req)
+  if (!token) return null
+  const row = db.prepare('SELECT a.id AS a_id, a.name AS a_name, a.access AS a_access, a.scopes AS a_scopes, a.last_used_at AS a_used, u.* FROM agent_tokens a JOIN users u ON u.id = a.user_id WHERE a.token_hash = ?').get(sha(token))
   if (!row || row.disabled) return null
   const now = Date.now()
   // when it was last used, to the minute: enough to tell which agents still run

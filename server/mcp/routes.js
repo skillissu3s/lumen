@@ -52,10 +52,8 @@ mcpRouter.get('/stdio.js', (req, res) => res.type('text/javascript').sendFile(pa
 
 mcpRouter.post('/', sameOrigin, express.json({ limit: '3mb' }), async (req, res) => {
   const found = agentFromRequest(req)
-  if (!found) {
-    res.set('WWW-Authenticate', 'Bearer realm="lumen"')
-    return res.status(401).json({ jsonrpc: '2.0', id: null, error: { code: -32001, message: 'Make a token in Lumen under Settings → AI agents and send it as "Authorization: Bearer <token>".' } })
-  }
+  // no WWW-Authenticate: Lumen has no OAuth sign-in for an app to go looking for
+  if (!found) return res.status(401).json({ jsonrpc: '2.0', id: null, error: { code: -32001, message: 'Make a token in Lumen under Settings → AI agents and send it as "X-Lumen-Token: <token>".' } })
   if (DESKTOP) found.user.desktop = true
   // what this agent may do in a space: tree.js asks before every read and write
   found.user.reach = (key) => levelIn(found.agent, key)

@@ -117,6 +117,11 @@ test('tokens: made, listed without the secret, and only good for /mcp', async ()
   assert.equal((await rpc('lumen_nope', 'ping')).status, 401)
   assert.equal((await rpc(made.token, 'ping', {}, { origin: 'https://evil.example' })).status, 403)
   assert.equal((await fetch(`${base}/mcp`)).status, 405)
+  // for apps that won't let you name a header Authorization
+  const viaHeader = await fetch(`${base}/mcp`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-lumen-token': made.token }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' }) })
+  assert.equal(viaHeader.status, 200)
+  // no OAuth to send an app looking for
+  assert.equal((await fetch(`${base}/mcp`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).headers.get('www-authenticate'), null)
   // revoked: gone
   await call(ada, 'DELETE', `/api/me/agents/${made.agent.id}`)
   assert.equal((await rpc(made.token, 'ping')).status, 401)

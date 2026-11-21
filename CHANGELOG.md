@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **AI agents can send their token as `X-Lumen-Token`.** Some apps don't let
+  you name a header Authorization (they keep it for their own sign-in); Lumen
+  now takes the token in an `X-Lumen-Token` header too, and the command in
+  Settings → AI agents uses it. Lumen no longer answers a missing token in a
+  way that sends apps looking for an OAuth sign-in it doesn't have.
+
 ## 0.11.0 — AI agents space by space, and a clean restore
 
 - **AI agents, space by space.** Give an agent all your spaces at one level,
