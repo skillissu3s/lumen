@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- **Editing a chat message never traps you.** Esc leaves the edit wherever
+  you clicked last, and Cancel and Save buttons sit under the box. The box also
+  takes the focus when you start editing from a menu.
+- **Right-click works across the app.** Cards in All tasks and the list's
+  board view, events and tasks in every calendar view, calendars in the
+  calendar panel, spaces in the space menu, chat messages (reply, copy, edit,
+  delete) and channels now have the same options on right-click as their
+  buttons, as tasks, boards, docs and idea boards already did.
+
 ## 0.12.0 — connect Claude by signing in
 
 - **Connect Claude on the web, desktop and phone.** Add Lumen as a custom

@@ -13,6 +13,7 @@ function Chip({ o, colorBy, h12, onOpen, draggable }) {
   return (
     <button
       type="button"
+      data-key={o.key}
       className={`mchip${o.allDay ? ' is-allday' : ''}${done ? ' is-done' : ''}${o.ghost ? ' is-ghost' : ''}`}
       style={{ '--c': `var(--c-${color})`, '--c-bg': `var(--c-${color}-bg)`, '--c-fg': `var(--c-${color}-fg)` }}
       aria-label={blockLabel(o, h12)}
@@ -138,7 +139,7 @@ export function AgendaView({ days, occs, settings, h12, onOpen, onToggle }) {
               const color = colorOf(o.item, settings.colorBy)
               const done = o.item.kind === 'task' && !isOpen(o.item.status)
               return (
-                <li key={o.key} className={`agenda-item${done ? ' is-done' : ''}${o.ghost ? ' is-ghost' : ''}`} style={{ '--c': `var(--c-${color})` }}>
+                <li key={o.key} data-key={o.key} className={`agenda-item${done ? ' is-done' : ''}${o.ghost ? ' is-ghost' : ''}`} style={{ '--c': `var(--c-${color})` }}>
                   <span className="agenda-time tabular">{o.allDay ? 'All day' : `${formatTime(o.time, h12)}`}</span>
                   <span className="agenda-bar" />
                   {o.item.kind === 'task' && !o.ghost ? (

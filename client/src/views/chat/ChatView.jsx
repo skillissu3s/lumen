@@ -2,8 +2,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import MarkdownIt from 'markdown-it'
 import DOMPurify from 'dompurify'
-import { ArrowDown, CornerUpLeft, Hash, MessagesSquare, MoreHorizontal, Pencil, Plus, Trash2, X } from 'lucide-react'
-import { Button, Dialog, EmptyState, Input, Menu, Segmented, Spinner, UserAvatar } from '../../components/ui/index.js'
+import { ArrowDown, Copy, CornerUpLeft, Hash, MessagesSquare, MoreHorizontal, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { Button, Dialog, EmptyState, Input, Menu, MenuPopup, Segmented, Spinner, UserAvatar } from '../../components/ui/index.js'
 import { api } from '../../lib/api.js'
 import { onSocket, sendSocket } from '../../lib/socket.js'
 import { navigate } from '../../lib/router.js'
@@ -76,13 +76,20 @@ function NewChannel({ open, onClose, people, space, onCreated }) {
   )
 }
 
-function Message({ m, first, me, people, h12, onReply, onEdit, onDelete, editing, setEditing, replyTo }) {
+function Message({ m, first, me, people, h12, onReply, onEdit, onDelete, onMenu, editing, setEditing, replyTo }) {
   const person = people.get(m.from)
   const at = new Date(m.at)
   const [draft, setDraft] = useState(m.text)
   useEffect(() => setDraft(m.text), [m.text, editing])
+  // the edit box takes the focus, even from a menu that hands it back as it closes
+  const editRef = useRef(null)
+  useEffect(() => {
+    if (!editing) return undefined
+    const t = setTimeout(() => editRef.current?.focus(), 0)
+    return () => clearTimeout(t)
+  }, [editing])
   return (
-    <div className={`msg${first ? ' is-first' : ''}${m.pending ? ' is-pending' : ''}${m.failed ? ' is-failed' : ''}`} data-id={m.id}>
+    <div className={`msg${first ? ' is-first' : ''}${m.pending ? ' is-pending' : ''}${m.failed ? ' is-failed' : ''}`} data-id={m.id} onContextMenu={!m.deleted && !m.pending && !editing ? (e) => onMenu(e, m) : undefined}>
       <div className="msg-gutter">{first ? <UserAvatar user={person || { name: m.from }} size={30} /> : <span className="msg-time-hover tabular">{formatTime(timeOf(at), h12)}</span>}</div>
       <div className="msg-main">
         {first && (
@@ -102,6 +109,7 @@ function Message({ m, first, me, people, h12, onReply, onEdit, onDelete, editing
         ) : editing ? (
           <div className="msg-edit">
             <textarea
+              ref={editRef}
               value={draft}
               autoFocus
               onChange={(e) => setDraft(e.target.value)}
@@ -109,11 +117,24 @@ function Message({ m, first, me, people, h12, onReply, onEdit, onDelete, editing
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault()
                   onEdit(m, draft)
-                } else if (e.key === 'Escape') setEditing(null)
+                } else if (e.key === 'Escape') {
+                  // leave without saving, before anything else takes Esc
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setEditing(null)
+                }
               }}
               aria-label="Edit message"
             />
-            <span className="faint">Enter to save · Esc to cancel</span>
+            <div className="msg-edit-actions">
+              <span className="faint">Enter to save · Esc to cancel</span>
+              <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>
+                Cancel
+              </Button>
+              <Button size="sm" variant="primary" onClick={() => onEdit(m, draft)}>
+                Save
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="msg-text md" dangerouslySetInnerHTML={{ __html: render(m.text, me) }} />
@@ -300,6 +321,41 @@ export default function ChatView({ route }) {
     const { message } = await api('PATCH', '/chat/messages', { space: place, channel: channelId, id: m.id, text: t.trim() })
     setMessages((list) => list.map((x) => (x.id === m.id ? message : x)))
   }
+  // while a message is being edited, Esc leaves it wherever the focus is (a menu that
+  // was open, the message box, nothing): an edit should never trap you
+  useEffect(() => {
+    if (!editing) return undefined
+    const onKey = (e) => e.key === 'Escape' && !e.defaultPrevented && setEditing(null)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [editing])
+
+  // right-click on a message: what its buttons do, and copying it
+  const [menu, setMenu] = useState(null)
+  const messageMenu = (e, m) => {
+    e.preventDefault()
+    setMenu({
+      anchor: { x: e.clientX, y: e.clientY },
+      items: [
+        { label: 'Reply', icon: CornerUpLeft, onSelect: () => setReply(m) },
+        { label: 'Copy text', icon: Copy, onSelect: () => navigator.clipboard?.writeText(m.text) },
+        ...(m.from === me ? [{ label: 'Edit', icon: Pencil, onSelect: () => setEditing(m.id) }, 'separator', { label: 'Delete', icon: Trash2, danger: true, onSelect: () => remove(m) }] : []),
+      ],
+    })
+  }
+
+  // right-click on a channel: open it, or delete it when it's yours to
+  const channelMenu = (e, c) => {
+    e.preventDefault()
+    setMenu({
+      anchor: { x: e.clientX, y: e.clientY },
+      items: [
+        { label: 'Open', disabled: c.id === channelId, onSelect: () => navigate(`/chat/${c.id}`) },
+        ...(!c.dm && (c.by === me || canManage) ? ['separator', { label: 'Delete channel…', icon: Trash2, danger: true, onSelect: () => setRemoving(c) }] : []),
+      ],
+    })
+  }
+
   const remove = async (m) => {
     await api('DELETE', '/chat/messages', { space: place, channel: channelId, id: m.id })
     setMessages((list) => list.map((x) => (x.id === m.id ? { ...x, deleted: true, text: '' } : x)))
@@ -383,7 +439,7 @@ export default function ChatView({ route }) {
             </button>
           </div>
           {(channels || []).filter((c) => !c.dm).map((c) => (
-            <a key={c.id} href={`#/chat/${c.id}`} className={`nav-item${c.id === channelId ? ' is-active' : ''}${c.unread ? ' has-unread' : ''}`}>
+            <a key={c.id} href={`#/chat/${c.id}`} className={`nav-item${c.id === channelId ? ' is-active' : ''}${c.unread ? ' has-unread' : ''}`} onContextMenu={(e) => channelMenu(e, c)}>
               <span className="nav-icon">
                 <Hash size={15} />
               </span>
@@ -403,7 +459,7 @@ export default function ChatView({ route }) {
           {(channels || []).filter((c) => c.dm).map((c) => {
             const other = (c.members || []).find((h) => h !== me)
             return (
-              <a key={c.id} href={`#/chat/${c.id}`} className={`nav-item${c.id === channelId ? ' is-active' : ''}${c.unread ? ' has-unread' : ''}`}>
+              <a key={c.id} href={`#/chat/${c.id}`} className={`nav-item${c.id === channelId ? ' is-active' : ''}${c.unread ? ' has-unread' : ''}`} onContextMenu={(e) => channelMenu(e, c)}>
                 <span className="nav-icon chat-dm-avatar">
                   <UserAvatar user={peopleMap.get(other) || { name: titleOf(c) }} size={18} />
                   {online.includes(other) && <span className="presence" aria-label="online" />}
@@ -485,7 +541,7 @@ export default function ChatView({ route }) {
                     <span>{day === todayIso() ? 'Today' : relativeDay(day)}</span>
                   </div>
                 )}
-                <Message m={m} first={first} me={me} people={peopleMap} h12={h12} onReply={setReply} onEdit={edit} onDelete={remove} editing={editing === m.id} setEditing={setEditing} replyTo={m.reply ? byId.get(m.reply) : null} />
+                <Message m={m} first={first} me={me} people={peopleMap} h12={h12} onReply={setReply} onEdit={edit} onDelete={remove} onMenu={messageMenu} editing={editing === m.id} setEditing={setEditing} replyTo={m.reply ? byId.get(m.reply) : null} />
               </div>
             )
           })}
@@ -583,6 +639,7 @@ export default function ChatView({ route }) {
           {people.length < 2 && <p className="muted">No one else is here yet. Invite people to a workspace from Settings → Members.</p>}
         </div>
       </Dialog>
+      {menu && <MenuPopup anchor={menu.anchor} items={menu.items} onClose={() => setMenu(null)} />}
     </div>
   )
 }

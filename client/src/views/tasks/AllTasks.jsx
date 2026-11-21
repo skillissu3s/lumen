@@ -3,7 +3,8 @@
 // a day.
 import { useMemo, useState } from 'react'
 import { CalendarDays, ChevronLeft, ChevronRight, ListFilter, PanelRight, Plus, Search } from 'lucide-react'
-import { IconButton, Menu, Segmented } from '../../components/ui/index.js'
+import { IconButton, Menu, MenuPopup, Segmented } from '../../components/ui/index.js'
+import { taskMenu } from './TaskRow.jsx'
 import { useAcross, useListsAcross } from '../../store/hooks.js'
 import { usePrefs } from '../../store/prefs.js'
 import { useWorkspace } from '../../store/workspace.js'
@@ -57,7 +58,7 @@ function columnsFor(group, today, lists) {
   }
 }
 
-function Column({ col, cards, settingsOf, labels, onOpen, h12, defaultBoard }) {
+function Column({ col, cards, settingsOf, labels, onOpen, onMenu, h12, defaultBoard }) {
   const [over, setOver] = useState(false)
   const [adding, setAdding] = useState(false)
   const droppable = !!(col.patch || col.board)
@@ -95,7 +96,7 @@ function Column({ col, cards, settingsOf, labels, onOpen, h12, defaultBoard }) {
       </header>
       <div className="pb-cards">
         {cards.map((item) => (
-          <Card key={`${item.path}#${item.id}`} item={item} labelColors={settingsOf(item.path).labels} labels={labels} cover={settingsOf(item.path).covers[item.id]} showBoard={!col.board} h12={h12} onOpen={onOpen} />
+          <Card key={`${item.path}#${item.id}`} item={item} labelColors={settingsOf(item.path).labels} labels={labels} cover={settingsOf(item.path).covers[item.id]} showBoard={!col.board} h12={h12} onOpen={onOpen} onMenu={(e) => onMenu(e, item)} />
         ))}
         {!cards.length && <div className="pb-empty">{droppable ? 'Drop a card here' : 'Nothing here'}</div>}
       </div>
@@ -199,6 +200,12 @@ function ScheduleRail({ cards, today, weekStart, onOpen, onHide }) {
 export default function AllTasks({ route }) {
   // in your candle, other spaces' boards too (docs/CANDLES.md)
   const lists = useListsAcross()
+  // right-click on a card: open it, or what its task menu does
+  const [menu, setMenu] = useState(null)
+  const cardMenu = (e, item) => {
+    e.preventDefault()
+    setMenu({ anchor: { x: e.clientX, y: e.clientY }, items: [{ label: 'Open', onSelect: () => setOpen({ path: item.path, id: item.id }) }, 'separator', ...taskMenu(item, lists)] })
+  }
   const { files } = useAcross()
   const prefs = usePrefs()
   const today = todayIso()
@@ -276,12 +283,13 @@ export default function AllTasks({ route }) {
             .map((col) => {
               const list = cards.filter((i) => col.test(i) && (showDone || isOpen(i.status) || col.id === 'done'))
               const sorted = col.id === 'done' ? list.sort((a, b) => (b.done || '').localeCompare(a.done || '')).slice(0, 50) : list.sort((a, b) => compareItems(a, b) || priorityRank(b.priority) - priorityRank(a.priority))
-              return <Column key={col.id} col={col} cards={sorted} settingsOf={settingsOf} labels={labels} onOpen={(i) => setOpen({ path: i.path, id: i.id })} h12={h12} defaultBoard={defaultBoard} />
+              return <Column key={col.id} col={col} cards={sorted} settingsOf={settingsOf} labels={labels} onOpen={(i) => setOpen({ path: i.path, id: i.id })} onMenu={cardMenu} h12={h12} defaultBoard={defaultBoard} />
             })}
         </div>
         {rail && <ScheduleRail cards={cards} today={today} weekStart={prefs.weekStart} onOpen={(i) => setOpen({ path: i.path, id: i.id })} onHide={toggleRail} />}
       </div>
       {open && <CardDialog path={open.path} id={open.id} onClose={() => setOpen(null)} />}
+      {menu && <MenuPopup anchor={menu.anchor} items={menu.items} onClose={() => setMenu(null)} />}
     </div>
   )
 }

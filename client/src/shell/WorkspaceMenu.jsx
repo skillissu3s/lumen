@@ -5,7 +5,7 @@
 // account), or how to get one (without); last, what the space you're in offers.
 import { useState } from 'react'
 import { Check, ChevronDown, Cloud, Database, FolderGit2, GitBranch, Link2, Plus, Puzzle, UserPlus } from 'lucide-react'
-import { Button, Dialog, Field, Input, Popover } from '../components/ui/index.js'
+import { Button, Dialog, Field, Input, MenuPopup, Popover } from '../components/ui/index.js'
 import { useSession, useHasAccount } from '../store/session.js'
 import { useSpaces, useCurrentSpace } from '../store/spaces.js'
 import { api } from '../lib/api.js'
@@ -127,6 +127,7 @@ export function WorkspaceMenu({ compact = false }) {
   const current = useCurrentSpace()
   const [anchor, setAnchor] = useState(null)
   const [dialog, setDialog] = useState(null) // 'new' | 'join'
+  const [spaceMenu, setSpaceMenu] = useState(null) // right-click on a space: { anchor, items }
   const manager = current.kind === 'candle' || current.role === 'owner' || current.role === 'admin'
   const name = spaceName(current, user)
   const close = () => setAnchor(null)
@@ -189,6 +190,23 @@ export function WorkspaceMenu({ compact = false }) {
                       close()
                       if (!on) useSpaces.getState().open(s.prefix)
                     }}
+                    onContextMenu={(e) => {
+                      e.preventDefault()
+                      // go there first: settings are always the open space's
+                      const visit = (to) => () => {
+                        close()
+                        if (!on) useSpaces.getState().open(s.prefix)
+                        if (to) navigate(to)
+                      }
+                      setSpaceMenu({
+                        anchor: { x: e.clientX, y: e.clientY },
+                        items: [
+                          { label: on ? 'You’re here' : 'Open', disabled: on, onSelect: visit() },
+                          ...(s.kind !== 'shared' ? [{ label: 'Settings', onSelect: visit('/settings/workspace') }] : []),
+                          ...(account && s.kind === 'workspace' ? [{ label: 'Members', onSelect: visit('/settings/members') }] : []),
+                        ],
+                      })
+                    }}
                   >
                     <WorkspaceMark name={spaceName(s, user)} kind={s.kind} size={28} />
                     <span className="space-text">
@@ -249,6 +267,7 @@ export function WorkspaceMenu({ compact = false }) {
           </div>
         )}
       </Popover>
+      {spaceMenu && <MenuPopup anchor={spaceMenu.anchor} items={spaceMenu.items} onClose={() => setSpaceMenu(null)} />}
       <NewWorkspace open={dialog === 'new'} onClose={() => setDialog(null)} />
       <JoinWorkspace open={dialog === 'join'} onClose={() => setDialog(null)} />
     </>

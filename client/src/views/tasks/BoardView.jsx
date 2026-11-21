@@ -2,13 +2,15 @@
 // changes that field on the task's line.
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
-import { TaskCheckbox } from '../../components/ui/index.js'
+import { MenuPopup, TaskCheckbox } from '../../components/ui/index.js'
+import { useLists } from '../../store/hooks.js'
+import { taskMenu } from './TaskRow.jsx'
 import { addTask, toggleTask, updateItem } from '../../lib/actions.js'
 import { relativeDay, todayIso } from '../../../../shared/dates.js'
 import { isOpen, itemDay } from '../../../../shared/items.js'
 import { BOARD, progressOf } from './taskQueries.js'
 
-function Card({ item, onOpen, colIndex, cols, onMove }) {
+function Card({ item, onOpen, onMenu, colIndex, cols, onMove }) {
   const today = todayIso()
   const day = itemDay(item)
   const prog = progressOf(item)
@@ -24,6 +26,7 @@ function Card({ item, onOpen, colIndex, cols, onMove }) {
         e.dataTransfer.setData('application/x-lumen-item', JSON.stringify({ path: item.path, id: item.id }))
       }}
       onClick={(e) => !e.target.closest('button') && onOpen(item)}
+      onContextMenu={(e) => onMenu(e, item)}
       onKeyDown={(e) => {
         if (e.key === 'Enter') onOpen(item)
         else if (e.key === ' ') {
@@ -59,6 +62,12 @@ export function BoardView({ list, group = 'status', onOpen }) {
   const items = list.items.filter((i) => i.kind === 'task').map((i) => ({ ...i, path: list.path }))
   const [over, setOver] = useState(null)
   const [adding, setAdding] = useState(null)
+  const lists = useLists()
+  const [menu, setMenu] = useState(null)
+  const cardMenu = (e, item) => {
+    e.preventDefault()
+    setMenu({ anchor: { x: e.clientX, y: e.clientY }, items: [{ label: 'Open', onSelect: () => onOpen(item) }, 'separator', ...taskMenu(item, lists)] })
+  }
   const move = (item, col) => {
     if (spec.of(item, today) === col) return
     const patch = spec.patch(col, today)
@@ -96,7 +105,7 @@ export function BoardView({ list, group = 'status', onOpen }) {
             </header>
             <div className="bcol-cards" role="list">
               {cards.map((item) => (
-                <Card key={item.id} item={item} onOpen={onOpen} colIndex={ci} cols={spec.columns} onMove={move} />
+                <Card key={item.id} item={item} onOpen={onOpen} onMenu={cardMenu} colIndex={ci} cols={spec.columns} onMove={move} />
               ))}
             </div>
             {col.id !== 'done' && col.id !== 'overdue' &&
@@ -125,6 +134,7 @@ export function BoardView({ list, group = 'status', onOpen }) {
           </section>
         )
       })}
+      {menu && <MenuPopup anchor={menu.anchor} items={menu.items} onClose={() => setMenu(null)} />}
     </div>
   )
 }

@@ -2,7 +2,7 @@
 // adjustable, every action available from the keyboard.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Download, PanelRight, Search, SlidersHorizontal, Upload } from 'lucide-react'
-import { Button, Dialog, IconButton, Popover, Segmented, Select, Switch, Tooltip } from '../../components/ui/index.js'
+import { Button, Dialog, IconButton, MenuPopup, Popover, Segmented, Select, Switch, Tooltip } from '../../components/ui/index.js'
 import { useAcross, useCalendarsAcross, useListsAcross } from '../../store/hooks.js'
 import { useSpaces, useSpaceLabels } from '../../store/spaces.js'
 import { useWorkspace, canEdit } from '../../store/workspace.js'
@@ -243,6 +243,41 @@ export default function CalendarView({ route }) {
     finish()
   }
 
+  const duplicateOcc = (o) => {
+    const i = o.item
+    const fields = { title: i.title, date: o.date, time: i.time || null, duration: i.duration || null, color: i.color || null, notes: i.notes || '' }
+    if (i.kind === 'task') addTask(i.path, { ...fields, priority: i.priority || null })
+    else addEvent(i.path, { ...fields, location: i.location || null })
+    setPreview(null)
+    toast('Duplicated', { tone: 'success' })
+  }
+
+  // right-click on any event or dated task, in any view: what its preview offers
+  const [menu, setMenu] = useState(null)
+  const occMenu = (e) => {
+    const o = occs.find((x) => x.key === e.target.closest('[data-key]')?.dataset.key)
+    if (!o) return
+    e.preventDefault()
+    const at = { x: e.clientX, y: e.clientY }
+    const task = o.item.kind === 'task'
+    const mine = canEdit(o.item.path)
+    setMenu({
+      anchor: at,
+      items: [
+        { label: 'Open', onSelect: () => openOcc(o, at) },
+        ...(mine && !o.ghost
+          ? [
+              { label: 'Edit', onSelect: () => editOcc(o, at) },
+              ...(task ? [{ label: isOpen(o.item.status) ? 'Complete' : 'Mark as open', onSelect: () => toggle(o) }] : []),
+              { label: 'Duplicate', onSelect: () => duplicateOcc(o) },
+              'separator',
+              { label: o.series ? 'Delete…' : 'Delete', danger: true, onSelect: () => deleteOcc(o) },
+            ]
+          : []),
+      ],
+    })
+  }
+
   const deleteOcc = (o) => {
     setEditor(null)
     setPreview(null)
@@ -395,7 +430,7 @@ export default function CalendarView({ route }) {
       </header>
 
       <div className="cal-body">
-        <div className="cal-main">
+        <div className="cal-main" onContextMenu={occMenu}>
           {view === 'timeline' && <TimelineView date={date} {...common} />}
           {(view === 'day' || view === 'week') && <TimeGrid days={days} {...common} onMove={moveOcc} onDropItem={dropItem} draft={editor?.isNew ? editor.value : null} announce={announce} />}
           {view === 'month' && <MonthView days={days} focus={date} {...common} onMoveDay={moveDay} />}
@@ -478,17 +513,11 @@ export default function CalendarView({ route }) {
             setCard({ path: preview.o.item.path, id: preview.o.item.id })
             setPreview(null)
           }}
-          onDuplicate={() => {
-            const i = preview.o.item
-            const fields = { title: i.title, date: preview.o.date, time: i.time || null, duration: i.duration || null, color: i.color || null, notes: i.notes || '' }
-            if (i.kind === 'task') addTask(i.path, { ...fields, priority: i.priority || null })
-            else addEvent(i.path, { ...fields, location: i.location || null })
-            setPreview(null)
-            toast('Duplicated', { tone: 'success' })
-          }}
+          onDuplicate={() => duplicateOcc(preview.o)}
         />
       )}
       {card && <CardDialog path={card.path} id={card.id} onClose={() => setCard(null)} />}
+      {menu && <MenuPopup anchor={menu.anchor} items={menu.items} onClose={() => setMenu(null)} />}
 
       <Dialog
         open={!!scope}

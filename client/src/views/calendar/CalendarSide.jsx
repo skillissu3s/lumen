@@ -6,7 +6,7 @@
 // sharing with you), and a whole space can be shown or hidden at once.
 import { useMemo, useRef, useState } from 'react'
 import { ChevronDown, Eye as EyeIcon, EyeOff, MoreHorizontal, Plus } from 'lucide-react'
-import { Menu, MiniMonth } from '../../components/ui/index.js'
+import { ContextMenu, Menu, MiniMonth } from '../../components/ui/index.js'
 import { formatTime, relativeDay } from '../../../../shared/dates.js'
 import { expand } from '../../../../shared/calendar.js'
 import { isOpen, itemDay } from '../../../../shared/items.js'
@@ -43,6 +43,7 @@ function Section({ id, title, count, folded, onFold, action, children }) {
 function Source({ id, name, color, on, note, onToggle, menu }) {
   const Eye = on ? EyeIcon : EyeOff
   return (
+    <ContextMenu items={[{ label: on ? `Hide ${name}` : `Show ${name}`, onSelect: onToggle }, ...(menu ? ['separator', ...menu] : [])]}>
     <div id={id} className={`cal-src${on ? '' : ' is-hidden'}`}>
       <button type="button" aria-pressed={on} aria-label={`${on ? 'Hide' : 'Show'} ${name}`} className="cal-src-toggle" style={{ '--sc': `var(--c-${color})` }} onClick={onToggle}>
         <span className="cal-src-dot" aria-hidden="true" />
@@ -52,6 +53,7 @@ function Source({ id, name, color, on, note, onToggle, menu }) {
       </button>
       {menu && <Menu align="end" items={menu} trigger={<button type="button" className="cal-src-more" aria-label={`${name} options`}><MoreHorizontal size={14} /></button>} />}
     </div>
+    </ContextMenu>
   )
 }
 

@@ -837,3 +837,17 @@ settable right on a card; drop the calendar's New button.
   Opened signed out, it waits in sessionStorage through signing in.
 - `/mcp` without a token answers with `WWW-Authenticate: Bearer
   resource_metadata=…` again, now that there is somewhere to sign in.
+
+### Right-click everywhere, and leaving a chat edit
+- Right-click already worked on task rows, board cards, the sidebar's boards,
+  docs and idea boards (`ContextMenu`, or a `MenuPopup` at the pointer). It
+  was missing on All tasks' cards, the list board view, calendar events,
+  calendar sources, spaces, and chat; those now open the same items as their
+  buttons. The calendar finds the event under the pointer by `data-key`, so one
+  handler serves every view.
+- A chat edit only listened for Esc in its own textarea, and a menu closing
+  hands the focus back to where it came from, so after choosing Edit from a
+  menu (or clicking anywhere) Esc did nothing and the only way out was to
+  save. While editing, Esc now cancels from anywhere (a menu's own Esc is
+  marked handled so it closes just the menu), the box takes the focus after
+  the menu lets go, and there are Cancel and Save buttons.

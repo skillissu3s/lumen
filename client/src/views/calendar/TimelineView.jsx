@@ -68,7 +68,7 @@ export function TimelineView({ date, occs, settings, h12, onCreate, onOpen, onTo
               const color = colorOf(o.item, colorBy)
               const done = o.item.kind === 'task' && !isOpen(o.item.status)
               return (
-                <div key={o.key} className={`tl-untimed-item${done ? ' is-done' : ''}`} style={{ '--c': `var(--c-${color})`, '--c-bg': `var(--c-${color}-bg)` }}>
+                <div key={o.key} data-key={o.key} className={`tl-untimed-item${done ? ' is-done' : ''}`} style={{ '--c': `var(--c-${color})`, '--c-bg': `var(--c-${color}-bg)` }}>
                   {o.item.kind === 'task' ? (
                     <button type="button" className="tl-mini-check" aria-label={done ? 'Mark as open' : 'Complete'} onClick={() => onToggle(o)}>
                       {done && <Check size={9} strokeWidth={3} />}
@@ -113,7 +113,7 @@ export function TimelineView({ date, occs, settings, h12, onCreate, onOpen, onTo
             const live = running.includes(o)
             const height = pillHeight(o.duration)
             return (
-              <li key={o.key} className={`tl-item${past ? ' is-past' : ''}${live ? ' is-live' : ''}${o.ghost ? ' is-ghost' : ''}`}>
+              <li key={o.key} data-key={o.key} className={`tl-item${past ? ' is-past' : ''}${live ? ' is-live' : ''}${o.ghost ? ' is-ghost' : ''}`}>
                 {live && <span className="tl-now-mark" style={{ top: 4 + ((now - o.top) / o.duration) * height }} aria-hidden="true" />}
                 <span className="tl-time tabular">
                   {formatTime(o.time, h12)}

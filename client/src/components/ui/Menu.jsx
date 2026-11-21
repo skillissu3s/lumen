@@ -68,6 +68,8 @@ export function MenuPopup({ anchor, align = 'start', items = [], onClose }) {
   function onKeyDown(event) {
     const active = itemRefs.current.findIndex((node) => node === document.activeElement)
     if (event.key === 'Escape') {
+      // Esc closes this menu and nothing behind it
+      event.preventDefault()
       event.stopPropagation()
       onClose()
     } else if (event.key === 'ArrowDown') {
