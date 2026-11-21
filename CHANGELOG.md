@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.12.1 — right-click everywhere, and chat edits you can leave
 
 - **Editing a chat message never traps you.** Esc leaves the edit wherever
   you clicked last, and Cancel and Save buttons sit under the box. The box also
