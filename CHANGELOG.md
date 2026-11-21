@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.11.3 — a deleted workspace stays deleted
 
 - **A workspace you delete stays deleted.** Deleting the server's first
   workspace (the "Workspace" every server starts with) no longer brings back a
