@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.12.2 — every board in your candle, in your order
 
 - **Your workspaces' boards in your candle.** The sidebar of your candle lists
   the boards of your workspaces (and those shared with you) beside your own,
