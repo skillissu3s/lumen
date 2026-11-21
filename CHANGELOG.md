@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.11.0 — AI agents space by space, and a clean restore
 
 - **AI agents, space by space.** Give an agent all your spaces at one level,
   or choose spaces one by one: look only in your candle, change and delete in
