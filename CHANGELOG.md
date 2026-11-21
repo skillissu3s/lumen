@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.10.1 — sync that keeps going, and a server that gets its data back
 
 - **Sync keeps going past a file it can't handle.** One file the desktop app
   can't read or save no longer stops everything with a cryptic error ("Cannot
