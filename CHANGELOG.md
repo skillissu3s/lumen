@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.11.1 — agent tokens in their own header
 
 - **AI agents can send their token as `X-Lumen-Token`.** Some apps don't let
   you name a header Authorization (they keep it for their own sign-in); Lumen
